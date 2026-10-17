@@ -84,7 +84,12 @@ rayon = { workspace = true }
 workspace = true
 
 [profile.release]
+strip = true
+
+[profile.profiling]
+inherits = "release"
 debug = true
+strip = false
 
 [[bench]]
 name = "index_bench"
