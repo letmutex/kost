@@ -119,7 +119,7 @@ impl MiniClap {
         for flag in &self.flags {
             buffer.push_str("    ");
             if colorize {
-                buffer.push_str(common::color::BLUE);
+                buffer.push_str(common::color::CYAN);
                 buffer.push_str(flag.short);
                 buffer.push_str(", ");
                 buffer.push_str(flag.long);

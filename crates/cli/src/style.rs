@@ -1,4 +1,4 @@
-use common::color::{BLUE, BOLD_GREEN, CYAN, RESET, wrap_styled};
+use common::color::{BOLD_GREEN, CYAN, RESET, wrap_styled};
 
 /// Returns the error prefix tag (`error:`) with optional bold red ANSI styling.
 pub fn error_prefix(colorize: bool) -> &'static str {
@@ -9,10 +9,10 @@ pub fn error_prefix(colorize: bool) -> &'static str {
     }
 }
 
-/// Returns the help flag option (`--help`) with optional blue ANSI styling.
+/// Returns the help flag option (`--help`) with optional cyan ANSI styling.
 pub fn help_option(colorize: bool) -> &'static str {
     if colorize {
-        "\x1b[34m--help\x1b[0m"
+        "\x1b[36m--help\x1b[0m"
     } else {
         "--help"
     }
@@ -29,7 +29,7 @@ pub fn push_header(buffer: &mut String, header_text: &str, colorize: bool) {
     }
 }
 
-/// Appends a styled option flag (blue) to the target string buffer.
+/// Appends a styled option flag (cyan) to the target string buffer.
 pub fn push_option(buffer: &mut String, option_text: &str, colorize: bool) {
     if colorize {
         buffer.push_str(CYAN);
@@ -56,9 +56,9 @@ pub fn style_header(text: &str, colorize: bool) -> String {
     wrap_styled(text, BOLD_GREEN, colorize)
 }
 
-/// Styles option text in blue.
+/// Styles option text in cyan.
 pub fn style_option(text: &str, colorize: bool) -> String {
-    wrap_styled(text, BLUE, colorize)
+    wrap_styled(text, CYAN, colorize)
 }
 
 /// Styles placeholder or command text in cyan.
