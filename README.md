@@ -12,18 +12,26 @@ Fast JVM-free Kotlin static linter, formatter, and language server.
 
 ## Installations
 
-- Download binaries from [GitHub Release](https://github.com/letmutex/kost/releases)
-
-- Install using Cargo: 
+- Terminal:
 
 ```bash
-cargo install kost
+# Linux / macOS
+curl -fsSL https://raw.githubusercontent.com/letmutex/kost/main/install.sh | sh
 ```
+
+```powershell
+# Windows
+irm https://raw.githubusercontent.com/letmutex/kost/main/install.ps1 | iex
+```
+
+- Download binaries from [GitHub Releases](https://github.com/letmutex/kost/releases).
+
+- Install using Cargo: `cargo install kost`
 
 - Build from source: 
 
 ```bash
-git clone https://github.com/letmutex/lost.git
+git clone https://github.com/letmutex/kost.git
 cd kost
 cargo build --release
 ```
