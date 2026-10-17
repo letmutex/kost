@@ -103,7 +103,6 @@ $hashUrl = "https://github.com/$repo/releases/download/$tag/$hashName"
 
 # 2. Check local and remote version, skip if latest version is installed
 $targetBinary = Join-Path $InstallDir "kost.exe"
-$versionFile = Join-Path $InstallDir ".version"
 $existingKost = $null
 if (Test-Path -Path $targetBinary) {
     $existingKost = $targetBinary
@@ -117,16 +116,7 @@ if (Test-Path -Path $targetBinary) {
 $localVersion = $null
 $isUpdate = $false
 
-# Check .version file first
-if (Test-Path -Path $versionFile) {
-    $localVersion = (Get-Content -Path $versionFile -Raw).Trim()
-    if ($localVersion) {
-        $isUpdate = $true
-    }
-}
-
-# Fall back to checking existing binary --version
-if (-not $localVersion -and $existingKost) {
+if ($existingKost) {
     try {
         $rawVersion = (& $existingKost --version 2>$null) -join "`n"
         if ($rawVersion -match '([0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9\.\-]*)') {
@@ -203,8 +193,6 @@ try {
     } else {
         Copy-Item -Path $binaryPath -Destination $targetBinary -Force
     }
-
-    Set-Content -Path $versionFile -Value $tag -Force
 } finally {
     # 5. Cleanup archive and temporary files
     if (Test-Path -Path $tempDir) {

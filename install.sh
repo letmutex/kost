@@ -169,7 +169,6 @@ DOWNLOAD_URL="https://github.com/${REPO}/releases/download/${TAG}/${ARCHIVE_NAME
 HASH_URL="https://github.com/${REPO}/releases/download/${TAG}/${HASH_NAME}"
 
 # 5. Check local and remote version, skip if latest version is installed
-VERSION_FILE="${INSTALL_DIR}/.version"
 EXISTING_KOST=""
 if [ -x "${INSTALL_DIR}/${BIN_NAME}" ]; then
   EXISTING_KOST="${INSTALL_DIR}/${BIN_NAME}"
@@ -180,14 +179,7 @@ fi
 IS_UPDATE=0
 LOCAL_VER=""
 
-if [ -f "$VERSION_FILE" ]; then
-  LOCAL_VER="$(cat "$VERSION_FILE" 2>/dev/null | tr -d '\r\n')"
-  if [ -n "$LOCAL_VER" ]; then
-    IS_UPDATE=1
-  fi
-fi
-
-if [ -z "$LOCAL_VER" ] && [ -n "$EXISTING_KOST" ]; then
+if [ -n "$EXISTING_KOST" ]; then
   LOCAL_VER_RAW="$("$EXISTING_KOST" --version 2>/dev/null || true)"
   LOCAL_VER="$(echo "$LOCAL_VER_RAW" | awk '{print $NF}' | sed 's/^v//')"
   if [ -n "$LOCAL_VER" ]; then
@@ -280,8 +272,6 @@ TMP_INSTALL_BIN="$INSTALL_DIR/${BIN_NAME}.tmp.$$"
 cp -f "$EXTRACTED_BIN" "$TMP_INSTALL_BIN"
 chmod +x "$TMP_INSTALL_BIN"
 mv -f "$TMP_INSTALL_BIN" "$INSTALL_DIR/$BIN_NAME"
-
-echo "$TAG" > "$VERSION_FILE"
 
 # 9. Check PATH and print add install path to path env or update success message
 INSTALL_DIR_CLEAN="${INSTALL_DIR%/}"
