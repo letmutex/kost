@@ -1,0 +1,2 @@
+2:5: [warning] standard:no-line-break-before-assignment: Line break is not allowed before '='
+7:9: [warning] standard:no-line-break-before-assignment: Line break is not allowed before '='

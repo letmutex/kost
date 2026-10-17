@@ -1,0 +1,4 @@
+1:18: [warning] standard:no-empty-class-body: Unnecessary block ("{}")
+3:26: [warning] standard:no-empty-class-body: Unnecessary block ("{}")
+6:20: [warning] standard:no-empty-class-body: Unnecessary block ("{}")
+9:22: [warning] standard:no-empty-class-body: Unnecessary block ("{}")

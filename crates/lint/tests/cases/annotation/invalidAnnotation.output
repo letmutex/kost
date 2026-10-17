@@ -1,0 +1,5 @@
+2:5: [warning] standard:annotation: Expected newline after last annotation
+3:12: [warning] standard:annotation: Expected newline after last annotation
+4:12: [warning] standard:annotation: Expected newline after last annotation
+4:12: [warning] standard:annotation: Expected newline before annotation
+5:5: [warning] standard:annotation: Expected newline after last annotation

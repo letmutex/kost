@@ -1,0 +1,11 @@
+[versions]
+kotlin = "2.0.20"
+coreKtx = "1.15.0"
+gson = "2.10.1"
+
+compose = "1.10.2"
+
+[libraries]
+androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+gson = { module = "com.google.code.gson:gson", version.ref = "gson" }
+compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose" }

@@ -1,0 +1,2 @@
+4:1: [warning] standard:no-blank-line-before-rbrace: Unexpected blank line(s) before "}"
+9:1: [warning] standard:no-blank-line-before-rbrace: Unexpected blank line(s) before "}"

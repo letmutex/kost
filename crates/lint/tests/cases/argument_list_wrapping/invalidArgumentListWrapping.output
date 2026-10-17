@@ -1,0 +1,3 @@
+6:9: [warning] standard:argument-list-wrapping: Argument should be on a separate line (unless all arguments can fit a single line)
+7:12: [warning] standard:argument-list-wrapping: Argument should be on a separate line (unless all arguments can fit a single line)
+7:13: [warning] standard:argument-list-wrapping: Missing newline before ")"

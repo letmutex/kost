@@ -1,0 +1,5 @@
+1:13: [warning] standard:type-argument-list-spacing: Unexpected spacing before '<'
+2:12: [warning] standard:type-argument-list-spacing: Unexpected spacing after '<'
+3:17: [warning] standard:type-argument-list-spacing: Unexpected spacing before '>'
+4:16: [warning] standard:type-argument-list-spacing: Unexpected spacing after '>'
+5:20: [warning] standard:type-argument-list-spacing: Unexpected spacing before '<'

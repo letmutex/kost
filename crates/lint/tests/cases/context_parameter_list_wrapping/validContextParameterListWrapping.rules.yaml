@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - "standard:context-parameter-list-wrapping"

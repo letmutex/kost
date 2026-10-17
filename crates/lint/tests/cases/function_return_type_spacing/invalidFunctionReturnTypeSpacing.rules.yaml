@@ -1,0 +1,5 @@
+lint:
+  includes:
+    - path: standard
+      rules:
+        - function-return-type-spacing

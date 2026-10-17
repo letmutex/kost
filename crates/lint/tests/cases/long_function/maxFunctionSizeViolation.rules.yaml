@@ -1,0 +1,9 @@
+lint:
+  rules:
+    - id: max-function-size
+      severity: warning
+      options:
+        limit: 3
+      where:
+        function.lines: gt(options.limit)
+      message: "Function '${function.name}' exceeds limit ${options.limit}"

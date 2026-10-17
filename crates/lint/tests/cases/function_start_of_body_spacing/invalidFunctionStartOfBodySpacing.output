@@ -1,0 +1,4 @@
+1:10: [warning] standard:function-start-of-body-spacing: Missing spacing before '{'
+5:10: [warning] standard:function-start-of-body-spacing: Missing spacing before '='
+6:12: [warning] standard:function-start-of-body-spacing: Unexpected spacing before '='
+9:1: [warning] standard:function-start-of-body-spacing: Unexpected spacing before '{'

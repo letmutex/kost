@@ -1,0 +1,4 @@
+4:22: [warning] standard:chain-method-continuation: Expected newline before '.'
+4:40: [warning] standard:chain-method-continuation: Expected newline before '.'
+4:51: [warning] standard:chain-method-continuation: Expected newline before '.'
+4:60: [warning] standard:chain-method-continuation: Expected newline before '.'

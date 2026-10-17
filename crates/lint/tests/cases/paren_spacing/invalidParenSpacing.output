@@ -1,0 +1,6 @@
+1:8: [warning] standard:paren-spacing: Unexpected spacing after '('
+1:25: [warning] standard:paren-spacing: Unexpected spacing before ')'
+2:13: [warning] standard:paren-spacing: Unexpected spacing after '('
+2:21: [warning] standard:paren-spacing: Unexpected spacing before ')'
+3:13: [warning] standard:paren-spacing: Unexpected spacing after '('
+4:17: [warning] standard:paren-spacing: Unexpected spacing before ')'

@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:no-empty-first-line-in-method-block

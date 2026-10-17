@@ -1,0 +1,4 @@
+1:14: [warning] standard:type-parameter-comment: A comment in a 'type_parameter_list' is only allowed when placed on a separate line
+2:13: [warning] standard:type-parameter-comment: A comment in a 'type_parameter_list' is only allowed when placed on a separate line
+3:11: [warning] standard:type-parameter-comment: A comment in a 'type_parameter_list' is only allowed when placed on a separate line
+

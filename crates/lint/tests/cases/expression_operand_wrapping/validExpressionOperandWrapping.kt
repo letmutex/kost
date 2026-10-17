@@ -1,0 +1,8 @@
+package com.example
+
+fun validExpressions() {
+    val a = 1 + 2
+    val b = 1 +
+        2 +
+        3
+}

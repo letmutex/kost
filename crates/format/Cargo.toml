@@ -1,0 +1,20 @@
+[package]
+name = "format"
+version = "1.0.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Kotlin code formatting engine for kost"
+
+[dependencies]
+common = { path = "../common" }
+cli = { path = "../cli" }
+thiserror = "2.0"
+tree-sitter = "0.22"
+tree-sitter-kotlin = { path = "../../vendor/tree-sitter-kotlin" }
+smol_str = "0.3"
+rayon = { workspace = true }
+ahash = "0.8"
+similar = { workspace = true }
+
+[lints]
+workspace = true

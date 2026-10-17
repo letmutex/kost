@@ -1,0 +1,5 @@
+1:17: [warning] standard:spacing-around-angle-brackets: Unexpected spacing before '<'
+3:16: [warning] standard:spacing-around-angle-brackets: Unexpected spacing after '<'
+5:24: [warning] standard:spacing-around-angle-brackets: Unexpected spacing before '>'
+7:11: [warning] standard:spacing-around-angle-brackets: Unexpected spacing before '<'
+10:5: [warning] standard:spacing-around-angle-brackets: Unexpected spacing before '<'

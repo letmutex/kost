@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:no-consecutive-blank-lines

@@ -1,0 +1,2 @@
+4:15: [warning] standard:binary-expression-wrapping: Line must not end with "+"
+6:15: [warning] standard:binary-expression-wrapping: Line must not end with "+"

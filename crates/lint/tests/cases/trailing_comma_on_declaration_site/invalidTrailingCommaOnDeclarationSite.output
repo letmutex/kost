@@ -1,0 +1,4 @@
+3:5: [warning] standard:trailing-comma-on-declaration-site: Missing trailing comma
+8:5: [warning] standard:trailing-comma-on-declaration-site: Missing trailing comma
+13:5: [warning] standard:trailing-comma-on-declaration-site: Missing trailing comma
+16:26: [warning] standard:trailing-comma-on-declaration-site: Unnecessary trailing comma

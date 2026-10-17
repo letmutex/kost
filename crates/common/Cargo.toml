@@ -1,0 +1,16 @@
+[package]
+name = "common"
+version = "1.0.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Common types and utilities for kost"
+
+[dependencies]
+ignore = "0.4"
+smol_str = "0.3"
+ahash = "0.8"
+regex = "1"
+
+[lints]
+workspace = true
+

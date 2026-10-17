@@ -1,0 +1,5 @@
+1:8: [warning] standard:parameter-list-spacing: Unexpected spacing after '('
+2:8: [warning] standard:parameter-list-spacing: Unexpected spacing after '('
+2:28: [warning] standard:parameter-list-spacing: Unexpected spacing before ')'
+3:10: [warning] standard:parameter-list-spacing: Unexpected spacing after '('
+3:26: [warning] standard:parameter-list-spacing: Unexpected spacing before ')'

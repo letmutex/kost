@@ -1,0 +1,2 @@
+1:16: [warning] standard:double-colon-spacing: Unexpected spacing before '::'
+2:15: [warning] standard:double-colon-spacing: Unexpected spacing after '::'

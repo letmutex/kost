@@ -1,0 +1,3 @@
+2:5: [warning] standard:enum-entry-name-case: Enum entry name should be uppercase underscore-separated names like "ENUM_ENTRY" or upper camel-case like "EnumEntry"
+3:5: [warning] standard:enum-entry-name-case: Enum entry name should be uppercase underscore-separated names like "ENUM_ENTRY" or upper camel-case like "EnumEntry"
+4:24: [warning] standard:enum-entry-name-case: Enum entry name should be uppercase underscore-separated names like "ENUM_ENTRY" or upper camel-case like "EnumEntry"

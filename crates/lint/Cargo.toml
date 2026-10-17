@@ -1,0 +1,25 @@
+[package]
+name = "lint"
+version = "1.0.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Kotlin linting engine for kost"
+
+[dependencies]
+common = { path = "../common" }
+cli = { path = "../cli" }
+tree-sitter = "0.22"
+tree-sitter-kotlin = { path = "../../vendor/tree-sitter-kotlin" }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+smol_str = { version = "0.3", features = ["serde"] }
+smallvec = { version = "1", features = ["serde"] }
+indexmap = { version = "2", features = ["serde"] }
+regex = "1"
+thiserror = "2"
+ahash = "0.8"
+rayon = { workspace = true }
+
+[lints]
+workspace = true
+

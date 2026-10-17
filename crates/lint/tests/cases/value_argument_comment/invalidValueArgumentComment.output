@@ -1,0 +1,4 @@
+3:11: [warning] standard:value-argument-comment: A (block or EOL) comment inside or on same line after a 'value_argument' is not allowed. It may be placed on a separate line above.
+5:11: [warning] standard:value-argument-comment: A (block or EOL) comment inside or on same line after a 'value_argument' is not allowed. It may be placed on a separate line above.
+6:12: [warning] standard:value-argument-comment: A (block or EOL) comment inside or on same line after a 'value_argument' is not allowed. It may be placed on a separate line above.
+

@@ -1,0 +1,2 @@
+3:9: [warning] standard:parameter-wrapping: Unexpected newline before '='
+7:24: [warning] standard:parameter-wrapping: Parameter should start on a newline

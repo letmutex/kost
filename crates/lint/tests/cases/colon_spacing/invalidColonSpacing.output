@@ -1,0 +1,3 @@
+3:12: [warning] standard:colon-spacing: Missing spacing before ':'
+5:7: [warning] standard:colon-spacing: Unexpected spacing before ':'
+6:6: [warning] standard:colon-spacing: Missing spacing after ':'

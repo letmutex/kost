@@ -1,0 +1,9 @@
+lint:
+  rules:
+    - id: max-params
+      severity: error
+      options:
+        max: 2
+      where:
+        function.parameters_count: gt(options.max)
+      message: "Too many params"

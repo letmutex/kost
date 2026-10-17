@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:no-blank-line-at-start-of-file

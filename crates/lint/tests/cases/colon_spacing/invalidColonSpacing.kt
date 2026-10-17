@@ -1,0 +1,6 @@
+open class Parent
+
+class Child: Parent()
+
+val x : Int = 1
+val y:Int = 2

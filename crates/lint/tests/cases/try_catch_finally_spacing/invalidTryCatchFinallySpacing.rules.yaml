@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - "standard:try-catch-finally-spacing"

@@ -1,0 +1,4 @@
+2:5: [warning] standard:kdoc: A KDoc is not allowed inside a block or function body
+6:9: [warning] standard:kdoc: A KDoc is allowed only at start of declaration
+8:1: [warning] standard:kdoc: A dangling toplevel KDoc is not allowed
+

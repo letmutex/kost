@@ -1,0 +1,86 @@
+[package]
+name = "kost"
+version = "0.1.0"
+edition = "2024"
+authors = ["letmutex"]
+license = "Apache-2.0"
+description = "Fast JVM-free Kotlin static linter, formatter, and language server"
+repository = "https://github.com/letmutex/kost"
+homepage = "https://github.com/letmutex/kost"
+documentation = "https://docs.rs/kost"
+keywords = ["kotlin", "lsp", "language-server", "linter", "formatter", "static-analysis"]
+categories = ["development-tools"]
+readme = "README.md"
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/cli",
+    "crates/lsp",
+    "crates/lint",
+    "crates/format",
+    "crates/update",
+    "crates/common",
+]
+exclude = [
+    "vendor/tree-sitter-kotlin",
+]
+
+[workspace.dependencies]
+similar = "3.2"
+rayon = "1.10"
+
+[workspace.lints.clippy]
+wildcard_imports = "deny"
+enum_glob_use = "deny"
+
+[[bin]]
+name = "kost"
+path = "src/main.rs"
+
+[dependencies]
+cli = { path = "crates/cli" }
+lsp = { path = "crates/lsp" }
+lint = { path = "crates/lint" }
+format = { path = "crates/format" }
+update = { path = "crates/update" }
+common = { path = "crates/common" }
+tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
+ahash = "0.8"
+ignore = "0.4"
+smol_str = "0.3"
+tower-lsp = "0.20"
+rayon = { workspace = true }
+
+[lints]
+workspace = true
+
+[profile.release]
+debug = true
+
+[[bench]]
+name = "index_bench"
+harness = false
+
+[[bench]]
+name = "index_jar_bench"
+harness = false
+
+[[bench]]
+name = "indexer_bench"
+harness = false
+
+[[bench]]
+name = "references_bench"
+harness = false
+
+[[bench]]
+name = "lint_bench"
+harness = false
+
+[[bench]]
+name = "format_bench"
+harness = false

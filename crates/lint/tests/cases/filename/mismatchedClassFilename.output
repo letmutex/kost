@@ -1,0 +1,1 @@
+1:1: [warning] standard:filename: File 'mismatchedClassFilename.kt' contains a single class and should be named 'Foo.kt'

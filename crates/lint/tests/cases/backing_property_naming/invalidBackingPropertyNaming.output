@@ -1,0 +1,3 @@
+2:9: [warning] standard:backing-property-naming: Backing property not allowed when 'private' modifier is missing
+3:17: [warning] standard:backing-property-naming: Backing property should start with underscore followed by lower camel case
+4:17: [warning] standard:backing-property-naming: Backing property is only allowed when a matching property or function exists

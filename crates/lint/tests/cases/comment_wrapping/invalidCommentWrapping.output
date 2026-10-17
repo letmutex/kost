@@ -1,0 +1,5 @@
+1:7: [warning] standard:comment-wrapping: A block comment in between other elements on the same line is disallowed
+2:1: [warning] standard:comment-wrapping: A block comment may not be followed by any other element on that same line
+3:11: [warning] standard:comment-wrapping: A block comment after any other element on the same line must be separated by a new line
+6:13: [warning] standard:comment-wrapping: A block comment starting on same line as another element and ending on another line before another element is disallowed
+

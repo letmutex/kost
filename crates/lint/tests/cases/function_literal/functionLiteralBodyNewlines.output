@@ -1,0 +1,2 @@
+2:22: [warning] standard:function-literal: Newline expected before closing brace
+4:10: [warning] standard:function-literal: Newline expected after opening brace

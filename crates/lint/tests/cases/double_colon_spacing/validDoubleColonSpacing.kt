@@ -1,0 +1,1 @@
+val c = String::class

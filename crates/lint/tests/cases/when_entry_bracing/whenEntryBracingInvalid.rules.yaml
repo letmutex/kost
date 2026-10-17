@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:when-entry-bracing

@@ -1,0 +1,2 @@
+2:5: [warning] standard:string-template-indent: Missing newline after the opening quotes of the raw string literal
+7:5: [warning] standard:string-template-indent: Missing newline before the closing quotes of the raw string literal

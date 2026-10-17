@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:unnecessary-parentheses-before-trailing-lambda

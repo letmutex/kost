@@ -1,0 +1,1 @@
+1:1: [warning] maxFunctionSizeViolation.rules.yaml:max-function-size: Function 'processOrders' exceeds limit 3

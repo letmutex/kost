@@ -1,0 +1,6 @@
+1:9: [warning] standard:unary-op-spacing: Unexpected spacing after '!'
+2:9: [warning] standard:unary-op-spacing: Unexpected spacing after '-'
+3:9: [warning] standard:unary-op-spacing: Unexpected spacing after '++'
+4:11: [warning] standard:unary-op-spacing: Unexpected spacing before '++'
+5:18: [warning] standard:unary-op-spacing: Unexpected spacing before '!!'
+6:9: [warning] standard:unary-op-spacing: Unexpected spacing after '!'

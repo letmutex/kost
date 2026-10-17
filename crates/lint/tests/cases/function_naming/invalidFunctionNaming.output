@@ -1,0 +1,2 @@
+1:5: [warning] standard:function-naming: Function name should start with a lowercase letter (except factory methods) and use camel case
+2:5: [warning] standard:function-naming: Function name should start with a lowercase letter (except factory methods) and use camel case

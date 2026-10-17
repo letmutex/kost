@@ -1,0 +1,2 @@
+4:8: [warning] standard:enum-wrapping: Enum entry should start on a separate line
+5:6: [warning] standard:enum-wrapping: Expected newline before '}'

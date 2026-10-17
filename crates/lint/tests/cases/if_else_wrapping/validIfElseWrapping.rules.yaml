@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - "standard:if-else-wrapping"

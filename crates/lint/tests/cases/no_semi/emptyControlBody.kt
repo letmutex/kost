@@ -1,0 +1,3 @@
+fun poll() {
+    while (hasWork());
+}

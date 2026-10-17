@@ -1,0 +1,2 @@
+3:5: [warning] standard:no-empty-first-line-in-method-block: Redundant empty line at start of method block
+9:9: [warning] standard:no-empty-first-line-in-method-block: Redundant empty line at start of method block

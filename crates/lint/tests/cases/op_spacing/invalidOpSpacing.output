@@ -1,0 +1,4 @@
+2:10: [warning] standard:op-spacing: Missing spacing after '='
+2:10: [warning] standard:op-spacing: Missing spacing before '='
+2:12: [warning] standard:op-spacing: Missing spacing after '+'
+2:12: [warning] standard:op-spacing: Missing spacing before '+'

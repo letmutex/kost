@@ -1,0 +1,4 @@
+2:5: [warning] standard:lambda-return: Unnecessary return
+6:5: [warning] standard:lambda-return: Unnecessary return
+10:5: [warning] standard:lambda-return: Unnecessary return
+14:5: [warning] standard:lambda-return: Unnecessary return

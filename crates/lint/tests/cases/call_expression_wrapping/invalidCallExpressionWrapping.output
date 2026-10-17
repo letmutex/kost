@@ -1,0 +1,3 @@
+6:8: [warning] standard:call-expression-wrapping: Expected new line after '('
+7:10: [warning] standard:call-expression-wrapping: Expected new line before ')'
+8:27: [warning] standard:call-expression-wrapping: Expected new line after '->'

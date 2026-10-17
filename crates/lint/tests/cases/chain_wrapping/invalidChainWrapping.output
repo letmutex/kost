@@ -1,0 +1,4 @@
+4:27: [warning] standard:chain-wrapping: Line must not end with "."
+6:25: [warning] standard:chain-wrapping: Line must not end with "?:"
+8:32: [warning] standard:chain-wrapping: Line must not end with "."
+10:33: [warning] standard:chain-wrapping: Line must not end with "?:"

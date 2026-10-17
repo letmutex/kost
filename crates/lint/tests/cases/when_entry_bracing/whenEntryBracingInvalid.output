@@ -1,0 +1,5 @@
+4:14: [warning] standard:when-entry-bracing: Body of when entry should be surrounded by braces if any when entry body is surrounded by braces or has a multiline body
+5:17: [warning] standard:when-entry-bracing: Body of when entry should be surrounded by braces if any when entry body is surrounded by braces or has a multiline body
+9:14: [warning] standard:when-entry-bracing: Body of when entry should be surrounded by braces if any when entry body is surrounded by braces or has a multiline body
+11:13: [warning] standard:when-entry-bracing: Body of when entry should be surrounded by braces if any when entry body is surrounded by braces or has a multiline body
+12:17: [warning] standard:when-entry-bracing: Body of when entry should be surrounded by braces if any when entry body is surrounded by braces or has a multiline body

@@ -1,0 +1,3 @@
+2:5: [warning] standard:keyword-spacing: Missing spacing after 'if'
+3:7: [warning] standard:keyword-spacing: Missing spacing after 'else'
+3:11: [warning] standard:curly-spacing: Missing spacing before '{'

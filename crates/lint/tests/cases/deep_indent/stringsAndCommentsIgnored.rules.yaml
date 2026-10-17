@@ -1,0 +1,9 @@
+lint:
+  rules:
+    - id: max-indent
+      severity: warning
+      options:
+        max_indent: 8
+      where:
+        file.max_indent_spaces: gt(options.max_indent)
+      message: "Max indent depth exceeds limit: ${file.max_indent_spaces}"

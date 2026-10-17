@@ -1,0 +1,6 @@
+1:10: [warning] standard:function-type-reference-spacing: Missing spacing after '->'
+1:10: [warning] standard:function-type-reference-spacing: Missing spacing before '->'
+2:12: [warning] standard:function-type-reference-spacing: Unexpected spacing after '->'
+2:12: [warning] standard:function-type-reference-spacing: Unexpected spacing before '->'
+3:15: [warning] standard:function-type-reference-spacing: Unexpected spacing before '.'
+4:14: [warning] standard:function-type-reference-spacing: Unexpected spacing after '.'

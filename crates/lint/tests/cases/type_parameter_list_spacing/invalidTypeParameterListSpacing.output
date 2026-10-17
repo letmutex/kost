@@ -1,0 +1,7 @@
+1:4: [warning] standard:type-parameter-list-spacing: Missing spacing before '<'
+2:7: [warning] standard:type-parameter-list-spacing: Missing spacing after '>'
+3:5: [warning] standard:type-parameter-list-spacing: Unexpected spacing after '<'
+4:8: [warning] standard:type-parameter-list-spacing: Unexpected spacing before '>'
+5:4: [warning] standard:type-parameter-list-spacing: Missing spacing before '<'
+6:11: [warning] standard:type-parameter-list-spacing: Unexpected spacing before '<'
+7:19: [warning] standard:type-parameter-list-spacing: Unexpected spacing before '<'

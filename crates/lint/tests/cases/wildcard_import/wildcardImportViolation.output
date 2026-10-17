@@ -1,0 +1,1 @@
+2:1: [error] wildcardImportViolation.rules.yaml:no-wildcard-import: Wildcard imports not allowed: kotlinx.coroutines.*

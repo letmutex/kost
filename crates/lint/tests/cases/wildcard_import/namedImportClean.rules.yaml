@@ -1,0 +1,7 @@
+lint:
+  rules:
+    - id: no-wildcard-import
+      severity: error
+      where:
+        import.is_wildcard: eq(true)
+      message: "Wildcard imports not allowed: ${import.path}"

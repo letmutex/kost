@@ -1,0 +1,28 @@
+lint:
+  rules:
+    - id: long-function
+      severity: warning
+      allow_where_override: true
+      options:
+        max_lines: 60
+      where:
+        function.lines: gt(options.max_lines)
+      message: "Function '${function.name}' is ${function.lines} lines (limit: ${options.max_lines})"
+
+    - id: deep-indent
+      severity: warning
+      allow_where_override: false
+      options:
+        max_indent: 32
+      where:
+        file.max_indent_spaces: gt(options.max_indent)
+      message: "Max indent depth is ${file.max_indent_spaces} spaces (limit: ${options.max_indent})"
+
+    - id: too-many-parameters
+      severity: warning
+      allow_where_override: false
+      options:
+        max_params: 7
+      where:
+        function.parameters_count: gt(options.max_params)
+      message: "Function '${function.name}' has ${function.parameters_count} parameters (limit: ${options.max_params})"

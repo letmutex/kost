@@ -1,0 +1,12 @@
+[package]
+name = "cli"
+version = "1.0.0"
+edition = "2024"
+license = "Apache-2.0"
+description = "Lightweight mini-clap CLI argument parser for kost"
+
+[dependencies]
+common = { path = "../common" }
+
+[lints]
+workspace = true

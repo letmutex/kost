@@ -1,0 +1,2 @@
+3:11: [warning] standard:multiline-expression-wrapping: Expected newline after '='
+6:7: [warning] standard:multiline-expression-wrapping: Expected newline after '='

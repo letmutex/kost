@@ -1,0 +1,6 @@
+lint:
+  includes:
+    - standard
+  rules:
+    - id: standard:no-semi
+      severity: error

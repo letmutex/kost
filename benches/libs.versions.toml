@@ -1,0 +1,167 @@
+# Version catalog for Jar & AAR Indexing Benchmark
+# Contains 115 cached dependencies (80 JARs, 35 AARs) from local Gradle cache
+
+[versions]
+kotlin = "2.4.10"
+coroutines = "1.10.2"
+serialization = "1.10.0"
+
+[libraries]
+activity-activity = { module = "androidx.activity:activity", version = "1.8.2" }
+activity-activity-compose = { module = "androidx.activity:activity-compose", version = "1.8.2" }
+activity-activity-ktx = { module = "androidx.activity:activity-ktx", version = "1.8.2" }
+android-databinding-baselibrary = { module = "com.android.databinding:baseLibrary", version = "9.3.1" }
+android-signflinger = { module = "com.android:signflinger", version = "9.3.1" }
+android-tools-analytics-library-crash = { module = "com.android.tools.analytics-library:crash", version = "32.3.1" }
+android-tools-analytics-library-protos = { module = "com.android.tools.analytics-library:protos", version = "32.3.1" }
+android-tools-analytics-library-shared = { module = "com.android.tools.analytics-library:shared", version = "32.3.1" }
+android-tools-analytics-library-tracker = { module = "com.android.tools.analytics-library:tracker", version = "32.3.1" }
+android-tools-annotations = { module = "com.android.tools:annotations", version = "32.3.1" }
+android-tools-build-aapt2 = { module = "com.android.tools.build:aapt2", version = "9.3.1-15703166" }
+android-tools-build-aapt2-proto = { module = "com.android.tools.build:aapt2-proto", version = "9.3.1-15703166" }
+android-tools-build-aaptcompiler = { module = "com.android.tools.build:aaptcompiler", version = "9.3.1" }
+android-tools-build-apksig = { module = "com.android.tools.build:apksig", version = "9.3.1" }
+android-tools-build-apkzlib = { module = "com.android.tools.build:apkzlib", version = "9.3.1" }
+android-tools-build-builder = { module = "com.android.tools.build:builder", version = "9.3.1" }
+android-tools-common = { module = "com.android.tools:common", version = "32.3.1" }
+android-tools-dvlib = { module = "com.android.tools:dvlib", version = "32.3.1" }
+android-tools-play-sdk-proto = { module = "com.android.tools:play-sdk-proto", version = "32.2.1" }
+android-tools-repository = { module = "com.android.tools:repository", version = "32.3.1" }
+android-tools-sdk-common = { module = "com.android.tools:sdk-common", version = "32.3.1" }
+android-tools-sdklib = { module = "com.android.tools:sdklib", version = "32.3.1" }
+android-zipflinger = { module = "com.android:zipflinger", version = "9.3.1" }
+annotation-annotation = { module = "androidx.annotation:annotation", version = "1.9.1" }
+annotation-annotation-experimental = { module = "androidx.annotation:annotation-experimental", version = "1.5.0" }
+annotation-annotation-jvm = { module = "androidx.annotation:annotation-jvm", version = "1.9.1" }
+appcompat-appcompat-resources = { module = "androidx.appcompat:appcompat-resources", version = "1.7.1" }
+arch-core-core-common = { module = "androidx.arch.core:core-common", version = "2.2.0" }
+arch-core-core-runtime = { module = "androidx.arch.core:core-runtime", version = "2.2.0" }
+autofill-autofill = { module = "androidx.autofill:autofill", version = "1.0.0" }
+ch-qos-logback-logback-classic = { module = "ch.qos.logback:logback-classic", version = "1.4.8" }
+ch-qos-logback-logback-core = { module = "ch.qos.logback:logback-core", version = "1.4.8" }
+collection-collection = { module = "androidx.collection:collection", version = "1.5.0" }
+collection-collection-jvm = { module = "androidx.collection:collection-jvm", version = "1.5.0" }
+collection-collection-ktx = { module = "androidx.collection:collection-ktx", version = "1.5.0" }
+compose-animation-animation-android = { module = "androidx.compose.animation:animation-android", version = "1.12.0" }
+compose-animation-animation-core-android = { module = "androidx.compose.animation:animation-core-android", version = "1.12.0" }
+compose-foundation-foundation-android = { module = "androidx.compose.foundation:foundation-android", version = "1.12.0" }
+compose-foundation-foundation-layout-android = { module = "androidx.compose.foundation:foundation-layout-android", version = "1.12.0" }
+compose-material-material-icons-core-android = { module = "androidx.compose.material:material-icons-core-android", version = "1.7.8" }
+compose-material-material-icons-extended-android = { module = "androidx.compose.material:material-icons-extended-android", version = "1.7.8" }
+compose-material-material-ripple-android = { module = "androidx.compose.material:material-ripple-android", version = "1.9.3" }
+compose-material3-material3-android = { module = "androidx.compose.material3:material3-android", version = "1.4.0" }
+compose-runtime-runtime = { module = "androidx.compose.runtime:runtime", version = "1.10.5" }
+compose-runtime-runtime-android = { module = "androidx.compose.runtime:runtime-android", version = "1.12.0" }
+compose-runtime-runtime-annotation = { module = "androidx.compose.runtime:runtime-annotation", version = "1.10.5" }
+compose-runtime-runtime-annotation-android = { module = "androidx.compose.runtime:runtime-annotation-android", version = "1.12.0" }
+compose-runtime-runtime-annotation-jvm = { module = "androidx.compose.runtime:runtime-annotation-jvm", version = "1.10.5" }
+compose-runtime-runtime-desktop = { module = "androidx.compose.runtime:runtime-desktop", version = "1.10.5" }
+compose-runtime-runtime-retain = { module = "androidx.compose.runtime:runtime-retain", version = "1.10.5" }
+compose-runtime-runtime-retain-android = { module = "androidx.compose.runtime:runtime-retain-android", version = "1.12.0" }
+compose-runtime-runtime-retain-desktop = { module = "androidx.compose.runtime:runtime-retain-desktop", version = "1.10.5" }
+compose-runtime-runtime-saveable = { module = "androidx.compose.runtime:runtime-saveable", version = "1.10.5" }
+compose-runtime-runtime-saveable-android = { module = "androidx.compose.runtime:runtime-saveable-android", version = "1.12.0" }
+compose-runtime-runtime-saveable-desktop = { module = "androidx.compose.runtime:runtime-saveable-desktop", version = "1.10.5" }
+compose-ui-ui-android = { module = "androidx.compose.ui:ui-android", version = "1.12.0" }
+compose-ui-ui-geometry-android = { module = "androidx.compose.ui:ui-geometry-android", version = "1.12.0" }
+compose-ui-ui-graphics-android = { module = "androidx.compose.ui:ui-graphics-android", version = "1.12.0" }
+compose-ui-ui-text-android = { module = "androidx.compose.ui:ui-text-android", version = "1.12.0" }
+compose-ui-ui-tooling-android = { module = "androidx.compose.ui:ui-tooling-android", version = "1.12.0" }
+compose-ui-ui-tooling-data-android = { module = "androidx.compose.ui:ui-tooling-data-android", version = "1.12.0" }
+compose-ui-ui-tooling-preview-android = { module = "androidx.compose.ui:ui-tooling-preview-android", version = "1.12.0" }
+compose-ui-ui-unit-android = { module = "androidx.compose.ui:ui-unit-android", version = "1.12.0" }
+compose-ui-ui-util-android = { module = "androidx.compose.ui:ui-util-android", version = "1.12.0" }
+concurrent-concurrent-futures = { module = "androidx.concurrent:concurrent-futures", version = "1.1.0" }
+concurrent-concurrent-futures-ktx = { module = "androidx.concurrent:concurrent-futures-ktx", version = "1.1.0" }
+core-core = { module = "androidx.core:core", version = "1.18.0" }
+core-core-ktx = { module = "androidx.core:core-ktx", version = "1.18.0" }
+core-core-viewtree = { module = "androidx.core:core-viewtree", version = "1.0.0" }
+customview-customview-poolingcontainer = { module = "androidx.customview:customview-poolingcontainer", version = "1.0.0" }
+databinding-databinding-common = { module = "androidx.databinding:databinding-common", version = "9.3.1" }
+databinding-databinding-compiler-common = { module = "androidx.databinding:databinding-compiler-common", version = "9.3.1" }
+datastore-datastore-core = { module = "androidx.datastore:datastore-core", version = "1.3.0-alpha05" }
+datastore-datastore-core-android = { module = "androidx.datastore:datastore-core-android", version = "1.3.0-alpha05" }
+datastore-datastore-core-jvm = { module = "androidx.datastore:datastore-core-jvm", version = "1.3.0-alpha05" }
+datastore-datastore-core-okio = { module = "androidx.datastore:datastore-core-okio", version = "1.3.0-alpha05" }
+datastore-datastore-core-okio-jvm = { module = "androidx.datastore:datastore-core-okio-jvm", version = "1.3.0-alpha05" }
+datastore-datastore-preferences-core = { module = "androidx.datastore:datastore-preferences-core", version = "1.3.0-alpha05" }
+datastore-datastore-preferences-core-android = { module = "androidx.datastore:datastore-preferences-core-android", version = "1.3.0-alpha05" }
+datastore-datastore-preferences-core-jvm = { module = "androidx.datastore:datastore-preferences-core-jvm", version = "1.3.0-alpha05" }
+datastore-datastore-preferences-external-protobuf = { module = "androidx.datastore:datastore-preferences-external-protobuf", version = "1.3.0-alpha05" }
+datastore-datastore-preferences-proto = { module = "androidx.datastore:datastore-preferences-proto", version = "1.3.0-alpha05" }
+documentfile-documentfile = { module = "androidx.documentfile:documentfile", version = "1.0.0" }
+lifecycle-lifecycle-common = { module = "androidx.lifecycle:lifecycle-common", version = "2.9.4" }
+lifecycle-lifecycle-common-java8 = { module = "androidx.lifecycle:lifecycle-common-java8", version = "2.9.4" }
+lifecycle-lifecycle-common-jvm = { module = "androidx.lifecycle:lifecycle-common-jvm", version = "2.9.4" }
+lifecycle-lifecycle-runtime = { module = "androidx.lifecycle:lifecycle-runtime", version = "2.9.4" }
+lifecycle-lifecycle-runtime-compose = { module = "androidx.lifecycle:lifecycle-runtime-compose", version = "2.9.4" }
+lifecycle-lifecycle-runtime-compose-desktop = { module = "androidx.lifecycle:lifecycle-runtime-compose-desktop", version = "2.9.4" }
+lifecycle-lifecycle-runtime-desktop = { module = "androidx.lifecycle:lifecycle-runtime-desktop", version = "2.9.4" }
+lifecycle-lifecycle-viewmodel = { module = "androidx.lifecycle:lifecycle-viewmodel", version = "2.9.4" }
+lifecycle-lifecycle-viewmodel-desktop = { module = "androidx.lifecycle:lifecycle-viewmodel-desktop", version = "2.9.4" }
+lifecycle-lifecycle-viewmodel-savedstate = { module = "androidx.lifecycle:lifecycle-viewmodel-savedstate", version = "2.9.4" }
+lifecycle-lifecycle-viewmodel-savedstate-desktop = { module = "androidx.lifecycle:lifecycle-viewmodel-savedstate-desktop", version = "2.9.4" }
+navigation3-navigation3-runtime-desktop = { module = "androidx.navigation3:navigation3-runtime-desktop", version = "1.1.0-alpha01" }
+navigationevent-navigationevent = { module = "androidx.navigationevent:navigationevent", version = "1.0.2" }
+navigationevent-navigationevent-desktop = { module = "androidx.navigationevent:navigationevent-desktop", version = "1.0.2" }
+room-room-common = { module = "androidx.room:room-common", version = "2.6.1" }
+room3-room3-common = { module = "androidx.room3:room3-common", version = "3.0.0-alpha02" }
+room3-room3-common-jvm = { module = "androidx.room3:room3-common-jvm", version = "3.0.0-alpha02" }
+room3-room3-compiler = { module = "androidx.room3:room3-compiler", version = "3.0.0-alpha02" }
+room3-room3-compiler-processing = { module = "androidx.room3:room3-compiler-processing", version = "3.0.0-alpha02" }
+room3-room3-external-antlr = { module = "androidx.room3:room3-external-antlr", version = "3.0.0-alpha02" }
+room3-room3-gradle-plugin = { module = "androidx.room3:room3-gradle-plugin", version = "3.0.0-alpha02" }
+room3-room3-migration-jvm = { module = "androidx.room3:room3-migration-jvm", version = "3.0.0-alpha02" }
+room3-room3-runtime = { module = "androidx.room3:room3-runtime", version = "3.0.0-alpha02" }
+room3-room3-runtime-jvm = { module = "androidx.room3:room3-runtime-jvm", version = "3.0.0-alpha02" }
+savedstate-savedstate = { module = "androidx.savedstate:savedstate", version = "1.3.3" }
+savedstate-savedstate-compose = { module = "androidx.savedstate:savedstate-compose", version = "1.3.3" }
+savedstate-savedstate-compose-desktop = { module = "androidx.savedstate:savedstate-compose-desktop", version = "1.4.0" }
+savedstate-savedstate-desktop = { module = "androidx.savedstate:savedstate-desktop", version = "1.4.0" }
+sqlite-sqlite = { module = "androidx.sqlite:sqlite", version = "2.7.0-alpha02" }
+sqlite-sqlite-bundled-jvm = { module = "androidx.sqlite:sqlite-bundled-jvm", version = "2.7.0-alpha02" }
+sqlite-sqlite-framework = { module = "androidx.sqlite:sqlite-framework", version = "2.7.0-alpha02" }
+sqlite-sqlite-jvm = { module = "androidx.sqlite:sqlite-jvm", version = "2.7.0-alpha02" }
+
+[bundles]
+coroutines = [
+]
+
+androidx-aar = [
+    "activity-activity",
+    "activity-activity-compose",
+    "activity-activity-ktx",
+    "annotation-annotation-experimental",
+    "appcompat-appcompat-resources",
+    "arch-core-core-runtime",
+    "autofill-autofill",
+    "compose-animation-animation-android",
+    "compose-animation-animation-core-android",
+    "compose-foundation-foundation-android",
+    "compose-foundation-foundation-layout-android",
+    "compose-material-material-icons-core-android",
+    "compose-material-material-icons-extended-android",
+    "compose-material-material-ripple-android",
+    "compose-material3-material3-android",
+    "compose-runtime-runtime-android",
+    "compose-runtime-runtime-annotation-android",
+    "compose-runtime-runtime-retain-android",
+    "compose-runtime-runtime-saveable-android",
+    "compose-ui-ui-android",
+    "compose-ui-ui-geometry-android",
+    "compose-ui-ui-graphics-android",
+    "compose-ui-ui-text-android",
+    "compose-ui-ui-tooling-android",
+    "compose-ui-ui-tooling-data-android",
+    "compose-ui-ui-tooling-preview-android",
+    "compose-ui-ui-unit-android",
+    "compose-ui-ui-util-android",
+    "core-core",
+    "core-core-ktx",
+    "core-core-viewtree",
+    "customview-customview-poolingcontainer",
+    "datastore-datastore-core-android",
+    "datastore-datastore-preferences-core-android",
+    "documentfile-documentfile",
+]
+

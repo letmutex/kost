@@ -1,0 +1,5 @@
+val a = foo <Int>()
+val b = bar< Int>()
+val c = bar<Int >()
+val d = foo<Int> ()
+val e = obj.method <Int>()

@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - "standard:binary-expression-wrapping"

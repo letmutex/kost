@@ -1,0 +1,3 @@
+class invalidClass
+class Invalid_Class
+object invalidObject

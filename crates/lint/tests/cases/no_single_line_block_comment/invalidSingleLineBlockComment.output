@@ -1,0 +1,2 @@
+1:1: [warning] standard:no-single-line-block-comment: Replace the block comment with an EOL comment
+4:11: [warning] standard:no-single-line-block-comment: Replace the block comment with an EOL comment

@@ -1,0 +1,4 @@
+1:9: [warning] standard:wrapping: Missing newline after "("
+2:6: [warning] standard:wrapping: Missing newline before ")"
+4:9: [warning] standard:wrapping: Missing newline after "["
+5:6: [warning] standard:wrapping: Missing newline before "]"

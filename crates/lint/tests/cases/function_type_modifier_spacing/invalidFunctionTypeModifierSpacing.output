@@ -1,0 +1,2 @@
+1:8: [warning] standard:function-type-modifier-spacing: Missing spacing after 'suspend'
+3:8: [warning] standard:function-type-modifier-spacing: Unexpected spacing after 'suspend'

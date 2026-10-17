@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:no-single-line-block-comment

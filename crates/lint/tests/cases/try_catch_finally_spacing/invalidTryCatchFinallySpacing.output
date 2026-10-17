@@ -1,0 +1,5 @@
+4:6: [warning] standard:try-catch-finally-spacing: Missing spacing after 'catch'
+4:6: [warning] standard:try-catch-finally-spacing: Missing spacing before 'catch'
+4:25: [warning] standard:try-catch-finally-spacing: Missing spacing before '{'
+6:6: [warning] standard:try-catch-finally-spacing: Missing spacing after 'finally'
+6:6: [warning] standard:try-catch-finally-spacing: Missing spacing before 'finally'

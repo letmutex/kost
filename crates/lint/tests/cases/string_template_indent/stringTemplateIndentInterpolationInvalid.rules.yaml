@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:string-template-indent

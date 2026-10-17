@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - "standard:spacing-around-angle-brackets"

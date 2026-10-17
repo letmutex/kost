@@ -1,0 +1,4 @@
+2:13: [warning] standard:curly-spacing: Missing spacing after '{'
+3:16: [warning] standard:curly-spacing: Missing spacing before '}'
+4:26: [warning] standard:curly-spacing: Missing spacing after '{'
+5:29: [warning] standard:curly-spacing: Missing spacing before '}'

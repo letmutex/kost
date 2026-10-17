@@ -1,0 +1,1 @@
+enum class Foo { A, B; fun bar() {} }

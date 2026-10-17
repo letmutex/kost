@@ -1,0 +1,2 @@
+3:1: [warning] standard:spacing-between-declarations-with-comments: Expected a blank line before comment
+4:1: [warning] standard:blank-line-before-declaration: Expected a blank line before declaration

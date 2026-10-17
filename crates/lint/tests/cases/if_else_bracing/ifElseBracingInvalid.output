@@ -1,0 +1,4 @@
+4:12: [warning] standard:if-else-bracing: All branches of the if statement should be wrapped between braces if at least one branch is wrapped between braces
+6:16: [warning] standard:if-else-bracing: All branches of the if statement should be wrapped between braces if at least one branch is wrapped between braces
+13:9: [warning] standard:if-else-bracing: All branches of the if statement should be wrapped between braces if at least one branch is wrapped between braces
+15:9: [warning] standard:if-else-bracing: All branches of the if statement should be wrapped between braces if at least one branch is wrapped between braces

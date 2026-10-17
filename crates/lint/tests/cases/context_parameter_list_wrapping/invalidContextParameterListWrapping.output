@@ -1,0 +1,2 @@
+3:9: [warning] standard:context-parameter-list-wrapping: Context parameter should be on a separate line
+4:11: [warning] standard:context-parameter-list-wrapping: Newline expected before closing parenthesis

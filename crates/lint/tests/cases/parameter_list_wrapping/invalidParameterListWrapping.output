@@ -1,0 +1,2 @@
+1:19: [warning] standard:parameter-list-wrapping: Parameter should start on a newline
+2:14: [warning] standard:parameter-list-wrapping: Expected newline before ')'

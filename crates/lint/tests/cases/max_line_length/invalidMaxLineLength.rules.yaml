@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:max-line-length

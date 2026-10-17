@@ -1,0 +1,5 @@
+1:5: [warning] standard:spacing-between-function-name-and-opening-parenthesis: Unexpected spacing between function name and '('
+4:5: [warning] standard:spacing-between-function-name-and-opening-parenthesis: Unexpected spacing between function name and '('
+5:5: [warning] standard:spacing-between-function-name-and-opening-parenthesis: Unexpected spacing between function name and '('
+6:10: [warning] standard:spacing-between-function-name-and-opening-parenthesis: Unexpected spacing between function name and '('
+9:5: [warning] standard:spacing-between-function-name-and-opening-parenthesis: Unexpected spacing between function name and '('

@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:no-blank-lines-in-chained-method-calls

@@ -1,0 +1,3 @@
+2:1: [warning] standard:no-consecutive-comments: a block comment may not be preceded by a block comment
+3:1: [warning] standard:no-consecutive-comments: a KDoc may not be preceded by a block comment unless separated by a blank line
+4:1: [warning] standard:no-consecutive-comments: a KDoc may not be preceded by a KDoc
