@@ -22,7 +22,7 @@ async fn main() {
             lsp::run_stdio_server().await;
         }
         CliCommand::Update(sub_args) => {
-            if let Err(err) = update::run(&sub_args) {
+            if let Err(err) = update::run(&sub_args, env!("CARGO_PKG_VERSION")) {
                 eprintln!("{err}");
                 std::process::exit(1);
             }

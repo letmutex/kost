@@ -4,12 +4,14 @@ pub mod lint;
 pub mod mini_clap;
 pub mod print_mode;
 pub mod style;
+pub mod update;
 
 pub use error::CliError;
 pub use format::{FormatArgs, FormatStyle, render_format_help, render_format_help_styled};
 pub use lint::{LintArgs, render_lint_help, render_lint_help_styled};
 pub use mini_clap::{CliCommand, MiniClap};
 pub use print_mode::PrintMode;
+pub use update::{UpdateArgs, render_update_help, render_update_help_styled};
 
 pub fn build_app() -> MiniClap {
     MiniClap::new(
@@ -25,7 +27,7 @@ pub fn build_app() -> MiniClap {
     )
     .subcommand(
         "update",
-        "Update project dependencies and indexes (placeholder)",
+        "Update the kost CLI binary to the latest or specified release",
     )
     .subcommand("lint", "Lint Kotlin source files")
     .subcommand("fmt", "Format Kotlin source files")
