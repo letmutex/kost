@@ -6,8 +6,8 @@ license = "Apache-2.0"
 description = "Self-update command implementation for kost"
 
 [dependencies]
-cli = { path = "../cli" }
-common = { path = "../common" }
+cli = { workspace = true }
+common = { workspace = true }
 self_update = { version = "1.3", default-features = false, features = [
     "github",
     "reqwest",

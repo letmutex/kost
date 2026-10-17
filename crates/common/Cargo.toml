@@ -6,10 +6,10 @@ license = "Apache-2.0"
 description = "Common types and utilities for kost"
 
 [dependencies]
-ignore = "0.4"
-smol_str = "0.3"
-ahash = "0.8"
-regex = "1"
+ahash = { workspace = true }
+ignore = { workspace = true }
+regex = { workspace = true }
+smol_str = { workspace = true }
 
 [lints]
 workspace = true

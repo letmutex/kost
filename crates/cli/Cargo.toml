@@ -6,7 +6,7 @@ license = "Apache-2.0"
 description = "Lightweight mini-clap CLI argument parser for kost"
 
 [dependencies]
-common = { path = "../common" }
+common = { workspace = true }
 
 [lints]
 workspace = true

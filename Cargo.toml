@@ -27,8 +27,29 @@ exclude = [
 ]
 
 [workspace.dependencies]
-similar = "3.2"
+cli = { path = "crates/cli" }
+common = { path = "crates/common" }
+format = { path = "crates/format" }
+lint = { path = "crates/lint" }
+lsp = { path = "crates/lsp" }
+update = { path = "crates/update" }
+tree-sitter-kotlin = { path = "vendor/tree-sitter-kotlin" }
+ahash = "0.8"
+crossbeam-channel = "0.5"
+ignore = "0.4"
+indexmap = "2"
 rayon = "1.10"
+regex = "1.10"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+similar = "3.2"
+smallvec = "1"
+smol_str = "0.3"
+thiserror = "2.0"
+tokio = { version = "1", features = ["full"] }
+tower-lsp = "0.20"
+tree-sitter = "0.22"
+url = "2.5"
 
 [workspace.lints.clippy]
 wildcard_imports = "deny"
@@ -39,20 +60,20 @@ name = "kost"
 path = "src/main.rs"
 
 [dependencies]
-cli = { path = "crates/cli" }
-lsp = { path = "crates/lsp" }
-lint = { path = "crates/lint" }
-format = { path = "crates/format" }
-update = { path = "crates/update" }
-common = { path = "crates/common" }
-tokio = { version = "1", features = ["full"] }
+cli = { workspace = true }
+lsp = { workspace = true }
+lint = { workspace = true }
+format = { workspace = true }
+update = { workspace = true }
+common = { workspace = true }
+tokio = { workspace = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["full"] }
-ahash = "0.8"
-ignore = "0.4"
-smol_str = "0.3"
-tower-lsp = "0.20"
+tokio = { workspace = true }
+ahash = { workspace = true }
+ignore = { workspace = true }
+smol_str = { workspace = true }
+tower-lsp = { workspace = true }
 rayon = { workspace = true }
 
 [lints]
