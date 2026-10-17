@@ -12,15 +12,17 @@ Fast JVM-free Kotlin static linter, formatter, and language server.
 
 ## Installations
 
-- Terminal:
+- Terminal
+
+Linux / macOS:
 
 ```bash
-# Linux / macOS
 curl -fsSL https://raw.githubusercontent.com/letmutex/kost/main/install.sh | sh
 ```
 
+Windows:
+
 ```powershell
-# Windows
 irm https://raw.githubusercontent.com/letmutex/kost/main/install.ps1 | iex
 ```
 
