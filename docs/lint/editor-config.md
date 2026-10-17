@@ -13,7 +13,6 @@ Rules are evaluated in order of specificity:
 [*.{kt,kts}]
 # Ruleset toggles (enabled/disabled, true/false, 1/0)
 ktlint_standard = enabled
-ktlint_experimental = disabled
 
 # Rule toggles (supports kebab-case and snake_case)
 ktlint_standard_no-semi = disabled

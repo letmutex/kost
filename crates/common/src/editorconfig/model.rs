@@ -126,7 +126,6 @@ pub struct ResolvedEditorConfig {
 
     pub ktlint_code_style: Option<KtlintCodeStyle>,
     pub ktlint_standard_enabled: Option<bool>,
-    pub ktlint_experimental_enabled: Option<bool>,
     pub rule_toggles: AHashMap<SmolStr, bool>,
     pub raw_properties: AHashMap<SmolStr, SmolStr>,
 }
@@ -138,28 +137,15 @@ impl ResolvedEditorConfig {
 
     /// Evaluates whether a lint rule is enabled based on specific or ruleset-level toggles.
     pub fn is_rule_enabled(&self, rule_id: &str, default_enabled: bool) -> bool {
-        let (ruleset_prefix, clean_id) = if let Some(suffix) = rule_id.strip_prefix("experimental:")
-        {
-            ("ktlint_experimental_", suffix)
-        } else {
-            (
-                "ktlint_standard_",
-                rule_id.strip_prefix("standard:").unwrap_or(rule_id),
-            )
-        };
-
+        let clean_id = rule_id.strip_prefix("standard:").unwrap_or(rule_id);
         let normalized_suffix = clean_id.replace('_', "-");
-        let specific_toggle_key = crate::concat_smol_str!(ruleset_prefix, &normalized_suffix);
+        let specific_toggle_key = crate::concat_smol_str!("ktlint_standard_", &normalized_suffix);
 
         if let Some(&enabled) = self.rule_toggles.get(&specific_toggle_key) {
             return enabled;
         }
 
-        if ruleset_prefix == "ktlint_experimental_" {
-            if let Some(exp_enabled) = self.ktlint_experimental_enabled {
-                return exp_enabled;
-            }
-        } else if let Some(standard_enabled) = self.ktlint_standard_enabled {
+        if let Some(standard_enabled) = self.ktlint_standard_enabled {
             return standard_enabled;
         }
 

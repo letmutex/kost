@@ -122,12 +122,6 @@ pub(crate) fn apply_single_property(
                 parse_enabled_disabled(val_str),
             );
         }
-        "ktlint_experimental" => {
-            update_some(
-                &mut target.ktlint_experimental_enabled,
-                parse_enabled_disabled(val_str),
-            );
-        }
         other if let Some(rule_key) = normalize_rule_toggle_key(other) => {
             if let Some(enabled) = parse_enabled_disabled(val_str) {
                 target.rule_toggles.insert(rule_key, enabled);
@@ -145,14 +139,9 @@ fn update_some<T>(slot: &mut Option<T>, value: Option<T>) {
 }
 
 fn normalize_rule_toggle_key(key: &str) -> Option<SmolStr> {
-    let (prefix, suffix) = if let Some(s) = key.strip_prefix("ktlint_standard_") {
-        ("ktlint_standard_", s)
-    } else {
-        let s = key.strip_prefix("ktlint_experimental_")?;
-        ("ktlint_experimental_", s)
-    };
+    let suffix = key.strip_prefix("ktlint_standard_")?;
     let normalized = suffix.replace('_', "-");
-    Some(crate::concat_smol_str!(prefix, &normalized))
+    Some(crate::concat_smol_str!("ktlint_standard_", &normalized))
 }
 
 fn unset_property(key: &str, target: &mut ResolvedEditorConfig) {
@@ -179,7 +168,6 @@ fn unset_property(key: &str, target: &mut ResolvedEditorConfig) {
         "ktfmt_style" => target.ktfmt_style = None,
         "ktlint_code_style" => target.ktlint_code_style = None,
         "ktlint_standard" => target.ktlint_standard_enabled = None,
-        "ktlint_experimental" => target.ktlint_experimental_enabled = None,
         other if let Some(rule_key) = normalize_rule_toggle_key(other) => {
             target.rule_toggles.remove(&rule_key);
         }
