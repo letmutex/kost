@@ -1,6 +1,6 @@
 [package]
 name = "format"
-version = "1.0.0"
+version.workspace = true
 edition = "2024"
 license = "Apache-2.0"
 description = "Kotlin code formatting engine for kost"

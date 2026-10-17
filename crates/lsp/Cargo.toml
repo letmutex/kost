@@ -1,6 +1,6 @@
 [package]
 name = "lsp"
-version = "1.0.0"
+version.workspace = true
 edition = "2024"
 license = "Apache-2.0"
 description = "Fast JVM-free Kotlin static analysis & language server engine"
