@@ -230,7 +230,7 @@ echo "Verifying SHA256 checksum..."
 ACTUAL_HASH="$(compute_sha256 "$TMP_DIR/$ARCHIVE_NAME" | tr -d '\r\n' | tr '[:upper:]' '[:lower:]')"
 
 if [ "$EXPECTED_HASH" != "$ACTUAL_HASH" ]; then
-  echo "Error: SHA256 checksum verification failed!" >&2
+  echo "Error: SHA256 checksum verification failed" >&2
   echo "Expected: $EXPECTED_HASH" >&2
   echo "Actual:   $ACTUAL_HASH" >&2
   exit 1
@@ -285,16 +285,16 @@ in_path() {
 
 if in_path "$INSTALL_DIR_CLEAN"; then
   if [ "$IS_UPDATE" = "1" ]; then
-    echo "Successfully updated kost to ${TAG}!"
+    echo "Successfully updated kost to ${TAG}"
   else
-    echo "Successfully installed kost ${TAG} to ${INSTALL_DIR_CLEAN}/${BIN_NAME}!"
+    echo "Successfully installed kost ${TAG} to ${INSTALL_DIR_CLEAN}/${BIN_NAME}"
   fi
   echo "Run 'kost --help' to get started."
 else
   if [ "$IS_UPDATE" = "1" ]; then
-    echo "Successfully updated kost to ${TAG}!"
+    echo "Successfully updated kost to ${TAG}"
   else
-    echo "Successfully installed kost ${TAG} to ${INSTALL_DIR_CLEAN}/${BIN_NAME}!"
+    echo "Successfully installed kost ${TAG} to ${INSTALL_DIR_CLEAN}/${BIN_NAME}"
   fi
   echo ""
   echo "NOTICE: '${INSTALL_DIR_CLEAN}' is not in your PATH environment variable."

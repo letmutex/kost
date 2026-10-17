@@ -155,7 +155,7 @@ try {
     $actualHash = (Get-FileHash -Path $tempArchive -Algorithm SHA256).Hash.ToLowerInvariant()
 
     if ($expectedHash -ne $actualHash) {
-        throw "SHA256 checksum mismatch!`nExpected: $expectedHash`nActual:   $actualHash"
+        throw "SHA256 checksum mismatch`nExpected: $expectedHash`nActual:   $actualHash"
     }
     Write-Host "Checksum verified successfully." -ForegroundColor Green
 
@@ -218,16 +218,16 @@ foreach ($entry in $pathEntries) {
 
 if ($inPath) {
     if ($isUpdate) {
-        Write-Host "Successfully updated kost to $tag!" -ForegroundColor Green
+        Write-Host "Successfully updated kost to $tag" -ForegroundColor Green
     } else {
-        Write-Host "Successfully installed kost $tag to $targetBinary!" -ForegroundColor Green
+        Write-Host "Successfully installed kost $tag to $targetBinary" -ForegroundColor Green
     }
     Write-Host "Run 'kost --help' to get started." -ForegroundColor Cyan
 } else {
     if ($isUpdate) {
-        Write-Host "Successfully updated kost to $tag!" -ForegroundColor Green
+        Write-Host "Successfully updated kost to $tag" -ForegroundColor Green
     } else {
-        Write-Host "Successfully installed kost $tag to $targetBinary!" -ForegroundColor Green
+        Write-Host "Successfully installed kost $tag to $targetBinary" -ForegroundColor Green
     }
     Write-Host ""
     Write-Host "NOTICE: '$InstallDir' is not in your PATH environment variable." -ForegroundColor Yellow
