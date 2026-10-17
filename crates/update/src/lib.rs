@@ -5,6 +5,10 @@ use common::concat_str;
 use self_update::VersionStatus;
 use self_update::backends::github::Update;
 
+pub mod uninstall;
+
+pub use uninstall::run as uninstall;
+
 const REPO_OWNER: &str = "letmutex";
 const REPO_NAME: &str = "kost";
 

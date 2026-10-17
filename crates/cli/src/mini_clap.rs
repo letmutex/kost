@@ -6,6 +6,7 @@ pub enum CliCommand {
     Version,
     LanguageServer,
     Update(Vec<String>),
+    Uninstall(Vec<String>),
     Lint(Vec<String>),
     Format(Vec<String>),
 }
@@ -68,6 +69,7 @@ impl MiniClap {
             "-v" | "--version" => Ok(CliCommand::Version),
             "-ls" | "--language-server" => Ok(CliCommand::LanguageServer),
             "update" => Ok(CliCommand::Update(arguments[1..].to_vec())),
+            "uninstall" => Ok(CliCommand::Uninstall(arguments[1..].to_vec())),
             "lint" => Ok(CliCommand::Lint(arguments[1..].to_vec())),
             "fmt" | "format" => Ok(CliCommand::Format(arguments[1..].to_vec())),
             unrecognized if unrecognized.starts_with('-') => {

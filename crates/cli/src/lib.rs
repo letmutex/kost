@@ -4,6 +4,7 @@ pub mod lint;
 pub mod mini_clap;
 pub mod print_mode;
 pub mod style;
+pub mod uninstall;
 pub mod update;
 
 pub use error::CliError;
@@ -11,6 +12,7 @@ pub use format::{FormatArgs, FormatStyle, render_format_help, render_format_help
 pub use lint::{LintArgs, render_lint_help, render_lint_help_styled};
 pub use mini_clap::{CliCommand, MiniClap};
 pub use print_mode::PrintMode;
+pub use uninstall::{UninstallArgs, render_uninstall_help, render_uninstall_help_styled};
 pub use update::{UpdateArgs, render_update_help, render_update_help_styled};
 
 pub fn build_app() -> MiniClap {
@@ -29,6 +31,7 @@ pub fn build_app() -> MiniClap {
         "update",
         "Update the kost CLI binary to the latest or specified release",
     )
+    .subcommand("uninstall", "Uninstall the kost CLI binary")
     .subcommand("lint", "Lint Kotlin source files")
     .subcommand("fmt", "Format Kotlin source files")
 }

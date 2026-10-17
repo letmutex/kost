@@ -27,6 +27,12 @@ async fn main() {
                 std::process::exit(1);
             }
         }
+        CliCommand::Uninstall(sub_args) => {
+            if let Err(err) = update::uninstall(&sub_args) {
+                eprintln!("{err}");
+                std::process::exit(1);
+            }
+        }
         CliCommand::Lint(sub_args) => {
             if let Err(err) = lint::run(&sub_args) {
                 eprintln!("{err}");
