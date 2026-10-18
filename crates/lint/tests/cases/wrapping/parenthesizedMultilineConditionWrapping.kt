@@ -1,0 +1,3 @@
+val condition =
+    (first ||
+        second)
