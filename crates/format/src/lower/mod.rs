@@ -15,6 +15,7 @@ pub mod delegates;
 pub mod destructuring;
 pub mod elvis;
 pub mod expr;
+pub mod expression_body;
 pub mod func;
 pub mod imports;
 pub mod lambda;

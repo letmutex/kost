@@ -1,9 +1,9 @@
 use tree_sitter::Node;
 
 use crate::doc::Doc;
-use crate::lower::assignment::has_trailing_lambda_child;
 use crate::lower::context::LowerContext;
 use crate::lower::expr::lower_block;
+use crate::lower::expression_body::format_expression_body;
 use crate::lower::lower_node;
 use crate::lower::types::lower_type_constraints;
 
@@ -18,7 +18,6 @@ pub fn lower_function_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
     let mut has_dot = false;
     let mut after_name = false;
     let mut is_after_colon = false;
-    let mut body_doc = None;
     let mut body_child = None;
 
     let mut cursor = node.walk();
@@ -31,7 +30,6 @@ pub fn lower_function_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
             modifier_docs.push(lower_node(child, ctx));
         } else if kind == "function_body" || kind == "block" {
             body_child = Some(child);
-            body_doc = Some(lower_node(child, ctx));
         } else if kind == "type_constraints" {
             where_has_newline =
                 prev_child_node.is_some_and(|p| ctx.has_newline_between(&p, &child));
@@ -57,6 +55,22 @@ pub fn lower_function_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
 
     let name_group = build_func_name_group(prefix_docs, name_docs, has_dot);
     let header_doc = assemble_func_header(name_group, suffix_docs, where_doc, where_has_newline);
+
+    let mod_len = if modifier_docs.iter().any(|d| d.has_hardline()) {
+        Doc::Concat(modifier_docs.clone()).last_line_len()
+    } else {
+        modifier_docs.iter().map(|d| d.flat_len()).sum::<usize>()
+    };
+    let header_col = node.start_position().column + mod_len + header_doc.last_line_len();
+
+    let body_doc = body_child.map(|b| {
+        if b.kind() == "function_body" {
+            lower_function_body_with_header(b, ctx, Some(header_col))
+        } else {
+            lower_node(b, ctx)
+        }
+    });
+
     let func_doc = attach_func_body(header_doc, body_doc, body_child, ctx);
     wrap_func_modifiers_and_context(func_doc, modifier_docs, context_doc)
 }
@@ -162,38 +176,15 @@ fn attach_func_body<'a>(
     }
 }
 
-fn is_pascal_case_call(node: &Node<'_>, source: &str) -> bool {
-    if node.kind() != "call_expression" {
-        return false;
-    }
-    let Some(callee) = node.child(0) else {
-        return false;
-    };
-    callee.kind() == "simple_identifier"
-        && source
-            .get(callee.start_byte()..callee.end_byte())
-            .is_some_and(|n| n.starts_with(|c: char| c.is_ascii_uppercase()))
-}
-
-fn has_complex_or_control_receiver(node: &Node<'_>) -> bool {
-    let mut curr = Some(*node);
-    while let Some(n) = curr {
-        if matches!(
-            n.kind(),
-            "elvis_expression"
-                | "binary_expression"
-                | "if_expression"
-                | "when_expression"
-                | "try_expression"
-        ) {
-            return true;
-        }
-        curr = n.child(0);
-    }
-    false
-}
-
 pub fn lower_function_body<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    lower_function_body_with_header(node, ctx, None)
+}
+
+pub fn lower_function_body_with_header<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    header_col: Option<usize>,
+) -> Doc<'a> {
     let mut cursor = node.walk();
     let mut is_expression_body = false;
     let mut expr_child = None;
@@ -227,6 +218,7 @@ pub fn lower_function_body<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
             comments_before_expr,
             comments_after_expr,
             ctx,
+            header_col,
         );
     }
 
@@ -235,81 +227,6 @@ pub fn lower_function_body<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
     }
 
     lower_block(node, ctx)
-}
-
-fn format_expression_body<'a>(
-    node: Node<'a>,
-    expr_child: Option<Node<'a>>,
-    comments_before_expr: Vec<Node<'a>>,
-    comments_after_expr: Vec<Node<'a>>,
-    ctx: &LowerContext<'a, '_>,
-) -> Doc<'a> {
-    let is_pascal_call = expr_child.is_some_and(|c| is_pascal_case_call(&c, ctx.source));
-    let mut expr_doc = expr_child
-        .map(|c| lower_node(c, ctx))
-        .unwrap_or_else(Doc::empty);
-    if !comments_after_expr.is_empty() {
-        let mut after_parts = vec![expr_doc];
-        let mut prev = expr_child;
-        for c in comments_after_expr {
-            if prev.is_some_and(|p| p.end_position().row == c.start_position().row) {
-                after_parts.push(Doc::space());
-            } else {
-                after_parts.push(Doc::HardLine);
-            }
-            after_parts.push(lower_node(c, ctx));
-            prev = Some(c);
-        }
-        expr_doc = Doc::Concat(after_parts);
-    }
-    if !comments_before_expr.is_empty() {
-        let mut inner = Vec::new();
-        for c in comments_before_expr {
-            inner.push(Doc::HardLine);
-            inner.push(lower_node(c, ctx));
-        }
-        if !inner.last().is_some_and(|d| d.ends_with_newline()) {
-            inner.push(Doc::HardLine);
-        }
-        inner.push(expr_doc);
-        return Doc::Concat(vec![
-            Doc::text("="),
-            Doc::continuation_indent(Doc::Concat(inner)),
-        ]);
-    }
-    if is_pascal_call {
-        return Doc::Concat(vec![
-            Doc::text("="),
-            Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, expr_doc])),
-        ]);
-    }
-    if let Some(e_node) = expr_child {
-        if matches!(e_node.kind(), "lambda_literal" | "annotated_lambda") {
-            return Doc::Concat(vec![Doc::text("="), Doc::space(), expr_doc]);
-        }
-        let is_block_like = (e_node.kind() == "call_expression"
-            || e_node.kind() == "navigation_expression")
-            && (has_trailing_lambda_child(&e_node)
-                || (ctx.options.block_indent == 4 && ctx.node_text(&e_node).contains('\n')));
-        if is_block_like && !has_complex_or_control_receiver(&e_node) {
-            let rhs_raw = ctx.node_text(&e_node);
-            let first_line = rhs_raw.lines().next().unwrap_or("");
-            let indent = node.start_position().column;
-            let full_first = ctx.node_text(&node).lines().next().unwrap_or("");
-            let eq_pos = full_first.find('=').unwrap_or(0);
-            let total = indent + eq_pos + 1 + first_line.len();
-            if total <= ctx.options.max_width {
-                return Doc::Concat(vec![Doc::text("="), Doc::space(), expr_doc]);
-            }
-        }
-    }
-    Doc::Concat(vec![
-        Doc::text("="),
-        Doc::if_break(
-            Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, expr_doc.clone()])),
-            Doc::Concat(vec![Doc::space(), expr_doc]),
-        ),
-    ])
 }
 
 fn push_func_token<'a>(

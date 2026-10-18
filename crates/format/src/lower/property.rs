@@ -3,8 +3,8 @@ use tree_sitter::Node;
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
 use crate::lower::delegates::{
-    PropertyComment, build_property_init_section, call_with_multiline_args_fits,
-    parse_comment_before_init, parse_property_delegate, property_first_line_fits,
+    PropertyComment, build_property_init_section, parse_comment_before_init,
+    parse_property_delegate, property_first_line_fits,
 };
 use crate::lower::lower_node;
 use crate::lower::types::lower_type_constraints;
@@ -23,27 +23,27 @@ pub(crate) fn build_property_header<'a>(
 ) -> Doc<'a> {
     let name_doc = Doc::Concat(name_docs);
     let Some(op) = op_str else {
-        return if type_docs.is_empty() {
-            Doc::Group(Box::new(name_doc))
-        } else {
-            Doc::Group(Box::new(Doc::Concat(vec![
-                name_doc,
-                Doc::text(":"),
-                Doc::continuation_indent(Doc::Concat(vec![Doc::Line, Doc::Concat(type_docs)])),
-            ])))
-        };
+        return format_property_without_init(name_doc, type_docs);
     };
 
-    let flat_call = call_with_multiline_args_fits(node, init_child, ctx);
+    let is_destructuring = node
+        .children(&mut node.walk())
+        .any(|ch| ch.kind() == "multi_variable_declaration");
+
     let (init_section, flat_init) = build_property_init_section(
         init_docs,
         init_child,
         trailing_comment,
         ctx.options.block_indent == 4,
-        flat_call,
+        is_destructuring,
     );
 
-    let name_len = name_doc.flat_len();
+    let name_len = name_doc.last_line_len();
+    let modifier_len = if name_doc.has_hardline() {
+        0
+    } else {
+        modifier_len
+    };
     let type_len = if type_docs.is_empty() {
         0
     } else {
@@ -61,33 +61,11 @@ pub(crate) fn build_property_header<'a>(
         op,
         init_child,
         init_flat_len,
-        flat_call,
         ctx,
     );
 
     if type_docs.is_empty() {
-        if flat_init && !flat_call && !first_line_fits {
-            let inner_init = match init_section {
-                Doc::Concat(mut items) if items.first() == Some(&Doc::space()) => {
-                    items.remove(0);
-                    Doc::Concat(items)
-                }
-                other => other,
-            };
-            Doc::Concat(vec![
-                name_doc,
-                Doc::space(),
-                Doc::text(op),
-                Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, inner_init])),
-            ])
-        } else {
-            let init_group = if flat_init {
-                init_section
-            } else {
-                Doc::Group(Box::new(init_section))
-            };
-            Doc::Concat(vec![name_doc, Doc::space(), Doc::text(op), init_group])
-        }
+        format_untyped_property_header(name_doc, op, init_section, flat_init, first_line_fits)
     } else if flat_init {
         format_flat_property_header(name_doc, type_docs, op, init_section, first_line_fits)
     } else {
@@ -99,6 +77,49 @@ pub(crate) fn build_property_header<'a>(
             Doc::text(op),
         ])));
         Doc::Group(Box::new(Doc::Concat(vec![type_and_op, init_section])))
+    }
+}
+
+fn format_property_without_init<'a>(name_doc: Doc<'a>, type_docs: Vec<Doc<'a>>) -> Doc<'a> {
+    if type_docs.is_empty() {
+        Doc::Group(Box::new(name_doc))
+    } else {
+        Doc::Group(Box::new(Doc::Concat(vec![
+            name_doc,
+            Doc::text(":"),
+            Doc::continuation_indent(Doc::Concat(vec![Doc::Line, Doc::Concat(type_docs)])),
+        ])))
+    }
+}
+
+fn format_untyped_property_header<'a>(
+    name_doc: Doc<'a>,
+    op: &'static str,
+    init_section: Doc<'a>,
+    flat_init: bool,
+    first_line_fits: bool,
+) -> Doc<'a> {
+    if flat_init && !first_line_fits {
+        let inner_init = match init_section {
+            Doc::Concat(mut items) if items.first() == Some(&Doc::space()) => {
+                items.remove(0);
+                Doc::Concat(items)
+            }
+            other => other,
+        };
+        Doc::Concat(vec![
+            name_doc,
+            Doc::space(),
+            Doc::text(op),
+            Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, inner_init])),
+        ])
+    } else {
+        let init_group = if flat_init {
+            init_section
+        } else {
+            Doc::Group(Box::new(init_section))
+        };
+        Doc::Concat(vec![name_doc, Doc::space(), Doc::text(op), init_group])
     }
 }
 
@@ -269,11 +290,15 @@ pub fn lower_property_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
     } else {
         None
     };
-    let modifier_len = parts
-        .modifier_docs
-        .iter()
-        .map(|d| d.flat_len())
-        .sum::<usize>();
+    let modifier_len = if parts.modifier_docs.iter().any(|d| d.has_hardline()) {
+        Doc::Concat(parts.modifier_docs.clone()).last_line_len()
+    } else {
+        parts
+            .modifier_docs
+            .iter()
+            .map(|d| d.flat_len())
+            .sum::<usize>()
+    };
     let header_doc = build_property_header(
         parts.name_docs,
         parts.type_docs,

@@ -167,11 +167,80 @@ impl<'a> Doc<'a> {
             Doc::Concat(docs) => docs.iter().map(|d| d.flat_len()).sum(),
         }
     }
+
+    pub fn last_line_len(&self) -> usize {
+        match self {
+            Doc::Text(s) => match s.rfind('\n') {
+                Some(i) => s[i + 1..].len(),
+                None => s.len(),
+            },
+            Doc::Smol(s) => match s.rfind('\n') {
+                Some(i) => s[i + 1..].len(),
+                None => s.len(),
+            },
+            Doc::HardLine | Doc::EmptyLine => 0,
+            Doc::Line => 1,
+            Doc::SoftLine => 0,
+            Doc::ReserveWidth(_) => 0,
+            Doc::LineSuffix(_) => 0,
+            Doc::Indent(inner) | Doc::ContinuationIndent(inner) | Doc::Group(inner) => {
+                inner.last_line_len()
+            }
+            Doc::IfBreak { broken, flat } => {
+                if broken.has_hardline() {
+                    broken.last_line_len()
+                } else {
+                    flat.last_line_len()
+                }
+            }
+            Doc::Concat(docs) => {
+                let mut len = 0;
+                for d in docs.iter().rev() {
+                    let has_break = match d {
+                        Doc::IfBreak { broken, .. } => broken.has_hardline(),
+                        other => other.has_hardline(),
+                    };
+                    if has_break {
+                        len += d.last_line_len();
+                        break;
+                    }
+                    let last = d.last_line_len();
+                    let flat = d.flat_len();
+                    if last != flat {
+                        len += last;
+                        break;
+                    }
+                    len += flat;
+                }
+                len
+            }
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_doc_last_line_len() {
+        assert_eq!(Doc::text("hello").last_line_len(), 5);
+        assert_eq!(Doc::text("hello\nworld").last_line_len(), 5);
+        assert_eq!(
+            Doc::Concat(vec![Doc::text("first\nsecond")]).last_line_len(),
+            6
+        );
+        let concat = Doc::Concat(vec![Doc::text("first"), Doc::HardLine, Doc::text("second")]);
+        assert_eq!(concat.last_line_len(), 6);
+        let if_break_concat = Doc::Concat(vec![
+            Doc::text("prefix"),
+            Doc::if_break(
+                Doc::Concat(vec![Doc::HardLine, Doc::text("x")]),
+                Doc::text("y"),
+            ),
+        ]);
+        assert_eq!(if_break_concat.last_line_len(), 1);
+    }
 
     #[test]
     fn test_doc_flat_len_variants() {
