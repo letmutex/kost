@@ -1,0 +1,2 @@
+@Suppress("UnstableApiUsage")
+class Plugin

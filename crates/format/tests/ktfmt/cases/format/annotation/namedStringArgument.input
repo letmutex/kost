@@ -1,0 +1,2 @@
+@Deprecated(message = "deprecated")
+class Foo

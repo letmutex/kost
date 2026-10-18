@@ -1,0 +1,3 @@
+class Foo {
+  val enabled = true // Set to false for running with WindowsOS on a non-Windows machine but DO NOT COMMIT
+}

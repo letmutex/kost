@@ -1,0 +1,11 @@
+fun test() {
+  val x =
+      userData
+          .map {
+            it
+          }
+          .stateIn(
+              scope = viewModelScope,
+              initialValue = Loading,
+          )
+}

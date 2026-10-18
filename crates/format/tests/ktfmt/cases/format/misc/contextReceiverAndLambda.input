@@ -1,0 +1,4 @@
+fun test() {
+  context.registerReceiver()
+  val block = { context -> context.process() }
+}

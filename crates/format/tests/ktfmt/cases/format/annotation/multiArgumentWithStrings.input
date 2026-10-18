@@ -1,0 +1,2 @@
+@SinceKotlin("1.5", STABLE)
+class Foo

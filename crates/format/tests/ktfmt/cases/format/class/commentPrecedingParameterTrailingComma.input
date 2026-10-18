@@ -1,0 +1,4 @@
+data class Foo(
+  /** doc */
+  val x: Int,
+)

@@ -1,0 +1,13 @@
+fun test() {
+  while (cond) {
+    // while comment
+    step()
+  }
+  if (cond) {
+    // if comment
+    step()
+  } else {
+    // else comment
+    other()
+  }
+}

@@ -1,0 +1,5 @@
+annotation class Foo
+
+fun test(annotation: String) {
+  val target = annotation.target
+}

@@ -139,23 +139,11 @@ pub fn run_test_case(
 
     match verify_standard_pass(&input, input_path, &config) {
         Ok(()) => {}
-        Err(failure) if failure.phase == "format_error" => {
-            return Ok(CaseOutcome::Skipped(format::concat_str!(
-                "error file: ",
-                &failure.actual
-            )));
-        }
         Err(failure) => return Err(failure),
     }
 
     match verify_variant_passes(&input, input_path) {
         Ok(()) => {}
-        Err(failure) if failure.phase == "variant_format_error" => {
-            return Ok(CaseOutcome::Skipped(format::concat_str!(
-                "variant error file: ",
-                &failure.actual
-            )));
-        }
         Err(failure) => return Err(failure),
     }
 
