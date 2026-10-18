@@ -1,3 +1,5 @@
+use smol_str::SmolStr;
+
 /// Normalizes a single-line comment, ensuring `// text` has a space after `//`
 /// and wrapping lines that exceed `max_width`.
 pub fn normalize_line_comment(
@@ -5,10 +7,10 @@ pub fn normalize_line_comment(
     start_col: usize,
     base_indent: usize,
     max_width: usize,
-) -> String {
+) -> Vec<SmolStr> {
     let trimmed = text.trim_end();
     if trimmed.starts_with("//noinspection") || trimmed.starts_with("//$NON-NLS") {
-        return trimmed.to_string();
+        return vec![SmolStr::new(trimmed)];
     }
 
     let normalized = if let Some(rest) = trimmed.strip_prefix("//")
@@ -16,9 +18,9 @@ pub fn normalize_line_comment(
         && !rest.starts_with('/')
         && !rest.is_empty()
     {
-        crate::concat_str!("// ", rest)
+        crate::concat_smol_str!("// ", rest)
     } else {
-        trimmed.to_string()
+        SmolStr::new(trimmed)
     };
 
     if max_width > 0
@@ -39,26 +41,19 @@ pub fn normalize_line_comment(
                 cur_line.push(' ');
                 cur_line.push_str(word);
             } else {
-                lines.push(cur_line);
+                lines.push(SmolStr::new(&cur_line));
                 cur_line = crate::concat_str!("// ", word);
             }
         }
         if cur_line.len() > 2 {
-            lines.push(cur_line);
+            lines.push(SmolStr::new(&cur_line));
         }
         if lines.len() > 1 && lines[0].len() <= first_budget {
-            let indent_str = " ".repeat(base_indent);
-            let mut result = lines[0].clone();
-            for line in &lines[1..] {
-                result.push('\n');
-                result.push_str(&indent_str);
-                result.push_str(line);
-            }
-            return result;
+            return lines;
         }
     }
 
-    normalized
+    vec![normalized]
 }
 
 pub use crate::rules::kdoc::format_kdoc;

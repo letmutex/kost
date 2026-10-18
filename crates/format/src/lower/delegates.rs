@@ -82,10 +82,6 @@ pub(crate) fn find_innermost_call<'a>(node: Node<'a>) -> Option<Node<'a>> {
     root_call
 }
 
-pub(crate) fn chain_root_has_multiline_args(node: &Node<'_>) -> bool {
-    find_innermost_call(*node).is_some_and(|c| call_has_multiline_args(&c))
-}
-
 pub(crate) fn build_property_init_section<'a>(
     init_docs: Vec<Doc<'a>>,
     init_child: Option<Node<'a>>,
@@ -95,12 +91,13 @@ pub(crate) fn build_property_init_section<'a>(
 ) -> (Doc<'a>, bool) {
     let init_doc = Doc::Concat(init_docs);
     let flat_init = init_child.is_some_and(|r| {
+        let innermost = find_innermost_call(r);
         crate::lower::scoping::is_scoping_chain_or_lambda(&r)
             || ((is_kotlinlang || is_destructuring)
-                && (chain_root_has_multiline_args(&r)
-                    || find_innermost_call(r)
-                        .and_then(|c| find_call_opening_paren_len(c, r))
-                        .is_some()))
+                && innermost.is_some_and(|c| {
+                    call_has_multiline_args(&c)
+                        || (c.id() == r.id() && find_call_opening_paren_len(c, r).is_some())
+                }))
     });
 
     let is_raw_string = init_child.is_some_and(|r| {
@@ -205,14 +202,9 @@ fn property_init_first_line_len(
     if let Some(lambda) = find_first_lambda(init) {
         return lambda.start_byte().saturating_sub(init.start_byte()) + 1;
     }
-    if is_kotlinlang
-        && let Some(call) = find_innermost_call(init)
-        && let Some(len) = find_call_opening_paren_len(call, init)
-    {
-        return len;
-    }
     if let Some(call) = find_innermost_call(init)
-        && call_has_multiline_args(&call)
+        && call.id() == init.id()
+        && (is_kotlinlang || call_has_multiline_args(&call))
         && let Some(len) = find_call_opening_paren_len(call, init)
     {
         return len;

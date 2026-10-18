@@ -6,6 +6,7 @@ pub mod callable_reference;
 pub mod calls;
 pub mod class_body;
 pub mod comma_list;
+pub mod comment;
 pub mod constructors;
 pub mod context;
 pub mod context_receiver;
@@ -45,6 +46,7 @@ use crate::lower::binary::lower_binary_expression;
 use crate::lower::callable_reference::lower_callable_reference;
 use crate::lower::calls::{lower_call_expression, lower_call_suffix};
 use crate::lower::class_body::{lower_anonymous_initializer, lower_companion_object};
+use crate::lower::comment::lower_comment;
 use crate::lower::constructors::lower_primary_constructor;
 use crate::lower::context::LowerContext;
 use crate::lower::context_receiver::lower_context_receiver;
@@ -81,7 +83,6 @@ use crate::lower::types::{
     lower_type_alias, lower_type_constraints, lower_type_list, lower_type_parameter,
 };
 use crate::lower::when_expr::{lower_when_entry, lower_when_expression, lower_when_subject};
-use crate::rules::comments::{format_kdoc, normalize_line_comment};
 
 fn lower_declaration_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Option<Doc<'a>> {
     let doc = match node.kind() {
@@ -215,52 +216,6 @@ pub fn lower_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
         Doc::text(ctx.node_text(&node))
     } else {
         lower_composite_node(node, ctx)
-    }
-}
-
-pub fn lower_comment<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut text = ctx.node_text(&node);
-    if text.is_empty() {
-        let end = node.start_byte();
-        let prefix = ctx.source.get(..end).unwrap_or("");
-        if let Some(start) = prefix.rfind("/*")
-            && let Some(comment_end) = prefix.get(start..).and_then(|s| s.find("*/"))
-        {
-            text = prefix.get(start..start + comment_end + 2).unwrap_or("");
-        }
-    }
-    if text.starts_with("//") {
-        let start_col = node.start_position().column;
-        let mut base_node = node;
-        while let Some(parent) = base_node.parent()
-            && parent.start_position().row == node.start_position().row
-            && !matches!(base_node.kind(), "statements")
-            && !matches!(parent.kind(), "source_file" | "class_body")
-        {
-            base_node = parent;
-        }
-        // In Kotlinlang/ktlint style (block_indent == 4), comment continuation lines
-        // are indented relative to the enclosing statement/expression base column.
-        // In Google/ktfmt style, preserving start_col maintains author comment alignment
-        // across passes without altering indentation (per commentStability.input).
-        let base_indent = if ctx.options.block_indent == 4 {
-            base_node.start_position().column
-        } else {
-            start_col
-        };
-        Doc::Concat(vec![
-            Doc::smol(normalize_line_comment(
-                text,
-                start_col,
-                base_indent,
-                ctx.options.max_width,
-            )),
-            Doc::HardLine,
-        ])
-    } else if text.starts_with("/**") {
-        format_kdoc(text, ctx.options.max_width)
-    } else {
-        Doc::text(text)
     }
 }
 

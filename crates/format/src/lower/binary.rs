@@ -115,15 +115,71 @@ fn push_comment_doc<'a>(
     {
         docs.push(Doc::space());
         docs.push(lower_node(child, ctx));
-        state.is_after_comment = false;
+        state.is_after_comment = docs.last().is_some_and(|d| d.ends_with_newline());
     } else {
-        docs.push(Doc::continuation_indent(Doc::Concat(vec![
-            Doc::Line,
-            lower_node(child, ctx),
-        ])));
+        let line_doc = if docs.last().is_some_and(|d| d.ends_with_newline()) {
+            if state
+                .prev_child
+                .is_some_and(|p| ctx.has_blank_line_between(&p, &child))
+            {
+                Some(Doc::EmptyLine)
+            } else {
+                None
+            }
+        } else {
+            Some(Doc::Line)
+        };
+        let comment_doc = match line_doc {
+            Some(l) => Doc::Concat(vec![l, lower_node(child, ctx)]),
+            None => lower_node(child, ctx),
+        };
+        docs.push(Doc::continuation_indent(comment_doc));
         state.is_after_comment = true;
+        state.prev_was_operator = false;
     }
-    state.prev_was_operator = false;
+}
+
+fn push_post_comment_child<'a>(
+    docs: &mut Vec<Doc<'a>>,
+    child: Node<'a>,
+    state: &mut BinaryLowerState<'a>,
+    ctx: &LowerContext<'a, '_>,
+) {
+    if docs.last().is_some_and(|d| d.ends_with_newline()) {
+        if state.prev_was_operator {
+            let stripped_newline = match docs.last_mut() {
+                Some(Doc::Concat(items)) => {
+                    if items.last().is_some_and(|d| matches!(d, Doc::HardLine)) {
+                        items.pop();
+                        true
+                    } else {
+                        false
+                    }
+                }
+                Some(Doc::HardLine) => {
+                    docs.pop();
+                    true
+                }
+                _ => false,
+            };
+            if stripped_newline {
+                docs.push(Doc::continuation_indent(Doc::Concat(vec![
+                    Doc::HardLine,
+                    lower_node(child, ctx),
+                ])));
+            } else {
+                docs.push(Doc::continuation_indent(lower_node(child, ctx)));
+            }
+            state.prev_was_operator = false;
+        } else {
+            docs.push(lower_node(child, ctx));
+        }
+    } else {
+        docs.push(Doc::space());
+        docs.push(lower_node(child, ctx));
+        state.prev_was_operator = false;
+    }
+    state.is_after_comment = false;
 }
 
 fn push_binary_child_doc<'a>(
@@ -167,17 +223,13 @@ fn push_binary_child_doc<'a>(
         ])));
         state.pending_elvis = false;
         state.prev_was_operator = false;
+    } else if state.is_after_comment {
+        push_post_comment_child(docs, child, state, ctx);
     } else if state.prev_was_operator {
-        if state.is_after_comment {
-            docs.push(Doc::space());
-            docs.push(lower_node(child, ctx));
-            state.is_after_comment = false;
-        } else {
-            docs.push(Doc::continuation_indent(Doc::Concat(vec![
-                Doc::Line,
-                lower_node(child, ctx),
-            ])));
-        }
+        docs.push(Doc::continuation_indent(Doc::Concat(vec![
+            Doc::Line,
+            lower_node(child, ctx),
+        ])));
         state.prev_was_operator = false;
     } else {
         docs.push(Doc::space());

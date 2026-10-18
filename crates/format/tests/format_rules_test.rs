@@ -208,3 +208,110 @@ fn test_trailing_line_comment_wrap_idempotence() {
         "wrapped trailing line comment must be idempotent across passes"
     );
 }
+
+#[test]
+fn test_enclosing_block_line_comment_wrap_idempotence() {
+    let source = "class Formatter {\nfun sortedImports() {\n    // Find non-import elements; comments are moved, in order, to the top of the import list. Other\n}\n}\n";
+    let expected = "class Formatter {\n    fun sortedImports() {\n        // Find non-import elements; comments are moved, in order, to the top of the import list.\n        // Other\n    }\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    assert_eq!(pass1, expected);
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "line comment wrapping inside re-indented block must be idempotent across passes"
+    );
+}
+
+#[test]
+fn test_mismatched_unformatted_line_comment_continuation_indent_idempotence() {
+    let source = "fun test() {\n    if (true) {\n        if (true) {\n                // writeText effective replaces the entire content if the file already exists. If appendText is used, the file keeps on growing\n                writeText()\n        }\n    }\n}\n";
+    let expected = "fun test() {\n    if (true) {\n        if (true) {\n            // writeText effective replaces the entire content if the file already exists. If\n            // appendText is used, the file keeps on growing\n            writeText()\n        }\n    }\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    assert_eq!(pass1, expected);
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "wrapped line comment continuation indent from unformatted offset must be idempotent"
+    );
+}
+
+#[test]
+fn test_binary_expression_wrapped_line_comment_blank_line_idempotence() {
+    let source = "fun test() {\n    val length = actualClassSignatureLength +\n        // Calculate the white space correction in case the signature would be rewritten to a single line\n        fixWhiteSpaces()\n}\n";
+    let expected = "fun test() {\n    val length =\n        actualClassSignatureLength +\n            // Calculate the white space correction in case the signature would be rewritten to a\n            // single line\n            fixWhiteSpaces()\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    assert_eq!(pass1, expected);
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "wrapped comment in binary expression must not introduce blank lines across passes"
+    );
+}
+
+#[test]
+fn test_property_initializer_multiline_call_chain_break_idempotence() {
+    let source = "class C {\n    fun f() {\n        if (a) {\n            if (b) {\n                if (c) {\n                    val addedNewsResources = newsResourceDao.getNewsResources(\n                        useFilterTopicIds = true,\n                        filterTopicIds = followedTopicIds,\n                        useFilterNewsIds = true,\n                        filterNewsIds = changedIds.toSet() - existingNewsResourceIdsThatHaveChanged,\n                    )\n                        .first()\n                        .map(PopulatedNewsResource::asExternalModel)\n                }\n            }\n        }\n    }\n}\n";
+    let expected = "class C {\n    fun f() {\n        if (a) {\n            if (b) {\n                if (c) {\n                    val addedNewsResources =\n                        newsResourceDao\n                            .getNewsResources(\n                                useFilterTopicIds = true,\n                                filterTopicIds = followedTopicIds,\n                                useFilterNewsIds = true,\n                                filterNewsIds =\n                                    changedIds.toSet() - existingNewsResourceIdsThatHaveChanged,\n                            )\n                            .first()\n                            .map(PopulatedNewsResource::asExternalModel)\n                }\n            }\n        }\n    }\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    assert_eq!(pass1, expected);
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "property initializer with multiline call chain must be idempotent across passes"
+    );
+}
+
+#[test]
+fn test_trailing_line_comment_multiline_statement_wrap_idempotence() {
+    let source = "fun test() {\n    val pathSeparator =\n        \";\" // instead of File.pathSeparator as would have been reasonable (e.g. : on Unix)\n}\n";
+    let expected = "fun test() {\n    val pathSeparator = \";\" // instead of File.pathSeparator as would have been reasonable (e.g. :\n    // on Unix)\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    assert_eq!(pass1, expected);
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "trailing line comment on multiline statement must be idempotent across passes"
+    );
+}
+
+#[test]
+fn test_binary_expression_operator_trailing_comment_continuation_indent() {
+    let source = "fun test() {\n    val x = a + // comment\n        b\n}\n";
+    let expected = "fun test() {\n    val x =\n        a + // comment\n            b\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    assert_eq!(pass1, expected);
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "trailing line comment on operator must maintain continuation indent across passes"
+    );
+}
+
+#[test]
+fn test_modified_property_trailing_comment_wrap_idempotence() {
+    let word50 = "a".repeat(50);
+    let words = format!("{} 12345678901", word50); // 50 + 1 + 11 = 62 chars
+    let source = format!(
+        "class C {{\n    private val pathSeparator =\n        \";\" // {}\n}}\n",
+        words
+    );
+    let expected = format!(
+        "class C {{\n    private val pathSeparator = \";\" // {}\n    // 12345678901\n}}\n",
+        word50
+    );
+    let pass1 = format_default(&source).expect("formatting pass 1 should succeed");
+    assert_eq!(pass1, expected);
+    for line in pass1.lines() {
+        assert!(
+            line.len() <= 100,
+            "line length {} exceeded max_width 100: '{}'",
+            line.len(),
+            line
+        );
+    }
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "modified property with trailing line comment must be idempotent across passes"
+    );
+}
