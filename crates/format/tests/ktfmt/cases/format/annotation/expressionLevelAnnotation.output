@@ -1,0 +1,7 @@
+fun test() {
+  val x =
+      @Suppress("DEPRECATION")
+      when (value) {
+        else -> 1
+      }
+}

@@ -852,8 +852,11 @@ static inline bool is_ascii_space(int32_t c) {
   return c == ' ' || c == '\t' || c == '\r' || c == '\n';
 }
 
-static bool scan_function_type_arrow_ahead(TSLexer *lexer) {
+static bool scan_function_type_arrow_ahead(TSLexer *lexer, bool *consumed_paren) {
+  *consumed_paren = false;
+  bool has_whitespace = false;
   while (is_ascii_space(lexer->lookahead)) {
+    has_whitespace = true;
     skip(lexer);
   }
 
@@ -861,8 +864,16 @@ static bool scan_function_type_arrow_ahead(TSLexer *lexer) {
     return false;
   }
 
+  // In Kotlin, whitespace is not allowed between an annotation and its arguments.
+  // Any whitespace before '(' means it belongs to a parenthesized or function type.
+  if (has_whitespace) {
+    lexer->mark_end(lexer);
+    return true;
+  }
+
   lexer->mark_end(lexer);
   advance(lexer);
+  *consumed_paren = true;
 
   while (is_ascii_space(lexer->lookahead)) {
     advance(lexer);
@@ -924,9 +935,13 @@ static bool scan_function_type_arrow_ahead(TSLexer *lexer) {
 
 bool tree_sitter_kotlin_external_scanner_scan(void *payload, TSLexer *lexer, const bool *valid_symbols) {
   if (valid_symbols[FUNCTION_TYPE_ARROW_AHEAD]) {
-    if (scan_function_type_arrow_ahead(lexer)) {
+    bool consumed_paren = false;
+    if (scan_function_type_arrow_ahead(lexer, &consumed_paren)) {
       lexer->result_symbol = FUNCTION_TYPE_ARROW_AHEAD;
       return true;
+    }
+    if (consumed_paren) {
+      return false;
     }
   }
 

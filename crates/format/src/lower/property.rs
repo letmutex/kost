@@ -103,21 +103,14 @@ pub(crate) fn build_property_header<'a>(
     } else if flat_init {
         format_flat_property_header(name_doc, type_docs, op, init_section, node, ctx)
     } else {
-        let type_part = Doc::Group(Box::new(Doc::Concat(vec![
+        let type_and_op = Doc::Group(Box::new(Doc::Concat(vec![
             name_doc,
             Doc::text(":"),
-            Doc::continuation_indent(Doc::Concat(vec![
-                Doc::Line,
-                Doc::Concat(type_docs),
-                Doc::reserve_width(op.len() + 1),
-            ])),
-        ])));
-        Doc::Group(Box::new(Doc::Concat(vec![
-            type_part,
+            Doc::continuation_indent(Doc::Concat(vec![Doc::Line, Doc::Concat(type_docs)])),
             Doc::space(),
             Doc::text(op),
-            init_section,
-        ])))
+        ])));
+        Doc::Group(Box::new(Doc::Concat(vec![type_and_op, init_section])))
     }
 }
 

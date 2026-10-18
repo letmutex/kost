@@ -29,7 +29,11 @@ fn format_accessor_paren_items<'a>(
     )
 }
 
-pub fn lower_getter_setter<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+fn lower_accessor_parts<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+) -> (Vec<Doc<'a>>, Vec<Doc<'a>>, Option<Node<'a>>) {
+    let mut modifier_docs = Vec::new();
     let mut head_docs = Vec::new();
     let mut in_parens = false;
     let mut paren_items = Vec::new();
@@ -40,6 +44,10 @@ pub fn lower_getter_setter<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
+        if kind == "modifiers" {
+            modifier_docs.push(lower_node(child, ctx));
+            continue;
+        }
         if kind == "(" {
             in_parens = true;
             continue;
@@ -90,8 +98,18 @@ pub fn lower_getter_setter<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
         }
         head_docs.push(lower_node(child, ctx));
     }
+    (modifier_docs, head_docs, body_node)
+}
 
-    let header_doc = Doc::Group(Box::new(Doc::Concat(head_docs)));
+pub fn lower_getter_setter<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    let (modifier_docs, head_docs, body_node) = lower_accessor_parts(node, ctx);
+
+    let sig_doc = Doc::Group(Box::new(Doc::Concat(head_docs)));
+    let header_doc = if modifier_docs.is_empty() {
+        sig_doc
+    } else {
+        Doc::Concat(vec![Doc::Concat(modifier_docs), sig_doc])
+    };
     let Some(body) = body_node else {
         return header_doc;
     };

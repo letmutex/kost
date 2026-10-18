@@ -4,11 +4,14 @@ use crate::doc::Doc;
 use crate::lower::context::LowerContext;
 use crate::lower::lower_node;
 
+#[derive(Clone)]
 struct ModifierContext {
     is_param: bool,
     is_accessor: bool,
     is_class_member_prop: bool,
     is_top_decl: bool,
+    should_force_break_in_kotlinlang: bool,
+    only_annotations_so_far: bool,
     annotation_count: usize,
 }
 
@@ -29,6 +32,11 @@ fn annotation_trailing_doc<'a>(
     let has_use_site = child
         .children(&mut child.walk())
         .any(|c| c.kind() == "use_site_target");
+    let has_bracket = child.children(&mut child.walk()).any(|c| c.kind() == "[");
+
+    if has_bracket && node.kind() != "type_modifiers" {
+        return Doc::HardLine;
+    }
 
     if node.kind() == "type_modifiers" {
         if has_newline || (m_ctx.is_param && has_use_site) {
@@ -38,30 +46,35 @@ fn annotation_trailing_doc<'a>(
         } else {
             Doc::space()
         }
+    } else if ctx.options.block_indent == 4 {
+        if !m_ctx.only_annotations_so_far {
+            Doc::space()
+        } else if m_ctx.should_force_break_in_kotlinlang {
+            Doc::HardLine
+        } else if m_ctx.is_param {
+            if has_newline {
+                Doc::HardLine
+            } else {
+                Doc::space()
+            }
+        } else if has_newline {
+            Doc::HardLine
+        } else {
+            Doc::space()
+        }
     } else if m_ctx.is_param {
         if has_newline {
             Doc::HardLine
         } else {
             Doc::space()
         }
-    } else if m_ctx.is_accessor {
-        if ctx.options.block_indent == 4 {
-            Doc::HardLine
-        } else {
-            Doc::space()
-        }
-    } else if m_ctx.is_class_member_prop
-        && ctx.options.block_indent == 2
-        && m_ctx.annotation_count == 1
-        && !has_args
+    } else if m_ctx.is_accessor
+        || (m_ctx.is_class_member_prop
+            && ctx.options.block_indent == 2
+            && m_ctx.annotation_count == 1
+            && !has_args)
     {
         Doc::space()
-    } else if ctx.options.block_indent == 4 && m_ctx.is_top_decl {
-        if has_args || m_ctx.annotation_count > 1 || has_newline {
-            Doc::HardLine
-        } else {
-            Doc::Line
-        }
     } else if m_ctx.is_top_decl {
         if has_newline {
             Doc::HardLine
@@ -82,6 +95,21 @@ pub fn lower_modifiers<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a
     let parent_kind = parent.as_ref().map(|p| p.kind());
     let grandparent_kind = parent.as_ref().and_then(|p| p.parent()).map(|gp| gp.kind());
 
+    let should_force_break_in_kotlinlang = matches!(
+        parent_kind,
+        Some(
+            "class_declaration"
+                | "object_declaration"
+                | "enum_entry"
+                | "companion_object"
+                | "property_declaration"
+                | "getter"
+                | "setter"
+                | "secondary_constructor"
+                | "function_declaration"
+        )
+    );
+
     let m_ctx = ModifierContext {
         is_param: matches!(parent_kind, Some("parameter" | "class_parameter")),
         is_accessor: matches!(parent_kind, Some("getter" | "setter")),
@@ -97,18 +125,23 @@ pub fn lower_modifiers<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a
             grandparent_kind,
             Some("source_file" | "class_body" | "enum_class_body")
         )),
+        should_force_break_in_kotlinlang,
+        only_annotations_so_far: true,
         annotation_count: node
             .children(&mut node.walk())
             .filter(|c| c.kind() == "annotation")
             .count(),
     };
 
+    let mut only_annotations_so_far = true;
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         let doc = lower_node(child, ctx);
         if kind == "annotation" {
+            let mut item_m_ctx = m_ctx.clone();
+            item_m_ctx.only_annotations_so_far = only_annotations_so_far;
             docs.push(doc);
-            docs.push(annotation_trailing_doc(&child, &node, ctx, &m_ctx));
+            docs.push(annotation_trailing_doc(&child, &node, ctx, &item_m_ctx));
         } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
             docs.push(doc);
             let next_node = child.next_sibling().or_else(|| node.next_sibling());
@@ -120,6 +153,7 @@ pub fn lower_modifiers<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a
                 docs.push(Doc::space());
             }
         } else {
+            only_annotations_so_far = false;
             docs.push(doc);
             docs.push(Doc::space());
         }

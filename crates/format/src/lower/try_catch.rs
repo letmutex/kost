@@ -32,6 +32,47 @@ pub fn lower_braced_children<'a>(children: &[Node<'a>], ctx: &LowerContext<'a, '
     }
 }
 
+fn format_catch_parens<'a>(
+    param_docs: Vec<Doc<'a>>,
+    has_trailing_comma: bool,
+    ctx: &LowerContext<'a, '_>,
+) -> Doc<'a> {
+    if param_docs.is_empty() {
+        return Doc::text("()");
+    }
+    let trailing_comma_doc = match ctx.options.trailing_comma_strategy {
+        crate::options::TrailingCommaStrategy::Complete => {
+            Doc::if_break(Doc::text(","), Doc::empty())
+        }
+        crate::options::TrailingCommaStrategy::OnlyAdd => {
+            if has_trailing_comma {
+                Doc::text(",")
+            } else {
+                Doc::if_break(Doc::text(","), Doc::empty())
+            }
+        }
+        crate::options::TrailingCommaStrategy::None => {
+            if has_trailing_comma {
+                Doc::text(",")
+            } else {
+                Doc::empty()
+            }
+        }
+    };
+    Doc::Concat(vec![
+        Doc::Group(Box::new(Doc::Concat(vec![
+            Doc::text("("),
+            Doc::continuation_indent(Doc::Concat(vec![
+                Doc::SoftLine,
+                Doc::Concat(param_docs),
+                trailing_comma_doc,
+                Doc::reserve_width(3),
+            ])),
+        ]))),
+        Doc::text(")"),
+    ])
+}
+
 pub fn lower_catch_block<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     let mut param_docs = Vec::new();
     let mut in_params = false;
@@ -55,7 +96,7 @@ pub fn lower_catch_block<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<
             if kind == ":" {
                 param_docs.push(Doc::text(": "));
             } else if kind == "," {
-                param_docs.push(Doc::text(","));
+                // trailing comma handled by format_comma_list
             } else {
                 if !param_docs.is_empty()
                     && !param_docs
@@ -69,13 +110,11 @@ pub fn lower_catch_block<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<
         }
     }
 
+    let has_trailing_comma = node.children(&mut node.walk()).any(|c| c.kind() == ",");
+    let paren_doc = format_catch_parens(param_docs, has_trailing_comma, ctx);
+
     let body_doc = lower_braced_children(&body_nodes, ctx);
-    Doc::Concat(vec![
-        Doc::text("catch ("),
-        Doc::Concat(param_docs),
-        Doc::text(") "),
-        body_doc,
-    ])
+    Doc::Concat(vec![Doc::text("catch "), paren_doc, Doc::space(), body_doc])
 }
 
 pub fn lower_finally_block<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {

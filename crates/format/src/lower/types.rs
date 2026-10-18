@@ -184,3 +184,16 @@ pub fn lower_enum_entry<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
     }
     Doc::Concat(docs)
 }
+
+pub fn lower_not_nullable_type<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    let mut docs = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "&" {
+            docs.push(Doc::text(" & "));
+        } else {
+            docs.push(lower_node(child, ctx));
+        }
+    }
+    Doc::Concat(docs)
+}

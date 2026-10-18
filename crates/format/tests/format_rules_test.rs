@@ -27,6 +27,14 @@ fn test_semicolon_inside_string_and_comment_preservation() {
 fn test_redundant_semicolon_elimination() {
     let source = "fun test() {\n    val x = 1;\n    println(x);\n}\n";
     let expected = "fun test() {\n    val x = 1\n    println(x)\n}\n";
+
     let formatted = format_default(source).expect("formatting should succeed");
     assert_eq!(formatted, expected);
+}
+
+#[test]
+fn test_bracket_annotation_in_type_modifiers_inline() {
+    let source = "fun test() {\n    val x: @[A B] Int = 1\n}\n";
+    let formatted = format_default(source).expect("formatting should succeed");
+    assert_eq!(formatted, source);
 }

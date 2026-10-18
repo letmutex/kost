@@ -188,7 +188,7 @@ pub fn lower_if_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
     let if_header = if ctx.options.trailing_comma_strategy != crate::TrailingCommaStrategy::None {
         Doc::Group(Box::new(Doc::Concat(vec![
             Doc::text("if ("),
-            Doc::indent(Doc::Concat(vec![Doc::SoftLine, cond_doc])),
+            Doc::continuation_indent(Doc::Concat(vec![Doc::SoftLine, cond_doc])),
             Doc::SoftLine,
             Doc::text(")"),
         ])))

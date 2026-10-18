@@ -1283,15 +1283,32 @@
       ]
     },
     "_generic_call_suffix_no_trailing_lambda": {
-      "type": "SEQ",
+      "type": "CHOICE",
       "members": [
         {
-          "type": "SYMBOL",
-          "name": "type_arguments"
+          "type": "PREC_RIGHT",
+          "value": 1,
+          "content": {
+            "type": "SEQ",
+            "members": [
+              {
+                "type": "SYMBOL",
+                "name": "type_arguments"
+              },
+              {
+                "type": "SYMBOL",
+                "name": "value_arguments"
+              }
+            ]
+          }
         },
         {
-          "type": "SYMBOL",
-          "name": "value_arguments"
+          "type": "PREC",
+          "value": -1,
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_arguments"
+          }
         }
       ]
     },
@@ -4540,51 +4557,64 @@
       }
     },
     "_generic_call_suffix": {
-      "type": "PREC_LEFT",
-      "value": 0,
-      "content": {
-        "type": "SEQ",
-        "members": [
-          {
-            "type": "SYMBOL",
-            "name": "type_arguments"
-          },
-          {
-            "type": "CHOICE",
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "PREC_RIGHT",
+          "value": 1,
+          "content": {
+            "type": "SEQ",
             "members": [
               {
-                "type": "PREC",
-                "value": 1,
-                "content": {
-                  "type": "SEQ",
-                  "members": [
-                    {
-                      "type": "CHOICE",
-                      "members": [
-                        {
-                          "type": "SYMBOL",
-                          "name": "value_arguments"
-                        },
-                        {
-                          "type": "BLANK"
-                        }
-                      ]
-                    },
-                    {
-                      "type": "SYMBOL",
-                      "name": "annotated_lambda"
-                    }
-                  ]
-                }
+                "type": "SYMBOL",
+                "name": "type_arguments"
               },
               {
-                "type": "SYMBOL",
-                "name": "value_arguments"
+                "type": "CHOICE",
+                "members": [
+                  {
+                    "type": "PREC",
+                    "value": 1,
+                    "content": {
+                      "type": "SEQ",
+                      "members": [
+                        {
+                          "type": "CHOICE",
+                          "members": [
+                            {
+                              "type": "SYMBOL",
+                              "name": "value_arguments"
+                            },
+                            {
+                              "type": "BLANK"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "SYMBOL",
+                          "name": "annotated_lambda"
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "type": "SYMBOL",
+                    "name": "value_arguments"
+                  }
+                ]
               }
             ]
           }
-        ]
-      }
+        },
+        {
+          "type": "PREC",
+          "value": -1,
+          "content": {
+            "type": "SYMBOL",
+            "name": "type_arguments"
+          }
+        }
+      ]
     },
     "annotated_lambda": {
       "type": "SEQ",
@@ -6882,6 +6912,10 @@
         },
         {
           "type": "STRING",
+          "value": "context"
+        },
+        {
+          "type": "STRING",
           "value": "expect"
         },
         {
@@ -7845,6 +7879,10 @@
       "callable_reference"
     ],
     [
+      "context_receiver",
+      "simple_identifier"
+    ],
+    [
       "platform_modifier",
       "simple_identifier"
     ],
@@ -8077,10 +8115,6 @@
     [
       "call_suffix",
       "_generic_call_suffix"
-    ],
-    [
-      "_call_suffix_no_trailing_lambda",
-      "_generic_call_suffix_no_trailing_lambda"
     ]
   ],
   "precedences": [],

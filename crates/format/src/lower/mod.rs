@@ -1,6 +1,7 @@
 pub mod accessors;
 pub mod annotation;
 pub mod assignment;
+pub mod binary;
 pub mod callable_reference;
 pub mod calls;
 pub mod class_body;
@@ -37,6 +38,7 @@ use crate::doc::Doc;
 use crate::lower::accessors::lower_getter_setter;
 use crate::lower::annotation::{lower_annotation, lower_file_annotation, lower_modifiers};
 use crate::lower::assignment::{lower_assignment, lower_directly_assignable_expression};
+use crate::lower::binary::lower_binary_expression;
 use crate::lower::callable_reference::lower_callable_reference;
 use crate::lower::calls::{lower_call_expression, lower_call_suffix};
 use crate::lower::class_body::{lower_anonymous_initializer, lower_companion_object};
@@ -50,7 +52,7 @@ use crate::lower::control::{
 use crate::lower::decl::{lower_class_body, lower_class_declaration};
 use crate::lower::destructuring::{lower_backing_field, lower_destructuring_declaration};
 use crate::lower::elvis::{find_leftmost_unparenthesized_elvis, lower_unparenthesized_elvis_chain};
-use crate::lower::expr::{lower_binary_expression, lower_block, lower_statements};
+use crate::lower::expr::{lower_block, lower_statements};
 use crate::lower::func::{lower_function_body, lower_function_declaration};
 use crate::lower::imports::{lower_import_list, lower_package_header};
 use crate::lower::lambda::{lower_annotated_lambda, lower_lambda_literal, lower_lambda_parameters};
@@ -72,8 +74,8 @@ use crate::lower::type_ops::{
     lower_prefix_expression,
 };
 use crate::lower::types::{
-    lower_delegation_specifier, lower_enum_entry, lower_function_type, lower_type_alias,
-    lower_type_constraints, lower_type_list, lower_type_parameter,
+    lower_delegation_specifier, lower_enum_entry, lower_function_type, lower_not_nullable_type,
+    lower_type_alias, lower_type_constraints, lower_type_list, lower_type_parameter,
 };
 use crate::lower::when_expr::{lower_when_entry, lower_when_expression, lower_when_subject};
 use crate::rules::comments::{format_kdoc, normalize_line_comment};
@@ -149,6 +151,7 @@ fn lower_expression_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Opti
         | "function_type_parameters" => lower_list_with_commas(node, ctx),
         "value_argument" => lower_value_argument(node, ctx),
         "function_type" => lower_function_type(node, ctx),
+        "not_nullable_type" => lower_not_nullable_type(node, ctx),
         "type_parameters" | "type_arguments" => lower_type_list(node, ctx),
         "type_constraints" => lower_type_constraints(node, ctx),
         "type_constraint" | "type_parameter" => lower_type_parameter(node, ctx),

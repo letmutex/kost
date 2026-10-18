@@ -72,6 +72,8 @@ module.exports = grammar({
     // always shifts (consuming '(' as value_arguments) rather than reducing
     // (completing user_type). Scoped to annotations only.
 
+    // "context" as context_receiver conflicts with context as an identifier
+    [$.context_receiver, $.simple_identifier],
     // "expect" as a plaform modifier conflicts with expect as an identifier
     [$.platform_modifier, $.simple_identifier],
     // "data", "inner" as class modifier or id
@@ -171,7 +173,6 @@ module.exports = grammar({
 
     // ambiguity between call_suffix and _generic_call_suffix (both can match type_arguments + args)
     [$.call_suffix, $._generic_call_suffix],
-    [$._call_suffix_no_trailing_lambda, $._generic_call_suffix_no_trailing_lambda],
   ],
 
   externals: $ => [
@@ -422,9 +423,9 @@ module.exports = grammar({
       $.value_arguments
     ),
 
-    _generic_call_suffix_no_trailing_lambda: $ => seq(
-      $.type_arguments,
-      $.value_arguments
+    _generic_call_suffix_no_trailing_lambda: $ => choice(
+      prec.right(1, seq($.type_arguments, $.value_arguments)),
+      prec(-1, $.type_arguments)
     ),
 
     type_parameters: $ => seq("<", sep1($.type_parameter, ","), optional(","), ">"),
@@ -927,13 +928,16 @@ module.exports = grammar({
     )),
 
     // Call suffix with REQUIRED type_arguments (used by _generic_call_expression)
-    _generic_call_suffix: $ => prec.left(seq(
-      $.type_arguments,
-      choice(
-        prec(PREC.ARGUMENTS, seq(optional($.value_arguments), $.annotated_lambda)),
-        $.value_arguments
-      )
-    )),
+    _generic_call_suffix: $ => choice(
+      prec.right(1, seq(
+        $.type_arguments,
+        choice(
+          prec(PREC.ARGUMENTS, seq(optional($.value_arguments), $.annotated_lambda)),
+          $.value_arguments
+        )
+      )),
+      prec(-1, $.type_arguments)
+    ),
 
     annotated_lambda: $ => seq(
       repeat($.annotation),
@@ -1348,6 +1352,7 @@ module.exports = grammar({
 
     simple_identifier: $ => choice(
       $._lexical_identifier,
+      "context",
       "expect",
       "data",
       "inner",

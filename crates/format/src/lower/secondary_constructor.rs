@@ -7,6 +7,7 @@ use crate::lower::lists::lower_list_with_commas;
 use crate::lower::lower_node;
 
 pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    let mut modifier_docs = Vec::new();
     let mut prefix_docs = Vec::new();
     let mut params_doc = None;
     let mut params_multiline = false;
@@ -19,11 +20,11 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
         let kind = child.kind();
         match kind {
             "context_receiver" => {
-                prefix_docs.push(lower_node(child, ctx));
-                prefix_docs.push(Doc::HardLine);
+                modifier_docs.push(lower_node(child, ctx));
+                modifier_docs.push(Doc::HardLine);
             }
             "modifiers" => {
-                prefix_docs.push(lower_node(child, ctx));
+                modifier_docs.push(lower_node(child, ctx));
             }
             "constructor" => {
                 prefix_docs.push(Doc::text("constructor"));
@@ -67,7 +68,17 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
     if let Some(del) = delegation_part {
         all_head.push(del);
     }
-    let head_doc = Doc::Group(Box::new(Doc::Concat(all_head)));
+    let sig_doc = Doc::Group(Box::new(Doc::Concat(all_head)));
+    let full_head = if modifier_docs.is_empty() {
+        sig_doc
+    } else {
+        Doc::Concat(vec![Doc::Concat(modifier_docs), sig_doc])
+    };
+    let head_doc = if full_head.has_hardline() {
+        full_head
+    } else {
+        Doc::Group(Box::new(full_head))
+    };
     attach_secondary_constructor_body(head_doc, has_braces, statements_node, ctx)
 }
 
