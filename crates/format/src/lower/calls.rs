@@ -60,7 +60,7 @@ fn lower_chain_root_with_call_suffix<'a>(
         .map(|c| c.start_byte())
         .unwrap_or(last_suffix.end_byte());
     let chain_len = chain_end.saturating_sub(node.start_byte());
-    let is_broken = is_chain_broken(&node, ctx, chain_len);
+    let is_broken = is_chain_broken(&node, ctx, chain_len) || op_doc.has_hardline();
 
     let chain_body = Doc::Concat(vec![
         op_doc,

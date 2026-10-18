@@ -36,7 +36,9 @@ use tree_sitter::Node;
 
 use crate::doc::Doc;
 use crate::lower::accessors::lower_getter_setter;
-use crate::lower::annotation::{lower_annotation, lower_file_annotation, lower_modifiers};
+use crate::lower::annotation::{
+    lower_annotated_lambda, lower_annotation, lower_file_annotation, lower_modifiers,
+};
 use crate::lower::assignment::{lower_assignment, lower_directly_assignable_expression};
 use crate::lower::binary::lower_binary_expression;
 use crate::lower::callable_reference::lower_callable_reference;
@@ -55,7 +57,7 @@ use crate::lower::elvis::{find_leftmost_unparenthesized_elvis, lower_unparenthes
 use crate::lower::expr::{lower_block, lower_statements};
 use crate::lower::func::{lower_function_body, lower_function_declaration};
 use crate::lower::imports::{lower_import_list, lower_package_header};
-use crate::lower::lambda::{lower_annotated_lambda, lower_lambda_literal, lower_lambda_parameters};
+use crate::lower::lambda::{lower_lambda_literal, lower_lambda_parameters};
 use crate::lower::lists::{lower_collection_literal, lower_list_with_commas};
 use crate::lower::loops::{lower_do_while_statement, lower_for_statement, lower_while_statement};
 use crate::lower::navigation::{

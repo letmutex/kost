@@ -1,0 +1,8 @@
+class Foo {
+  constructor(
+      newsResource: String,
+      userData: String,
+  ) : this(
+      id = 1,
+  )
+}

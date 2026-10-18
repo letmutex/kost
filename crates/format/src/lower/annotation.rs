@@ -207,3 +207,18 @@ pub fn lower_annotation<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
     }
     Doc::Concat(docs)
 }
+
+pub fn lower_annotated_lambda<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    let mut docs = Vec::new();
+    let mut prev_kind: Option<&str> = None;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let kind = child.kind();
+        if !docs.is_empty() && prev_kind != Some("label") {
+            docs.push(Doc::space());
+        }
+        docs.push(lower_node(child, ctx));
+        prev_kind = Some(kind);
+    }
+    Doc::Concat(docs)
+}

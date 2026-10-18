@@ -71,6 +71,7 @@ fn lower_accessor_parts<'a>(
                 paren_items.push(CommaListItem {
                     doc: lower_node(child, ctx),
                     trailing_comment: None,
+                    is_comment: matches!(kind, "comment" | "line_comment" | "multiline_comment"),
                 });
             }
             continue;

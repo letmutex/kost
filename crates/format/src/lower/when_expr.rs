@@ -175,13 +175,14 @@ fn format_when_entry_body<'a>(
     head: Doc<'a>,
     body_node: Option<Node<'a>>,
     comments_before_body: Vec<Node<'a>>,
+    comments_after_body: Vec<Node<'a>>,
     ctx: &LowerContext<'a, '_>,
 ) -> Doc<'a> {
     let Some(body) = body_node else {
         return head;
     };
     let body_doc = lower_node(body, ctx);
-    if !comments_before_body.is_empty() {
+    let main_doc = if !comments_before_body.is_empty() {
         let mut inner_comments = Vec::new();
         for comment in comments_before_body {
             inner_comments.push(Doc::HardLine);
@@ -203,6 +204,23 @@ fn format_when_entry_body<'a>(
                 body_doc,
             ])))),
         ])
+    };
+
+    if comments_after_body.is_empty() {
+        main_doc
+    } else {
+        let mut parts = vec![main_doc];
+        let mut prev = body;
+        for comment in comments_after_body {
+            if prev.end_position().row == comment.start_position().row {
+                parts.push(Doc::space());
+            } else {
+                parts.push(Doc::HardLine);
+            }
+            parts.push(lower_node(comment, ctx));
+            prev = comment;
+        }
+        Doc::Concat(parts)
     }
 }
 
@@ -210,6 +228,7 @@ pub fn lower_when_entry<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
     let mut conditions = Vec::new();
     let mut guard_node = None;
     let mut comments_before_body = Vec::new();
+    let mut comments_after_body = Vec::new();
     let mut body_node = None;
     let mut after_arrow = false;
     let mut has_trailing_comma = false;
@@ -240,6 +259,8 @@ pub fn lower_when_entry<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
             let is_comment = matches!(kind, "comment" | "line_comment" | "multiline_comment");
             if is_comment && body_node.is_none() {
                 comments_before_body.push(child);
+            } else if is_comment {
+                comments_after_body.push(child);
             } else if body_node.is_none() {
                 body_node = Some(child);
             }
@@ -259,5 +280,11 @@ pub fn lower_when_entry<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
         arrow_has_newline,
         ctx,
     );
-    format_when_entry_body(head, body_node, comments_before_body, ctx)
+    format_when_entry_body(
+        head,
+        body_node,
+        comments_before_body,
+        comments_after_body,
+        ctx,
+    )
 }

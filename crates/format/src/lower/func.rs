@@ -149,14 +149,16 @@ fn attach_func_body<'a>(
         text == "{}" || text == "{ }"
     });
 
-    if has_expr_body {
-        let header = Doc::Group(Box::new(header_doc));
-        Doc::Concat(vec![header, Doc::space(), Doc::Group(Box::new(body))])
-    } else if is_empty_block {
+    if is_empty_block {
         Doc::Group(Box::new(Doc::Concat(vec![header_doc, Doc::space(), body])))
     } else {
         let header = Doc::Group(Box::new(header_doc));
-        Doc::Concat(vec![header, Doc::space(), body])
+        let body_doc = if has_expr_body {
+            Doc::Group(Box::new(body))
+        } else {
+            body
+        };
+        Doc::Concat(vec![header, Doc::space(), body_doc])
     }
 }
 
@@ -167,11 +169,10 @@ fn is_pascal_case_call(node: &Node<'_>, source: &str) -> bool {
     let Some(callee) = node.child(0) else {
         return false;
     };
-    let name = match callee.kind() {
-        "simple_identifier" => source.get(callee.start_byte()..callee.end_byte()),
-        _ => None,
-    };
-    name.is_some_and(|n| n.chars().next().is_some_and(|c| c.is_ascii_uppercase()))
+    callee.kind() == "simple_identifier"
+        && source
+            .get(callee.start_byte()..callee.end_byte())
+            .is_some_and(|n| n.starts_with(|c: char| c.is_ascii_uppercase()))
 }
 
 fn has_complex_or_control_receiver(node: &Node<'_>) -> bool {
@@ -198,55 +199,35 @@ pub fn lower_function_body<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
     let mut expr_child = None;
     let mut block_child = None;
 
+    let mut comments_before_expr = Vec::new();
+    let mut comments_after_expr = Vec::new();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         if kind == "=" {
             is_expression_body = true;
         } else if is_expression_body {
-            expr_child = Some(child);
+            if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+                if expr_child.is_none() {
+                    comments_before_expr.push(child);
+                } else {
+                    comments_after_expr.push(child);
+                }
+            } else if expr_child.is_none() {
+                expr_child = Some(child);
+            }
         } else if kind == "block" {
             block_child = Some(child);
         }
     }
 
     if is_expression_body {
-        let is_pascal_call = expr_child.is_some_and(|c| is_pascal_case_call(&c, ctx.source));
-        let expr_doc = expr_child
-            .map(|c| lower_node(c, ctx))
-            .unwrap_or_else(Doc::empty);
-        if is_pascal_call {
-            return Doc::Concat(vec![
-                Doc::text("="),
-                Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, expr_doc])),
-            ]);
-        }
-        if let Some(e_node) = expr_child {
-            if matches!(e_node.kind(), "lambda_literal" | "annotated_lambda") {
-                return Doc::Concat(vec![Doc::text("="), Doc::space(), expr_doc]);
-            }
-            let is_block_like = (e_node.kind() == "call_expression"
-                || e_node.kind() == "navigation_expression")
-                && (has_trailing_lambda_child(&e_node)
-                    || (ctx.options.block_indent == 4 && ctx.node_text(&e_node).contains('\n')));
-            if is_block_like && !has_complex_or_control_receiver(&e_node) {
-                let rhs_raw = ctx.node_text(&e_node);
-                let first_line = rhs_raw.lines().next().unwrap_or("");
-                let indent = node.start_position().column;
-                let full_first = ctx.node_text(&node).lines().next().unwrap_or("");
-                let eq_pos = full_first.find('=').unwrap_or(0);
-                let total = indent + eq_pos + 1 + first_line.len();
-                if total <= ctx.options.max_width {
-                    return Doc::Concat(vec![Doc::text("="), Doc::space(), expr_doc]);
-                }
-            }
-        }
-        return Doc::Concat(vec![
-            Doc::text("="),
-            Doc::if_break(
-                Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, expr_doc.clone()])),
-                Doc::Concat(vec![Doc::space(), expr_doc]),
-            ),
-        ]);
+        return format_expression_body(
+            node,
+            expr_child,
+            comments_before_expr,
+            comments_after_expr,
+            ctx,
+        );
     }
 
     if let Some(b) = block_child {
@@ -254,6 +235,81 @@ pub fn lower_function_body<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
     }
 
     lower_block(node, ctx)
+}
+
+fn format_expression_body<'a>(
+    node: Node<'a>,
+    expr_child: Option<Node<'a>>,
+    comments_before_expr: Vec<Node<'a>>,
+    comments_after_expr: Vec<Node<'a>>,
+    ctx: &LowerContext<'a, '_>,
+) -> Doc<'a> {
+    let is_pascal_call = expr_child.is_some_and(|c| is_pascal_case_call(&c, ctx.source));
+    let mut expr_doc = expr_child
+        .map(|c| lower_node(c, ctx))
+        .unwrap_or_else(Doc::empty);
+    if !comments_after_expr.is_empty() {
+        let mut after_parts = vec![expr_doc];
+        let mut prev = expr_child;
+        for c in comments_after_expr {
+            if prev.is_some_and(|p| p.end_position().row == c.start_position().row) {
+                after_parts.push(Doc::space());
+            } else {
+                after_parts.push(Doc::HardLine);
+            }
+            after_parts.push(lower_node(c, ctx));
+            prev = Some(c);
+        }
+        expr_doc = Doc::Concat(after_parts);
+    }
+    if !comments_before_expr.is_empty() {
+        let mut inner = Vec::new();
+        for c in comments_before_expr {
+            inner.push(Doc::HardLine);
+            inner.push(lower_node(c, ctx));
+        }
+        if !inner.last().is_some_and(|d| d.ends_with_newline()) {
+            inner.push(Doc::HardLine);
+        }
+        inner.push(expr_doc);
+        return Doc::Concat(vec![
+            Doc::text("="),
+            Doc::continuation_indent(Doc::Concat(inner)),
+        ]);
+    }
+    if is_pascal_call {
+        return Doc::Concat(vec![
+            Doc::text("="),
+            Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, expr_doc])),
+        ]);
+    }
+    if let Some(e_node) = expr_child {
+        if matches!(e_node.kind(), "lambda_literal" | "annotated_lambda") {
+            return Doc::Concat(vec![Doc::text("="), Doc::space(), expr_doc]);
+        }
+        let is_block_like = (e_node.kind() == "call_expression"
+            || e_node.kind() == "navigation_expression")
+            && (has_trailing_lambda_child(&e_node)
+                || (ctx.options.block_indent == 4 && ctx.node_text(&e_node).contains('\n')));
+        if is_block_like && !has_complex_or_control_receiver(&e_node) {
+            let rhs_raw = ctx.node_text(&e_node);
+            let first_line = rhs_raw.lines().next().unwrap_or("");
+            let indent = node.start_position().column;
+            let full_first = ctx.node_text(&node).lines().next().unwrap_or("");
+            let eq_pos = full_first.find('=').unwrap_or(0);
+            let total = indent + eq_pos + 1 + first_line.len();
+            if total <= ctx.options.max_width {
+                return Doc::Concat(vec![Doc::text("="), Doc::space(), expr_doc]);
+            }
+        }
+    }
+    Doc::Concat(vec![
+        Doc::text("="),
+        Doc::if_break(
+            Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, expr_doc.clone()])),
+            Doc::Concat(vec![Doc::space(), expr_doc]),
+        ),
+    ])
 }
 
 fn push_func_token<'a>(
@@ -269,12 +325,7 @@ fn push_func_token<'a>(
             kind,
             ":" | ";" | "(" | ")" | "<" | ">" | "function_value_parameters"
         )
-        && !matches!(
-            target.last(),
-            Some(
-                Doc::Text("(") | Doc::Text("<") | Doc::Text(" ") | Doc::Text(":") | Doc::Text(": ")
-            )
-        )
+        && !matches!(target.last(), Some(Doc::Text("(" | "<" | " " | ":" | ": ")))
         && !target
             .last()
             .is_some_and(|d| d.ends_with_line() || d.ends_with_space())

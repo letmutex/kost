@@ -28,6 +28,7 @@ fn strategy_trailing_comma_doc(
 pub struct CommaListItem<'a> {
     pub doc: Doc<'a>,
     pub trailing_comment: Option<Doc<'a>>,
+    pub is_comment: bool,
 }
 
 impl<'a> From<Doc<'a>> for CommaListItem<'a> {
@@ -35,6 +36,7 @@ impl<'a> From<Doc<'a>> for CommaListItem<'a> {
         Self {
             doc,
             trailing_comment: None,
+            is_comment: false,
         }
     }
 }
@@ -50,7 +52,7 @@ fn assemble_comma_list_items<'a>(
     let mut inner_docs = Vec::new();
     for (idx, item) in items.into_iter().enumerate() {
         let is_last = idx + 1 == total_items;
-        let is_comment = item.doc.ends_with_newline();
+        let is_comment = item.is_comment || item.doc.ends_with_newline();
         let is_last_non_comment = Some(idx) == last_non_comment_idx;
 
         inner_docs.push(item.doc);
@@ -66,7 +68,10 @@ fn assemble_comma_list_items<'a>(
         } else if !is_last && !is_comment && !is_last_non_comment {
             inner_docs.push(Doc::text(","));
             inner_docs.push(line_doc.clone());
-        } else if !is_last && is_last_non_comment {
+        } else if !is_last
+            && (is_last_non_comment
+                || (is_comment && !inner_docs.last().is_some_and(|d| d.ends_with_newline())))
+        {
             inner_docs.push(line_doc.clone());
         }
     }
@@ -153,10 +158,12 @@ pub fn format_comma_list<'a>(
         return Doc::Concat(vec![Doc::text(open_token), Doc::text(close_token)]);
     }
 
-    let has_line_comment = items
+    let has_line_comment = items.iter().any(|item| {
+        item.is_comment || item.doc.ends_with_newline() || item.trailing_comment.is_some()
+    });
+    let last_non_comment_idx = items
         .iter()
-        .any(|item| item.doc.ends_with_newline() || item.trailing_comment.is_some());
-    let last_non_comment_idx = items.iter().rposition(|it| !it.doc.ends_with_newline());
+        .rposition(|it| !it.is_comment && !it.doc.ends_with_newline());
     let omit_closing_break = !opts.is_declaration
         && !has_trailing_comma
         && !opts.is_kotlinlang

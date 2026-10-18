@@ -1,0 +1,8 @@
+fun test() {
+  foo(
+          1,
+      )
+      .use {
+        bar()
+      }
+}

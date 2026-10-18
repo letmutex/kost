@@ -4,21 +4,6 @@ use crate::doc::Doc;
 use crate::lower::context::LowerContext;
 use crate::lower::lower_node;
 
-pub fn lower_annotated_lambda<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut docs = Vec::new();
-    let mut prev_kind: Option<&str> = None;
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        let kind = child.kind();
-        if !docs.is_empty() && prev_kind != Some("label") {
-            docs.push(Doc::space());
-        }
-        docs.push(lower_node(child, ctx));
-        prev_kind = Some(kind);
-    }
-    Doc::Concat(docs)
-}
-
 pub fn lower_lambda_parameters<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> (Doc<'a>, bool) {
     let mut docs = Vec::new();
     let mut cursor = node.walk();
@@ -58,20 +43,62 @@ pub fn lower_lambda_parameters<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -
     (Doc::Concat(docs), has_trailing)
 }
 
+fn format_parameterless_lambda_arrow<'a>(
+    has_comments: bool,
+    has_newline_after_brace: bool,
+    arrow_has_newline: bool,
+    comments_before_params: Vec<Doc<'a>>,
+    comments_after_params: Vec<Doc<'a>>,
+) -> Vec<Doc<'a>> {
+    let mut inner = Vec::new();
+    if has_comments {
+        let mut header_group = Vec::new();
+        if has_newline_after_brace {
+            header_group.push(Doc::HardLine);
+        } else {
+            header_group.push(Doc::space());
+        }
+        header_group.extend(comments_before_params);
+        header_group.extend(comments_after_params);
+        if arrow_has_newline {
+            header_group.push(Doc::HardLine);
+        } else if !header_group
+            .last()
+            .is_some_and(|d| d.ends_with_newline() || d.ends_with_space())
+        {
+            header_group.push(Doc::space());
+        }
+        header_group.push(Doc::text("->"));
+        inner.extend(header_group);
+    } else {
+        inner.push(Doc::text(" ->"));
+    }
+    inner
+}
+
 fn format_lambda_params_header<'a>(
     params_doc: Option<Doc<'a>>,
     has_arrow: bool,
     has_trailing_comma: bool,
     has_newline_after_brace: bool,
     arrow_has_newline: bool,
-    comments_before_arrow: Vec<Doc<'a>>,
+    comments_before_params: Vec<Doc<'a>>,
+    comments_after_params: Vec<Doc<'a>>,
 ) -> Vec<Doc<'a>> {
     let mut inner = Vec::new();
-    let has_comments = !comments_before_arrow.is_empty();
+    let has_comments = !comments_before_params.is_empty() || !comments_after_params.is_empty();
 
     if let Some(params) = params_doc {
         let mut params_group = Vec::new();
-        if has_newline_after_brace {
+        if !comments_before_params.is_empty() {
+            for c in comments_before_params {
+                params_group.push(Doc::HardLine);
+                params_group.push(c);
+            }
+            if !params_group.last().is_some_and(|d| d.ends_with_newline()) {
+                params_group.push(Doc::HardLine);
+            }
+        } else if has_newline_after_brace {
             params_group.push(Doc::HardLine);
         } else {
             params_group.push(Doc::Line);
@@ -79,8 +106,10 @@ fn format_lambda_params_header<'a>(
         params_group.push(params);
 
         if has_comments {
-            params_group.push(Doc::space());
-            params_group.extend(comments_before_arrow);
+            if !comments_after_params.is_empty() {
+                params_group.push(Doc::space());
+                params_group.extend(comments_after_params);
+            }
             if has_arrow {
                 params_group.push(Doc::space());
                 params_group.push(Doc::text("->"));
@@ -112,13 +141,13 @@ fn format_lambda_params_header<'a>(
             }
         }
     } else if has_arrow {
-        if has_comments {
-            inner.push(Doc::HardLine);
-            inner.push(Doc::Concat(comments_before_arrow));
-            inner.push(Doc::text("->"));
-        } else {
-            inner.push(Doc::text(" ->"));
-        }
+        inner.extend(format_parameterless_lambda_arrow(
+            has_comments,
+            has_newline_after_brace,
+            arrow_has_newline,
+            comments_before_params,
+            comments_after_params,
+        ));
     }
     inner
 }
@@ -177,10 +206,11 @@ fn is_property_init_chain(node: &Node<'_>) -> bool {
 struct LambdaParsed<'a> {
     params_doc: Option<Doc<'a>>,
     has_trailing_comma: bool,
-    comments_before_arrow: Vec<Doc<'a>>,
+    comments_before_params: Vec<Doc<'a>>,
+    comments_after_params: Vec<Doc<'a>>,
     body_docs: Vec<Doc<'a>>,
     open_brace_node: Option<Node<'a>>,
-    params_node: Option<Node<'a>>,
+    first_header_node: Option<Node<'a>>,
     arrow_node: Option<Node<'a>>,
     last_before_arrow: Option<Node<'a>>,
 }
@@ -188,11 +218,12 @@ struct LambdaParsed<'a> {
 fn parse_lambda_children<'a>(node: &Node<'a>, ctx: &LowerContext<'a, '_>) -> LambdaParsed<'a> {
     let mut params_doc = None;
     let mut has_trailing_comma = false;
-    let mut comments_before_arrow = Vec::new();
+    let mut comments_before_params = Vec::new();
+    let mut comments_after_params = Vec::new();
     let mut body_docs = Vec::new();
     let mut prev_child: Option<Node<'a>> = None;
     let mut open_brace_node = None;
-    let mut params_node = None;
+    let mut first_header_node = None;
     let mut arrow_node = None;
     let mut last_before_arrow: Option<Node<'a>> = None;
     let has_arrow = node.children(&mut node.walk()).any(|c| c.kind() == "->");
@@ -209,47 +240,49 @@ fn parse_lambda_children<'a>(node: &Node<'a>, ctx: &LowerContext<'a, '_>) -> Lam
             continue;
         }
         if kind == "->" {
+            if first_header_node.is_none() {
+                first_header_node = Some(child);
+            }
             seen_arrow = true;
             arrow_node = Some(child);
             continue;
         }
         if has_arrow && !seen_arrow {
+            if first_header_node.is_none() {
+                first_header_node = Some(child);
+            }
             last_before_arrow = Some(child);
             if kind == "lambda_parameters" {
-                params_node = Some(child);
                 let (doc, trailing) = lower_lambda_parameters(child, ctx);
                 params_doc = Some(doc);
                 has_trailing_comma = trailing;
             } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-                comments_before_arrow.push(lower_node(child, ctx));
+                if params_doc.is_none() {
+                    comments_before_params.push(lower_node(child, ctx));
+                } else {
+                    comments_after_params.push(lower_node(child, ctx));
+                }
             }
         } else if kind == "lambda_parameters" {
-            params_node = Some(child);
+            if first_header_node.is_none() {
+                first_header_node = Some(child);
+            }
             let (doc, trailing) = lower_lambda_parameters(child, ctx);
             params_doc = Some(doc);
             has_trailing_comma = trailing;
         } else {
-            if let Some(prev) = prev_child {
-                if ctx.has_blank_line_between(&prev, &child) {
-                    body_docs.push(Doc::EmptyLine);
-                } else if !ctx.has_newline_between(&prev, &child) {
-                    body_docs.push(Doc::space());
-                } else if !body_docs.last().is_some_and(|d| d.ends_with_newline()) {
-                    body_docs.push(Doc::HardLine);
-                }
-            }
-            body_docs.push(lower_node(child, ctx));
-            prev_child = Some(child);
+            push_lambda_body_child(child, &mut prev_child, &mut body_docs, ctx);
         }
     }
 
     LambdaParsed {
         params_doc,
         has_trailing_comma,
-        comments_before_arrow,
+        comments_before_params,
+        comments_after_params,
         body_docs,
         open_brace_node,
-        params_node,
+        first_header_node,
         arrow_node,
         last_before_arrow,
     }
@@ -260,7 +293,7 @@ pub fn lower_lambda_literal<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
     let has_user_newline = raw.contains('\n');
 
     let parsed = parse_lambda_children(&node, ctx);
-    let has_newline_after_brace = match (parsed.open_brace_node, parsed.params_node) {
+    let has_newline_after_brace = match (parsed.open_brace_node, parsed.first_header_node) {
         (Some(b), Some(p)) => ctx.has_newline_between(&b, &p),
         _ => false,
     };
@@ -275,7 +308,8 @@ pub fn lower_lambda_literal<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
         parsed.has_trailing_comma,
         has_newline_after_brace,
         arrow_has_newline,
-        parsed.comments_before_arrow,
+        parsed.comments_before_params,
+        parsed.comments_after_params,
     );
 
     let should_break = ctx.options.preserve_lambda_breaks && has_user_newline;
@@ -288,4 +322,23 @@ pub fn lower_lambda_literal<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
     } else {
         res
     }
+}
+
+fn push_lambda_body_child<'a>(
+    child: Node<'a>,
+    prev_child: &mut Option<Node<'a>>,
+    body_docs: &mut Vec<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+) {
+    if let Some(prev) = *prev_child {
+        if ctx.has_blank_line_between(&prev, &child) {
+            body_docs.push(Doc::EmptyLine);
+        } else if !ctx.has_newline_between(&prev, &child) {
+            body_docs.push(Doc::space());
+        } else if !body_docs.last().is_some_and(|d| d.ends_with_newline()) {
+            body_docs.push(Doc::HardLine);
+        }
+    }
+    body_docs.push(lower_node(child, ctx));
+    *prev_child = Some(child);
 }

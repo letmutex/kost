@@ -36,12 +36,15 @@ pub(crate) fn extract_comma_list_items<'a>(
     let mut has_trailing_comma = false;
     let mut prev_token: Option<Node<'a>> = None;
 
+    let mut pending_comments: Vec<Doc<'a>> = Vec::new();
+
     let flush_item = |prefix: &mut Vec<Doc<'a>>,
                       rhs: &mut Vec<Doc<'a>>,
                       has_eq: &mut bool,
+                      pending: &mut Vec<Doc<'a>>,
                       items: &mut Vec<CommaListItem<'a>>| {
         if !prefix.is_empty() || !rhs.is_empty() {
-            let doc = if *has_eq {
+            let mut doc = if *has_eq {
                 let p = Doc::Concat(std::mem::take(prefix));
                 let r = Doc::Concat(std::mem::take(rhs));
                 Doc::Group(Box::new(Doc::Concat(vec![
@@ -56,9 +59,21 @@ pub(crate) fn extract_comma_list_items<'a>(
             } else {
                 Doc::Concat(std::mem::take(prefix))
             };
+            if !pending.is_empty() {
+                let mut parts = Vec::new();
+                for c in pending.drain(..) {
+                    parts.push(c);
+                    if !parts.last().is_some_and(|d| d.ends_with_newline()) {
+                        parts.push(Doc::HardLine);
+                    }
+                }
+                parts.push(doc);
+                doc = Doc::Concat(parts);
+            }
             items.push(CommaListItem {
                 doc,
                 trailing_comment: None,
+                is_comment: false,
             });
             *has_eq = false;
         }
@@ -77,20 +92,29 @@ pub(crate) fn extract_comma_list_items<'a>(
         if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
             let is_same_line =
                 prev_token.is_some_and(|p| child.start_position().row == p.end_position().row);
-            flush_item(&mut prefix_docs, &mut rhs_docs, &mut has_equals, &mut items);
+            flush_item(
+                &mut prefix_docs,
+                &mut rhs_docs,
+                &mut has_equals,
+                &mut pending_comments,
+                &mut items,
+            );
             if is_same_line && !items.is_empty() {
                 items.last_mut().unwrap().trailing_comment = Some(lower_node(child, ctx));
             } else {
-                items.push(CommaListItem {
-                    doc: lower_node(child, ctx),
-                    trailing_comment: None,
-                });
+                pending_comments.push(lower_node(child, ctx));
             }
             prev_token = Some(child);
             continue;
         }
         if kind == "," {
-            flush_item(&mut prefix_docs, &mut rhs_docs, &mut has_equals, &mut items);
+            flush_item(
+                &mut prefix_docs,
+                &mut rhs_docs,
+                &mut has_equals,
+                &mut pending_comments,
+                &mut items,
+            );
             has_trailing_comma = true;
             prev_token = Some(child);
             continue;
@@ -118,7 +142,20 @@ pub(crate) fn extract_comma_list_items<'a>(
         target.push(lower_node(child, ctx));
         prev_token = Some(child);
     }
-    flush_item(&mut prefix_docs, &mut rhs_docs, &mut has_equals, &mut items);
+    flush_item(
+        &mut prefix_docs,
+        &mut rhs_docs,
+        &mut has_equals,
+        &mut pending_comments,
+        &mut items,
+    );
+    for c in pending_comments {
+        items.push(CommaListItem {
+            doc: c,
+            trailing_comment: None,
+            is_comment: true,
+        });
+    }
     (items, has_trailing_comma)
 }
 

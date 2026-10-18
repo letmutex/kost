@@ -1,0 +1,4 @@
+val x = repo.foo(
+    1,
+    2,
+)

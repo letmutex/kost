@@ -1,0 +1,7 @@
+fun test() {
+  foo {
+      // note
+      param ->
+    param
+  }
+}

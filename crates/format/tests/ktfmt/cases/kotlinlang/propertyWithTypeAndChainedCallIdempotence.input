@@ -1,0 +1,9 @@
+class Foo {
+    val recentSearchQueriesUiState: StateFlow<RecentSearchQueriesUiState> =
+        recentSearchQueriesUseCase()
+            .map(RecentSearchQueriesUiState::Success)
+            .stateIn(
+                scope = 1,
+                started = 2,
+            )
+}

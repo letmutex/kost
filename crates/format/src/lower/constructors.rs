@@ -70,6 +70,7 @@ fn build_parameter_item<'a>(
     CommaListItem {
         doc,
         trailing_comment: None,
+        is_comment: false,
     }
 }
 
@@ -119,6 +120,7 @@ fn collect_primary_constructor_children<'a>(
                 items.push(CommaListItem {
                     doc: c,
                     trailing_comment: None,
+                    is_comment: true,
                 });
             }
         } else if after_parens {

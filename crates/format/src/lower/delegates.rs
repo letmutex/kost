@@ -63,19 +63,22 @@ pub(crate) fn call_has_multiline_args(node: &Node<'_>) -> bool {
     false
 }
 
-pub(crate) fn call_or_chain_has_multiline_args(node: &Node<'_>) -> bool {
+pub(crate) fn chain_root_has_multiline_args(node: &Node<'_>) -> bool {
     let mut curr = *node;
+    let mut root_call = None;
     while curr.kind() == "navigation_expression" || curr.kind() == "call_expression" {
-        if call_has_multiline_args(&curr) {
-            return true;
+        if curr.kind() == "call_expression" {
+            root_call = Some(curr);
         }
-        if let Some(first) = curr.child(0) {
+        if let Some(first) = curr.child(0)
+            && (first.kind() == "navigation_expression" || first.kind() == "call_expression")
+        {
             curr = first;
-        } else {
-            break;
+            continue;
         }
+        break;
     }
-    false
+    root_call.is_some_and(|c| call_has_multiline_args(&c))
 }
 
 pub(crate) fn build_property_init_section<'a>(
@@ -88,7 +91,7 @@ pub(crate) fn build_property_init_section<'a>(
     let init_doc = Doc::Concat(init_docs);
     let flat_init = init_child.is_some_and(|r| {
         crate::lower::scoping::is_scoping_chain_or_lambda(&r)
-            || (is_kotlinlang && call_or_chain_has_multiline_args(&r))
+            || (is_kotlinlang && chain_root_has_multiline_args(&r))
             || flat_call
     });
 

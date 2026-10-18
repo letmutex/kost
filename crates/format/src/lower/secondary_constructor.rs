@@ -10,8 +10,9 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
     let mut modifier_docs = Vec::new();
     let mut prefix_docs = Vec::new();
     let mut params_doc = None;
-    let mut params_multiline = false;
     let mut delegation_doc = None;
+    let mut colon_node = None;
+    let mut delegation_node = None;
     let mut statements_node = None;
     let mut has_braces = false;
 
@@ -30,10 +31,13 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
                 prefix_docs.push(Doc::text("constructor"));
             }
             "function_value_parameters" => {
-                params_multiline = ctx.node_text(&child).contains('\n');
                 params_doc = Some(lower_list_with_commas(child, ctx));
             }
+            ":" => {
+                colon_node = Some(child);
+            }
             "constructor_delegation_call" => {
+                delegation_node = Some(child);
                 delegation_doc = Some(lower_constructor_delegation_call(child, ctx));
             }
             "{" => {
@@ -51,19 +55,39 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
         header_parts.push(params);
     }
     let header = Doc::Concat(header_parts);
+    let delegation_part = format_delegation_part(colon_node, delegation_node, delegation_doc, ctx);
+    let head_doc = assemble_secondary_constructor_head(header, modifier_docs, delegation_part);
+    attach_secondary_constructor_body(head_doc, has_braces, statements_node, ctx)
+}
 
-    let delegation_part = delegation_doc.map(|d| {
-        if params_multiline {
-            Doc::Concat(vec![Doc::space(), Doc::text(": "), d])
-        } else {
-            Doc::Group(Box::new(Doc::Concat(vec![
+fn format_delegation_part<'a>(
+    colon_node: Option<Node<'a>>,
+    delegation_node: Option<Node<'a>>,
+    delegation_doc: Option<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+) -> Option<Doc<'a>> {
+    let colon_has_newline = match (colon_node, delegation_node) {
+        (Some(colon), Some(delegation)) => ctx.has_newline_between(&colon, &delegation),
+        _ => false,
+    };
+    delegation_doc.map(|delegation| {
+        if colon_has_newline {
+            Doc::Concat(vec![
                 Doc::space(),
                 Doc::text(":"),
-                Doc::continuation_indent(Doc::Concat(vec![Doc::Line, d])),
-            ])))
+                Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, delegation])),
+            ])
+        } else {
+            Doc::Concat(vec![Doc::space(), Doc::text(": "), delegation])
         }
-    });
+    })
+}
 
+fn assemble_secondary_constructor_head<'a>(
+    header: Doc<'a>,
+    modifier_docs: Vec<Doc<'a>>,
+    delegation_part: Option<Doc<'a>>,
+) -> Doc<'a> {
     let mut all_head = vec![header];
     if let Some(del) = delegation_part {
         all_head.push(del);
@@ -74,12 +98,11 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
     } else {
         Doc::Concat(vec![Doc::Concat(modifier_docs), sig_doc])
     };
-    let head_doc = if full_head.has_hardline() {
+    if full_head.has_hardline() {
         full_head
     } else {
         Doc::Group(Box::new(full_head))
-    };
-    attach_secondary_constructor_body(head_doc, has_braces, statements_node, ctx)
+    }
 }
 
 fn attach_secondary_constructor_body<'a>(
