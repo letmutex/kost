@@ -290,3 +290,51 @@ fn test_lint_respects_editorconfig_indent_style_tab() {
             .any(|d| d.rule_id == "standard:indent" && d.message.contains("Unexpected tab"))
     );
 }
+
+#[test]
+fn test_lint_disables_all_rules_via_global_ktlint_toggle() {
+    let linter = Linter::standard();
+    let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
+
+    let ini = "[*.kt]\nktlint = disabled\n";
+    let file = common::editorconfig::EditorConfigFile::parse(ini).unwrap();
+    let mut config = ResolvedEditorConfig::new();
+    common::editorconfig::apply_file_properties(&file, "src/Main.kt", &mut config);
+
+    let report = linter.lint_str_with_config(code, Some("src/Main.kt"), Some(&config));
+    assert!(report.is_clean());
+}
+
+#[test]
+fn test_lint_global_ktlint_disabled_overridden_by_ruleset_toggle() {
+    let linter = Linter::standard();
+    let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
+
+    let ini = "[*.kt]\nktlint = disabled\nktlint_standard = enabled\n";
+    let file = common::editorconfig::EditorConfigFile::parse(ini).unwrap();
+    let mut config = ResolvedEditorConfig::new();
+    common::editorconfig::apply_file_properties(&file, "src/Main.kt", &mut config);
+
+    let report = linter.lint_str_with_config(code, Some("src/Main.kt"), Some(&config));
+    assert!(
+        report
+            .diagnostics()
+            .iter()
+            .any(|d| d.rule_id == "standard:no-semi")
+    );
+}
+
+#[test]
+fn test_lint_global_ktlint_disabled_overridden_by_specific_rule_toggle() {
+    let linter = Linter::standard();
+    let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
+
+    let ini = "[*.kt]\nktlint = disabled\nktlint_standard_no-semi = enabled\n";
+    let file = common::editorconfig::EditorConfigFile::parse(ini).unwrap();
+    let mut config = ResolvedEditorConfig::new();
+    common::editorconfig::apply_file_properties(&file, "src/Main.kt", &mut config);
+
+    let report = linter.lint_str_with_config(code, Some("src/Main.kt"), Some(&config));
+    assert_eq!(report.diagnostics().len(), 1);
+    assert_eq!(report.diagnostics()[0].rule_id, "standard:no-semi");
+}

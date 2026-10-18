@@ -32,10 +32,11 @@ Accepted IDs: `"ktlint"`, `"ktlint:suppress-all-rules"`, `"ktlint:standard:<rule
 
 ## 2. EditorConfig (`.editorconfig`)
 
-Disable rulesets or specific rules across files or directory glob patterns:
+Disable all rules globally, entire rulesets, or specific rules across files or directory glob patterns:
 
 ```ini
 [*.{kt,kts}]
+ktlint = disabled                      # Disable all ktlint rules globally
 ktlint_standard = disabled             # Disable entire ruleset
 ktlint_standard_no-semi = disabled     # Disable specific rule (kebab-case)
 ktlint_standard_no_wildcard_imports = disabled # Snake-case is also supported

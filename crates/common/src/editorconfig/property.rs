@@ -116,15 +116,23 @@ pub(crate) fn apply_single_property(
                 KtlintCodeStyle::parse(val_str),
             );
         }
-        "ktlint_standard" => {
-            update_some(
-                &mut target.ktlint_standard_enabled,
-                parse_enabled_disabled(val_str),
-            );
-        }
-        other if let Some(rule_key) = normalize_rule_toggle_key(other) => {
+        other if let Some(toggle) = parse_ktlint_toggle_key(other) => {
             if let Some(enabled) = parse_enabled_disabled(val_str) {
-                target.rule_toggles.insert(rule_key, enabled);
+                match toggle {
+                    KtlintToggle::Global => {
+                        target.ktlint_enabled = Some(enabled);
+                    }
+                    KtlintToggle::Ruleset(ruleset) => {
+                        if ruleset == "standard" {
+                            target.ktlint_standard_enabled = Some(enabled);
+                        }
+                        target.ruleset_toggles.insert(ruleset, enabled);
+                    }
+                    KtlintToggle::Rule { canonical, legacy } => {
+                        target.rule_toggles.insert(canonical, enabled);
+                        target.rule_toggles.insert(legacy, enabled);
+                    }
+                }
             }
         }
         _ => {}
@@ -138,10 +146,32 @@ fn update_some<T>(slot: &mut Option<T>, value: Option<T>) {
     }
 }
 
-fn normalize_rule_toggle_key(key: &str) -> Option<SmolStr> {
-    let suffix = key.strip_prefix("ktlint_standard_")?;
-    let normalized = suffix.replace('_', "-");
-    Some(crate::concat_smol_str!("ktlint_standard_", &normalized))
+#[derive(Debug, PartialEq, Eq)]
+enum KtlintToggle {
+    Global,
+    Ruleset(SmolStr),
+    Rule { canonical: SmolStr, legacy: SmolStr },
+}
+
+fn parse_ktlint_toggle_key(key: &str) -> Option<KtlintToggle> {
+    if key == "ktlint" {
+        return Some(KtlintToggle::Global);
+    }
+    let remainder = key.strip_prefix("ktlint_")?;
+    if remainder.is_empty() || remainder == "code_style" {
+        return None;
+    }
+    if let Some((ruleset, rule_id)) = remainder.split_once('_') {
+        if ruleset.is_empty() || rule_id.is_empty() {
+            return None;
+        }
+        let normalized_id = rule_id.replace('_', "-");
+        let canonical = crate::concat_smol_str!(ruleset, ":", &normalized_id);
+        let legacy = crate::concat_smol_str!("ktlint_", ruleset, "_", &normalized_id);
+        Some(KtlintToggle::Rule { canonical, legacy })
+    } else {
+        Some(KtlintToggle::Ruleset(SmolStr::new(remainder)))
+    }
 }
 
 fn unset_property(key: &str, target: &mut ResolvedEditorConfig) {
@@ -167,10 +197,21 @@ fn unset_property(key: &str, target: &mut ResolvedEditorConfig) {
         }
         "ktfmt_style" => target.ktfmt_style = None,
         "ktlint_code_style" => target.ktlint_code_style = None,
-        "ktlint_standard" => target.ktlint_standard_enabled = None,
-        other if let Some(rule_key) = normalize_rule_toggle_key(other) => {
-            target.rule_toggles.remove(&rule_key);
-        }
+        other if let Some(toggle) = parse_ktlint_toggle_key(other) => match toggle {
+            KtlintToggle::Global => {
+                target.ktlint_enabled = None;
+            }
+            KtlintToggle::Ruleset(ruleset) => {
+                if ruleset == "standard" {
+                    target.ktlint_standard_enabled = None;
+                }
+                target.ruleset_toggles.remove(&ruleset);
+            }
+            KtlintToggle::Rule { canonical, legacy } => {
+                target.rule_toggles.remove(&canonical);
+                target.rule_toggles.remove(&legacy);
+            }
+        },
         _ => {}
     }
 }

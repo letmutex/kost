@@ -4,19 +4,27 @@ Kost natively supports `.editorconfig` properties compatible with [ktlint](https
 
 ## Rule Toggles
 
-Rules are evaluated in order of specificity:
-1. `ktlint_standard_<rule_id>` (specific rule toggle)
-2. `ktlint_standard` (ruleset toggle)
-3. Default (enabled for `standard` rules)
+Rules are evaluated strictly in order of specificity:
+1. `ktlint_<ruleset>_<rule_id>` (specific rule toggle)
+2. `ktlint_<ruleset>` (ruleset toggle)
+3. `ktlint` (global linter toggle — the only toggle without a ruleset prefix)
+4. Default (enabled)
 
 ```ini
 [*.{kt,kts}]
-# Ruleset toggles (enabled/disabled, true/false, 1/0)
+# Global toggle (enabled/disabled, true/false, 1/0)
+# ktlint = disabled
+
+# Ruleset toggles
 ktlint_standard = enabled
 
 # Rule toggles (supports kebab-case and snake_case)
 ktlint_standard_no-semi = disabled
 ktlint_standard_no_wildcard_imports = disabled
+
+# Scoped overrides (e.g. completely disable linting for generated sources)
+[**/generated/**.kt]
+ktlint = disabled
 
 # Scoped overrides
 [**/test/**.kt]

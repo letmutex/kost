@@ -125,7 +125,9 @@ pub struct ResolvedEditorConfig {
     pub ktfmt_trailing_comma_strategy: Option<TrailingCommaStrategy>,
 
     pub ktlint_code_style: Option<KtlintCodeStyle>,
+    pub ktlint_enabled: Option<bool>,
     pub ktlint_standard_enabled: Option<bool>,
+    pub ruleset_toggles: AHashMap<SmolStr, bool>,
     pub rule_toggles: AHashMap<SmolStr, bool>,
     pub raw_properties: AHashMap<SmolStr, SmolStr>,
 }
@@ -135,20 +137,49 @@ impl ResolvedEditorConfig {
         Self::default()
     }
 
-    /// Evaluates whether a lint rule is enabled based on specific or ruleset-level toggles.
+    /// Evaluates whether a lint rule is enabled based on specific, ruleset-level, or global toggles.
     pub fn is_rule_enabled(&self, rule_id: &str, default_enabled: bool) -> bool {
-        let clean_id = rule_id.strip_prefix("standard:").unwrap_or(rule_id);
-        let normalized_suffix = clean_id.replace('_', "-");
-        let specific_toggle_key = crate::concat_smol_str!("ktlint_standard_", &normalized_suffix);
+        let (ruleset, clean_id) = match rule_id.split_once(':') {
+            Some((r, id)) => (r, id),
+            None => ("standard", rule_id),
+        };
 
-        if let Some(&enabled) = self.rule_toggles.get(&specific_toggle_key) {
-            return enabled;
+        // 1. Specific rule toggle (fast path: skip if no rule toggles defined)
+        if !self.rule_toggles.is_empty() {
+            let owned_normalized;
+            let normalized_id = if clean_id.contains('_') {
+                owned_normalized = clean_id.replace('_', "-");
+                owned_normalized.as_str()
+            } else {
+                clean_id
+            };
+
+            let canonical_key = crate::concat_smol_str!(ruleset, ":", normalized_id);
+            if let Some(&enabled) = self.rule_toggles.get(&canonical_key).or_else(|| {
+                let legacy_key = crate::concat_smol_str!("ktlint_", ruleset, "_", normalized_id);
+                self.rule_toggles.get(&legacy_key)
+            }) {
+                return enabled;
+            }
         }
 
-        if let Some(standard_enabled) = self.ktlint_standard_enabled {
-            return standard_enabled;
+        // 2. Ruleset toggle: check ruleset_toggles or ktlint_standard_enabled for standard
+        if let Some(&ruleset_enabled) = self.ruleset_toggles.get(ruleset).or_else(|| {
+            if ruleset == "standard" {
+                self.ktlint_standard_enabled.as_ref()
+            } else {
+                None
+            }
+        }) {
+            return ruleset_enabled;
         }
 
+        // 3. Global linter toggle: ktlint (only disables; enabled falls through to default)
+        if let Some(false) = self.ktlint_enabled {
+            return false;
+        }
+
+        // 4. Default
         default_enabled
     }
 

@@ -200,4 +200,71 @@ ktlint_standard_no-semi = disabled
         apply_file_properties(&unset_file, "src/Main.kt", &mut resolved);
         assert!(resolved.is_rule_enabled("standard:no-semi", true));
     }
+
+    #[test]
+    fn test_global_ktlint_toggle_disables_all_rules() {
+        let content = "[*.kt]\nktlint = disabled\n";
+        let file = EditorConfigFile::parse(content).unwrap();
+        let mut resolved = ResolvedEditorConfig::new();
+        apply_file_properties(&file, "src/Main.kt", &mut resolved);
+
+        assert!(!resolved.is_rule_enabled("standard:no-semi", true));
+        assert!(!resolved.is_rule_enabled("compose:modifier-naming", true));
+    }
+
+    #[test]
+    fn test_ruleset_toggle_overrides_global_ktlint_toggle() {
+        let content = "[*.kt]\nktlint = disabled\nktlint_standard = enabled\n";
+        let file = EditorConfigFile::parse(content).unwrap();
+        let mut resolved = ResolvedEditorConfig::new();
+        apply_file_properties(&file, "src/Main.kt", &mut resolved);
+
+        assert!(resolved.is_rule_enabled("standard:no-semi", true));
+        assert!(!resolved.is_rule_enabled("compose:modifier-naming", true));
+    }
+
+    #[test]
+    fn test_specific_rule_toggle_overrides_ruleset_and_global_toggle() {
+        let content = "[*.kt]\nktlint = disabled\nktlint_standard = disabled\nktlint_standard_no-semi = enabled\n";
+        let file = EditorConfigFile::parse(content).unwrap();
+        let mut resolved = ResolvedEditorConfig::new();
+        apply_file_properties(&file, "src/Main.kt", &mut resolved);
+
+        assert!(resolved.is_rule_enabled("standard:no-semi", true));
+        assert!(!resolved.is_rule_enabled("standard:final-newline", true));
+    }
+
+    #[test]
+    fn test_non_standard_ruleset_toggle() {
+        let content = "[*.kt]\nktlint_compose = disabled\nktlint_compose_specific_rule = enabled\n";
+        let file = EditorConfigFile::parse(content).unwrap();
+        let mut resolved = ResolvedEditorConfig::new();
+        apply_file_properties(&file, "src/Main.kt", &mut resolved);
+
+        assert!(resolved.is_rule_enabled("standard:no-semi", true));
+        assert!(!resolved.is_rule_enabled("compose:other-rule", true));
+        assert!(resolved.is_rule_enabled("compose:specific-rule", true));
+    }
+
+    #[test]
+    fn test_malformed_toggle_keys_ignored() {
+        let content = "[*.kt]\nktlint__no-semi = disabled\nktlint_standard_ = disabled\n";
+        let file = EditorConfigFile::parse(content).unwrap();
+        let mut resolved = ResolvedEditorConfig::new();
+        apply_file_properties(&file, "src/Main.kt", &mut resolved);
+
+        assert!(resolved.is_rule_enabled("standard:no-semi", true));
+        assert!(resolved.rule_toggles.is_empty());
+    }
+
+    #[test]
+    fn test_global_ktlint_enabled_respects_default_disabled() {
+        let content = "[*.kt]\nktlint = enabled\n";
+        let file = EditorConfigFile::parse(content).unwrap();
+        let mut resolved = ResolvedEditorConfig::new();
+        apply_file_properties(&file, "src/Main.kt", &mut resolved);
+
+        assert!(resolved.is_rule_enabled("standard:no-semi", true));
+        assert!(!resolved.is_rule_enabled("opt-in:custom-rule", false));
+    }
 }
