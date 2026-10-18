@@ -55,6 +55,21 @@ impl AstRule for MultilineExpressionWrapping {
             return;
         }
 
+        if expr_node.kind() == "call_expression"
+            && let Some(callee) = expr_node.child(0)
+            && callee.end_position().row == eq_node.start_position().row
+            && let Some(suffix) = expr_node.child(1)
+            && suffix.kind() == "call_suffix"
+            && suffix.children(&mut cursor).any(|c| {
+                matches!(
+                    c.kind(),
+                    "value_arguments" | "annotated_lambda" | "lambda_literal"
+                )
+            })
+        {
+            return;
+        }
+
         if expr_node.start_position().row == eq_node.start_position().row {
             ctx.report(eq_node, "Expected newline after '='");
         }

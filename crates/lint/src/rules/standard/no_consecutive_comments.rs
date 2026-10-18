@@ -90,12 +90,14 @@ fn evaluate_consecutive_comments(
         );
         ctx.report(node, msg);
     } else if previous == CommentType::Block && current == CommentType::Block {
-        let msg = crate::concat_str!(
-            current.description(),
-            " may not be preceded by ",
-            previous.description()
-        );
-        ctx.report(node, msg);
+        if newlines <= 1 {
+            let msg = crate::concat_str!(
+                current.description(),
+                " may not be preceded by ",
+                previous.description()
+            );
+            ctx.report(node, msg);
+        }
     } else if previous == CommentType::Eol && current == CommentType::Eol {
         // Allowed
     } else if previous != current && newlines > 1 {

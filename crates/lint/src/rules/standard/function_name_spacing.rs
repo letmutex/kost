@@ -61,10 +61,15 @@ fn check_call_expression(node: tree_sitter::Node, source: &[u8], ctx: &mut LintC
         return;
     }
 
-    let target = get_callee_name_node(callee);
+    let Some(target) = get_callee_name_node(callee) else {
+        return;
+    };
     let mut cursor = call_suffix.walk();
     for child in call_suffix.children(&mut cursor) {
-        if child.kind() == "type_arguments" {
+        if matches!(
+            child.kind(),
+            "type_arguments" | "annotated_lambda" | "lambda_literal"
+        ) {
             return;
         }
         if child.kind() == "value_arguments" {
@@ -82,7 +87,10 @@ fn check_call_expression(node: tree_sitter::Node, source: &[u8], ctx: &mut LintC
     }
 }
 
-fn get_callee_name_node(callee: tree_sitter::Node) -> tree_sitter::Node {
+fn get_callee_name_node(callee: tree_sitter::Node) -> Option<tree_sitter::Node> {
+    if callee.kind() == "simple_identifier" {
+        return Some(callee);
+    }
     if callee.kind() == "navigation_expression" {
         let child_count = callee.child_count();
         if child_count > 0
@@ -92,10 +100,10 @@ fn get_callee_name_node(callee: tree_sitter::Node) -> tree_sitter::Node {
             let mut cursor = suffix.walk();
             for child in suffix.children(&mut cursor) {
                 if child.kind() == "simple_identifier" {
-                    return child;
+                    return Some(child);
                 }
             }
         }
     }
-    callee
+    None
 }

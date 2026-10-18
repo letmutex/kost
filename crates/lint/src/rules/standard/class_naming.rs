@@ -69,14 +69,19 @@ fn is_valid_class_name(text: &str) -> bool {
 fn has_junit_jupiter_import(root: tree_sitter::Node, source: &[u8]) -> bool {
     let mut cursor = root.walk();
     for child in root.children(&mut cursor) {
-        if child.kind() == "import_header" {
-            let mut header_cursor = child.walk();
-            for item in child.children(&mut header_cursor) {
-                if item.kind() == "identifier"
-                    && let Ok(text) = item.utf8_text(source)
-                    && is_junit_jupiter_package_path(text)
-                {
-                    return true;
+        if child.kind() == "import_list" {
+            let mut list_cursor = child.walk();
+            for header in child.children(&mut list_cursor) {
+                if header.kind() == "import_header" {
+                    let mut header_cursor = header.walk();
+                    for item in header.children(&mut header_cursor) {
+                        if item.kind() == "identifier"
+                            && let Ok(text) = item.utf8_text(source)
+                            && is_junit_jupiter_package_path(text)
+                        {
+                            return true;
+                        }
+                    }
                 }
             }
         }

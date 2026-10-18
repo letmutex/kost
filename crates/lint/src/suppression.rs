@@ -20,9 +20,16 @@ impl SuppressionHint {
             if disabled == "ktlint" || disabled == "ktlint:suppress-all-rules" {
                 true
             } else if let Some(target) = disabled.strip_prefix("ktlint:") {
-                target == rule_id
+                target == rule_id || rule_id.strip_prefix("standard:") == Some(target)
             } else {
-                false
+                let unprefixed = rule_id.strip_prefix("standard:").unwrap_or(rule_id);
+                match disabled.as_str() {
+                    "EnumEntryName" => unprefixed == "enum-entry-name-case",
+                    "FunctionName" => unprefixed == "function-naming",
+                    "ClassName" => unprefixed == "class-naming",
+                    "PropertyName" => unprefixed == "property-naming",
+                    _ => false,
+                }
             }
         })
     }
@@ -149,6 +156,13 @@ fn is_suppress_annotation(node: tree_sitter::Node, source: &[u8]) -> bool {
     false
 }
 
+fn is_known_compiler_suppression(name: &str) -> bool {
+    matches!(
+        name,
+        "EnumEntryName" | "FunctionName" | "ClassName" | "PropertyName"
+    )
+}
+
 fn collect_ktlint_rules(
     node: tree_sitter::Node,
     source: &[u8],
@@ -157,7 +171,10 @@ fn collect_ktlint_rules(
     if node.kind() == "string_literal" {
         if let Ok(raw) = node.utf8_text(source) {
             let trimmed = raw.trim_matches(|c| c == '(' || c == ')' || c == '"' || c == ' ');
-            if trimmed == "ktlint" || trimmed.starts_with("ktlint:") {
+            if trimmed == "ktlint"
+                || trimmed.starts_with("ktlint:")
+                || is_known_compiler_suppression(trimmed)
+            {
                 rules.push(SmolStr::new(trimmed));
             }
         }

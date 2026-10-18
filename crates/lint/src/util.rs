@@ -313,3 +313,35 @@ pub fn is_kotlin_keyword(name: &str) -> bool {
             | "public" | "reified" | "sealed" | "suspend" | "tailrec" | "vararg"
     )
 }
+
+/// Computes the column indentation of the line starting at `node_start_byte`.
+pub fn compute_line_indent(source: &[u8], node_start_byte: usize) -> i64 {
+    let mut line_start = node_start_byte;
+    while line_start > 0 && source[line_start - 1] != b'\n' {
+        line_start -= 1;
+    }
+    let mut indent: i64 = 0;
+    for &byte in &source[line_start..] {
+        match byte {
+            b' ' => indent += 1,
+            b'\t' => indent += 4,
+            b'\r' => {}
+            _ => break,
+        }
+    }
+    indent
+}
+
+/// Recursively checks whether an annotation node contains argument lists.
+pub fn annotation_has_arguments(node: tree_sitter::Node) -> bool {
+    if matches!(node.kind(), "value_arguments" | "value_argument_list") {
+        return true;
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if annotation_has_arguments(child) {
+            return true;
+        }
+    }
+    false
+}

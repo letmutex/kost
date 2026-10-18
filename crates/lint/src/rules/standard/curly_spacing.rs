@@ -30,7 +30,7 @@ fn is_preceded_by_opening_delimiter(node: tree_sitter::Node, source: &[u8]) -> b
     if start == 0 {
         return false;
     }
-    matches!(source[start - 1], b'(' | b'[' | b'"' | b'\'')
+    matches!(source[start - 1], b'(' | b'[' | b'"' | b'\'' | b'@')
 }
 
 fn check_opening_curly(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {

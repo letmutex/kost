@@ -41,6 +41,15 @@ impl AstRule for AnnotationSpacing {
                     continue;
                 };
                 if span != b" " {
+                    if let Some(parent) = node.parent()
+                        && parent.kind() == "primary_constructor"
+                        && span.strip_prefix(b" constructor").is_some_and(|rest| {
+                            rest.iter()
+                                .all(|&b| matches!(b, b' ' | b'\t' | b'\n' | b'\r'))
+                        })
+                    {
+                        continue;
+                    }
                     let msg = if is_next_annotation {
                         "Expected a single space between annotations"
                     } else {

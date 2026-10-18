@@ -40,7 +40,7 @@ fn check_kdoc_placement(node: tree_sitter::Node, ctx: &mut LintCtx) {
 
     if let Some(parent) = node.parent()
         && is_allowed_declaration(parent.kind())
-        && parent.child(0) != Some(node)
+        && node.prev_named_sibling().is_some()
     {
         ctx.report(node, "A KDoc is allowed only at start of declaration");
         return;
@@ -54,6 +54,9 @@ fn check_kdoc_placement(node: tree_sitter::Node, ctx: &mut LintCtx) {
 fn is_inside_disallowed_block(node: tree_sitter::Node) -> bool {
     let mut current = node.parent();
     while let Some(parent) = current {
+        if matches!(parent.kind(), "class_body" | "object_literal") {
+            return false;
+        }
         if matches!(
             parent.kind(),
             "statements"

@@ -2,6 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
+use crate::util::annotation_has_arguments;
 
 /// Rule that enforces proper line wrapping for individual parameter components.
 pub struct ParameterWrapping;
@@ -20,7 +21,6 @@ impl AstRule for ParameterWrapping {
     }
 
     fn check_node(&self, node: tree_sitter::Node, _source: &[u8], ctx: &mut LintCtx) {
-        let is_multiline_list = node.start_position().row != node.end_position().row;
         let mut cursor = node.walk();
 
         for child in node.children(&mut cursor) {
@@ -29,7 +29,7 @@ impl AstRule for ParameterWrapping {
                     check_assignment_operator(child, ctx);
                 }
                 "parameter_modifiers" => {
-                    check_parameter_modifiers(child, is_multiline_list, ctx);
+                    check_parameter_modifiers(child, ctx);
                 }
                 "parameter" | "class_parameter" => {
                     let mut param_cursor = child.walk();
@@ -39,7 +39,7 @@ impl AstRule for ParameterWrapping {
                                 check_assignment_operator(param_child, ctx);
                             }
                             "modifiers" | "parameter_modifiers" => {
-                                check_parameter_modifiers(param_child, is_multiline_list, ctx);
+                                check_parameter_modifiers(param_child, ctx);
                             }
                             _ => {}
                         }
@@ -67,11 +67,7 @@ fn check_assignment_operator(eq_node: tree_sitter::Node, ctx: &mut LintCtx) {
     }
 }
 
-fn check_parameter_modifiers(
-    modifiers_node: tree_sitter::Node,
-    is_multiline_list: bool,
-    ctx: &mut LintCtx,
-) {
+fn check_parameter_modifiers(modifiers_node: tree_sitter::Node, ctx: &mut LintCtx) {
     let mut cursor = modifiers_node.walk();
     let mut annotations = Vec::new();
 
@@ -93,7 +89,8 @@ fn check_parameter_modifiers(
         }
     }
 
-    if is_multiline_list || annotations.len() > 1 {
+    let has_args = annotations.iter().any(|&a| annotation_has_arguments(a));
+    if annotations.len() > 1 || has_args {
         let last_annotation = *annotations.last().unwrap();
         let mut found_next = false;
         let mut subsequent = last_annotation.next_sibling();

@@ -51,7 +51,7 @@ fn is_properly_wrapped_kdoc(node: tree_sitter::Node, text: &str, source: &[u8]) 
     }
 
     if node.start_position().row == node.end_position().row {
-        return false;
+        return true;
     }
 
     let Some(first_newline) = text.find('\n') else {

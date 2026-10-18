@@ -19,6 +19,21 @@ impl AstRule for ContextReceiverWrapping {
     }
 
     fn check_node(&self, node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
+        let Some(parent) = ctx.parent() else {
+            return;
+        };
+        if !matches!(
+            parent.kind(),
+            "class_declaration"
+                | "function_declaration"
+                | "property_declaration"
+                | "secondary_constructor"
+                | "typealias_declaration"
+                | "modifiers"
+        ) {
+            return;
+        }
+
         let mut receivers: SmallVec<[tree_sitter::Node; 8]> = SmallVec::new();
         let mut closing_parenthesis = None;
         let mut has_colon = false;

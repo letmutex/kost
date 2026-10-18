@@ -13,7 +13,6 @@ impl AstRule for Wrapping {
 
     fn interested_kinds(&self) -> &'static [&'static str] {
         &[
-            "parenthesized_expression",
             "type_arguments",
             "type_parameters",
             "collection_literal",
@@ -34,12 +33,12 @@ impl AstRule for Wrapping {
 
         for child in node.children(&mut cursor) {
             match child.kind() {
-                "(" | "[" | "<" => {
+                "[" | "<" => {
                     if open_delimiter.is_none() {
                         open_delimiter = Some(child);
                     }
                 }
-                ")" | "]" | ">" => {
+                "]" | ">" => {
                     close_delimiter = Some(child);
                 }
                 "line_comment" | "multiline_comment" | "comment" => {}
@@ -58,7 +57,6 @@ impl AstRule for Wrapping {
             && first.start_position().row == open.end_position().row
         {
             let message = match open.kind() {
-                "(" => "Missing newline after \"(\"",
                 "[" => "Missing newline after \"[\"",
                 "<" => "Missing newline after \"<\"",
                 _ => "Missing newline after opening delimiter",
@@ -70,7 +68,6 @@ impl AstRule for Wrapping {
             && close.start_position().row == last.end_position().row
         {
             let message = match close.kind() {
-                ")" => "Missing newline before \")\"",
                 "]" => "Missing newline before \"]\"",
                 ">" => "Missing newline before \">\"",
                 _ => "Missing newline before closing delimiter",

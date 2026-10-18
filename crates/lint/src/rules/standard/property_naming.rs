@@ -91,7 +91,10 @@ fn is_object_val(node: tree_sitter::Node) -> bool {
 fn node_has_val(node: tree_sitter::Node) -> bool {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if child.kind() == "val" {
+        if child.kind() == "val"
+            || (child.kind() == "binding_pattern_kind"
+                && child.child(0).is_some_and(|k| k.kind() == "val"))
+        {
             return true;
         }
     }

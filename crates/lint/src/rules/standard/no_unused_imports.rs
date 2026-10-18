@@ -126,7 +126,10 @@ fn scan_used_identifiers(
 
     let is_import = in_import_header || kind == "import_header" || kind == "import_alias";
 
-    if matches!(kind, "simple_identifier" | "type_identifier") {
+    if matches!(
+        kind,
+        "simple_identifier" | "type_identifier" | "interpolated_identifier"
+    ) {
         if !is_import && let Ok(text) = node.utf8_text(source) {
             unreferenced.remove(text.trim_matches('`'));
         }
@@ -179,6 +182,7 @@ fn extract_kdoc_symbols(kdoc: &str, unreferenced: &mut AHashSet<SmolStr>) {
 
 fn is_operator_or_component(name: &str) -> bool {
     const OPERATORS: &[&str] = &[
+        "assign",
         "plus",
         "minus",
         "times",

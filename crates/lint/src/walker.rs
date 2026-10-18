@@ -265,7 +265,7 @@ fn update_max_indent_if_needed(node: tree_sitter::Node, source: &[u8], ctx: &mut
 
     let row = node.start_position().row as isize;
     if !is_comment && row > ctx.last_indent_row {
-        let indent = compute_line_indent(source, node.start_byte());
+        let indent = crate::util::compute_line_indent(source, node.start_byte());
         if indent > ctx.max_indent_spaces {
             ctx.max_indent_spaces = indent;
         }
@@ -278,23 +278,6 @@ fn update_max_indent_if_needed(node: tree_sitter::Node, source: &[u8], ctx: &mut
             ctx.last_indent_row = end_row;
         }
     }
-}
-
-fn compute_line_indent(source: &[u8], node_start_byte: usize) -> i64 {
-    let mut line_start = node_start_byte;
-    while line_start > 0 && source[line_start - 1] != b'\n' {
-        line_start -= 1;
-    }
-    let mut indent: i64 = 0;
-    for &byte in &source[line_start..] {
-        match byte {
-            b' ' => indent += 1,
-            b'\t' => indent += 4,
-            b'\r' => {}
-            _ => break,
-        }
-    }
-    indent
 }
 
 #[inline]
@@ -334,6 +317,15 @@ fn collect_exclusions_if_matching(
                 && crate::util::is_kdoc_bytes(slice)
             {
                 ctx.max_line_length_exclusions.push(range);
+            }
+        } else if kind == "simple_identifier" {
+            let start = node.start_byte();
+            let end = node.end_byte();
+            if end >= start + 2
+                && source.get(start) == Some(&b'`')
+                && source.get(end - 1) == Some(&b'`')
+            {
+                ctx.all_string_and_comment_ranges.push((start, end));
             }
         }
     }

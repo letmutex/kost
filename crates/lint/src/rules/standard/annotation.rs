@@ -2,6 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
+use crate::util::annotation_has_arguments;
 use smallvec::SmallVec;
 
 /// Rule enforcing proper line wrapping and placement of annotations.
@@ -31,6 +32,7 @@ impl AstRule for Annotation {
         }
 
         let last_index = annotations.len() - 1;
+
         for (i, &current) in annotations.iter().enumerate() {
             let has_arguments = annotation_has_arguments(current);
 
@@ -41,10 +43,23 @@ impl AstRule for Annotation {
                 ctx.report(current, "Expected newline before annotation");
             }
 
-            if i == last_index {
-                let following = current.next_sibling().or_else(|| node.next_sibling());
-                if (has_arguments || annotations.len() > 1)
-                    && let Some(next) = following
+            if i == last_index && (has_arguments || annotations.len() > 1) {
+                let mut following = current.next_sibling().or_else(|| node.next_sibling());
+                while let Some(candidate) = following {
+                    if matches!(
+                        candidate.kind(),
+                        "line_comment" | "comment" | "multiline_comment"
+                    ) {
+                        if candidate.parent() == Some(node) {
+                            following = candidate.next_sibling().or_else(|| node.next_sibling());
+                        } else {
+                            following = candidate.next_sibling();
+                        }
+                    } else {
+                        break;
+                    }
+                }
+                if let Some(next) = following
                     && next.start_position().row == current.end_position().row
                 {
                     ctx.report(current, "Expected newline after last annotation");
@@ -68,17 +83,4 @@ fn collect_annotations<'a>(
             list.push(child);
         }
     }
-}
-
-fn annotation_has_arguments(node: tree_sitter::Node) -> bool {
-    if matches!(node.kind(), "value_arguments" | "value_argument_list") {
-        return true;
-    }
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if annotation_has_arguments(child) {
-            return true;
-        }
-    }
-    false
 }

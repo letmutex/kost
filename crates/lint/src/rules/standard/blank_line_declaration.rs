@@ -33,8 +33,29 @@ impl AstRule for BlankLineBeforeDeclaration {
             return;
         };
 
+        if node.start_position().row == node.end_position().row
+            && prev_decl.start_position().row == prev_decl.end_position().row
+            && !has_member_body(node)
+            && !has_member_body(prev_decl)
+        {
+            return;
+        }
+
         if !has_blank_line_between_decls(prev_decl, node) {
             ctx.report(node, "Expected a blank line before declaration");
         }
     }
+}
+
+fn has_member_body(node: tree_sitter::Node) -> bool {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if matches!(
+            child.kind(),
+            "class_body" | "function_body" | "enum_class_body" | "block"
+        ) {
+            return true;
+        }
+    }
+    false
 }

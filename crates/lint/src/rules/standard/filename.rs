@@ -45,8 +45,9 @@ impl AstRule for Filename {
 
         let normalized_stem = strip_kmp_target_suffix(file_stem);
         let top_classes = collect_top_level_class_names(node, source);
+        let has_other_top_level_declarations = has_other_top_level_decls(node);
 
-        if top_classes.len() == 1 {
+        if top_classes.len() == 1 && !has_other_top_level_declarations {
             let (class_name, class_node) = &top_classes[0];
             if !is_matching_filename(normalized_stem, class_name) {
                 let message = crate::concat_str!(
@@ -64,6 +65,19 @@ impl AstRule for Filename {
             ctx.report(node, message);
         }
     }
+}
+
+fn has_other_top_level_decls(root: tree_sitter::Node) -> bool {
+    let mut cursor = root.walk();
+    for child in root.children(&mut cursor) {
+        if matches!(
+            child.kind(),
+            "function_declaration" | "property_declaration" | "typealias_declaration"
+        ) {
+            return true;
+        }
+    }
+    false
 }
 
 fn has_jvm_file_name_override(root: tree_sitter::Node, source: &[u8]) -> bool {
