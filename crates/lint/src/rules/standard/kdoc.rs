@@ -25,11 +25,11 @@ impl AstRule for Kdoc {
             return;
         }
 
-        check_kdoc_placement(node, ctx);
+        check_kdoc_placement(node, source, ctx);
     }
 }
 
-fn check_kdoc_placement(node: tree_sitter::Node, ctx: &mut LintCtx) {
+fn check_kdoc_placement(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
     if is_inside_disallowed_block(node) {
         ctx.report(
             node,
@@ -58,7 +58,7 @@ fn check_kdoc_placement(node: tree_sitter::Node, ctx: &mut LintCtx) {
         }
     }
 
-    if !has_following_declaration(node) {
+    if !has_following_declaration(node, source) {
         ctx.report(node, "A dangling toplevel KDoc is not allowed");
     }
 }
@@ -88,18 +88,25 @@ fn is_inside_disallowed_block(node: tree_sitter::Node) -> bool {
     false
 }
 
-fn has_following_declaration(node: tree_sitter::Node) -> bool {
+fn has_following_declaration(node: tree_sitter::Node, source: &[u8]) -> bool {
     let mut current = node;
     loop {
         let mut next = current.next_sibling();
         while let Some(sibling) = next {
-            if is_allowed_declaration(sibling.kind()) {
+            if is_allowed_declaration(sibling.kind())
+                || is_misparsed_function_declaration(sibling, source)
+            {
                 return true;
             }
             if sibling.is_named()
                 && !matches!(
                     sibling.kind(),
-                    "comment" | "multiline_comment" | "line_comment"
+                    "comment"
+                        | "multiline_comment"
+                        | "line_comment"
+                        | "annotation"
+                        | "single_annotation"
+                        | "modifiers"
                 )
             {
                 return false;
@@ -113,6 +120,25 @@ fn has_following_declaration(node: tree_sitter::Node) -> bool {
             break;
         }
         current = parent;
+    }
+    false
+}
+
+fn is_misparsed_function_declaration(node: tree_sitter::Node, source: &[u8]) -> bool {
+    if node.kind() == "infix_expression" {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "simple_identifier" && child.utf8_text(source) == Ok("fun") {
+                return true;
+            }
+        }
+    } else if node.kind() == "annotated_expression" {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if is_misparsed_function_declaration(child, source) {
+                return true;
+            }
+        }
     }
     false
 }

@@ -25,12 +25,7 @@ impl AstRule for KdocWrapping {
             return;
         }
 
-        if !is_properly_wrapped_kdoc(node, text, source) {
-            ctx.report(
-                node,
-                "A KDoc comment should start and end on a line that does not contain any other element",
-            );
-        }
+        check_kdoc_wrapping(node, text, source, ctx);
     }
 }
 
@@ -38,37 +33,59 @@ fn is_kdoc(text: &str) -> bool {
     text.starts_with("/**") && !text.starts_with("/***") && text.ends_with("*/") && text != "/**/"
 }
 
-fn is_properly_wrapped_kdoc(node: tree_sitter::Node, text: &str, source: &[u8]) -> bool {
+fn check_kdoc_wrapping(node: tree_sitter::Node, text: &str, source: &[u8], ctx: &mut LintCtx) {
+    let message =
+        "A KDoc comment should start and end on a line that does not contain any other element";
+
     if spaces_before(node, source) != WhitespaceBefore::StartOfLine {
-        return false;
+        ctx.report(node, message);
+        return;
+    }
+
+    if node.start_position().row == node.end_position().row {
+        if !matches!(
+            spaces_after(node, source),
+            WhitespaceAfter::EndOfLine { .. }
+        ) {
+            let end_line = (node.end_position().row + 1) as u32;
+            ctx.report_range(
+                crate::types::TextRange::new(end_line, 1, end_line, 1),
+                message,
+            );
+        }
+        return;
+    }
+
+    let Some(first_newline) = text.find('\n') else {
+        return;
+    };
+    if !text[3..first_newline].trim().is_empty() {
+        ctx.report(node, message);
+    }
+
+    let Some(last_newline) = text.rfind('\n') else {
+        return;
+    };
+    let closing_slice = &text[last_newline + 1..];
+    let end_line = (node.end_position().row + 1) as u32;
+
+    if let Some(content_before_closing) = closing_slice.strip_suffix("*/")
+        && !content_before_closing.trim().is_empty()
+    {
+        ctx.report_range(
+            crate::types::TextRange::new(end_line, 1, end_line, 1),
+            message,
+        );
+        return;
     }
 
     if !matches!(
         spaces_after(node, source),
         WhitespaceAfter::EndOfLine { .. }
     ) {
-        return false;
+        ctx.report_range(
+            crate::types::TextRange::new(end_line, 1, end_line, 1),
+            message,
+        );
     }
-
-    if node.start_position().row == node.end_position().row {
-        return true;
-    }
-
-    let Some(first_newline) = text.find('\n') else {
-        return false;
-    };
-    if !text[3..first_newline].trim().is_empty() {
-        return false;
-    }
-
-    let Some(last_newline) = text.rfind('\n') else {
-        return false;
-    };
-    let closing_slice = &text[last_newline + 1..];
-    if closing_slice.len() < 2 {
-        return false;
-    }
-
-    let content_before_closing = &closing_slice[..closing_slice.len() - 2];
-    content_before_closing.trim().is_empty()
 }
