@@ -260,29 +260,16 @@ pub fn lower_jump_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> 
 
 pub fn lower_control_structure_body<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     let mut has_braces = false;
-    let mut stmts = None;
-
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        let kind = child.kind();
-        if kind == "{" {
+        if child.kind() == "{" {
             has_braces = true;
-        } else if kind == "statements" {
-            stmts = Some(child);
+            break;
         }
     }
 
     if has_braces {
-        if let Some(s) = stmts {
-            Doc::Concat(vec![
-                Doc::text("{"),
-                Doc::indent(Doc::Concat(vec![Doc::HardLine, lower_node(s, ctx)])),
-                Doc::HardLine,
-                Doc::text("}"),
-            ])
-        } else {
-            Doc::text("{}")
-        }
+        crate::lower::expr::lower_block(node, ctx)
     } else {
         let mut docs = Vec::new();
         let mut cursor = node.walk();

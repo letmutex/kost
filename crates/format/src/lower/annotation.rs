@@ -89,12 +89,7 @@ pub fn lower_modifiers<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a
             && matches!(grandparent_kind, Some("class_body" | "enum_class_body")),
         is_top_decl: matches!(
             parent_kind,
-            Some(
-                "class_declaration"
-                    | "object_declaration"
-                    | "secondary_constructor"
-                    | "primary_constructor"
-            )
+            Some("class_declaration" | "object_declaration" | "secondary_constructor")
         ) || (matches!(
             parent_kind,
             Some("function_declaration" | "property_declaration")
@@ -148,6 +143,9 @@ pub fn lower_file_annotation<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> 
 }
 
 pub fn lower_annotation<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    if node.child_count() == 0 {
+        return Doc::text(ctx.node_text(&node));
+    }
     let mut docs = Vec::new();
     let mut cursor = node.walk();
     let mut inside_brackets = false;

@@ -1,6 +1,7 @@
 pub mod accessors;
 pub mod annotation;
 pub mod assignment;
+pub mod callable_reference;
 pub mod calls;
 pub mod class_body;
 pub mod comma_list;
@@ -22,6 +23,7 @@ pub mod navigation;
 pub mod params;
 pub mod property;
 pub mod scoping;
+pub mod secondary_constructor;
 pub mod source_file;
 pub mod strings;
 pub mod try_catch;
@@ -35,11 +37,10 @@ use crate::doc::Doc;
 use crate::lower::accessors::lower_getter_setter;
 use crate::lower::annotation::{lower_annotation, lower_file_annotation, lower_modifiers};
 use crate::lower::assignment::{lower_assignment, lower_directly_assignable_expression};
+use crate::lower::callable_reference::lower_callable_reference;
 use crate::lower::calls::{lower_call_expression, lower_call_suffix};
-use crate::lower::constructors::{
-    lower_anonymous_initializer, lower_companion_object, lower_primary_constructor,
-    lower_secondary_constructor,
-};
+use crate::lower::class_body::{lower_anonymous_initializer, lower_companion_object};
+use crate::lower::constructors::lower_primary_constructor;
 use crate::lower::context::LowerContext;
 use crate::lower::context_receiver::lower_context_receiver;
 use crate::lower::control::{
@@ -48,6 +49,7 @@ use crate::lower::control::{
 };
 use crate::lower::decl::{lower_class_body, lower_class_declaration};
 use crate::lower::destructuring::{lower_backing_field, lower_destructuring_declaration};
+use crate::lower::elvis::{find_leftmost_unparenthesized_elvis, lower_unparenthesized_elvis_chain};
 use crate::lower::expr::{lower_binary_expression, lower_block, lower_statements};
 use crate::lower::func::{lower_function_body, lower_function_declaration};
 use crate::lower::imports::{lower_import_list, lower_package_header};
@@ -55,13 +57,13 @@ use crate::lower::lambda::{lower_annotated_lambda, lower_lambda_literal, lower_l
 use crate::lower::lists::{lower_collection_literal, lower_list_with_commas};
 use crate::lower::loops::{lower_do_while_statement, lower_for_statement, lower_while_statement};
 use crate::lower::navigation::{
-    find_leftmost_unparenthesized_elvis, is_spine_root, lower_callable_reference,
-    lower_navigation_expression, lower_navigation_suffix, lower_unparenthesized_elvis_chain,
+    is_spine_root, lower_navigation_expression, lower_navigation_suffix,
 };
 use crate::lower::params::{
     lower_multi_variable_declaration, lower_parameter, lower_value_argument,
 };
 use crate::lower::property::lower_property_declaration;
+use crate::lower::secondary_constructor::lower_secondary_constructor;
 pub use crate::lower::source_file::lower_source_file;
 use crate::lower::strings::lower_string_literal;
 use crate::lower::try_catch::{lower_catch_block, lower_finally_block, lower_try_expression};

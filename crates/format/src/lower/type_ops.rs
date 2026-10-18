@@ -14,7 +14,7 @@ pub fn lower_as_or_check_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '
         let kind = child.kind();
         if left.is_none() {
             left = Some(child);
-        } else if matches!(kind, "as" | "as?" | "is" | "!is" | "!") {
+        } else if matches!(kind, "as" | "as?" | "is" | "!is" | "!" | "in" | "!in") {
             op_tokens.push(ctx.node_text(&child));
         } else {
             type_nodes.push(child);

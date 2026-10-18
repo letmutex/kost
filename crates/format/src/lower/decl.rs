@@ -43,7 +43,7 @@ fn push_class_header_child<'a>(
         if prev_child_node.is_some_and(|p| ctx.has_newline_between(&p, &child)) {
             header_docs.push(Doc::HardLine);
         } else {
-            header_docs.push(Doc::Line);
+            header_docs.push(Doc::space());
         }
     }
     header_docs.push(lower_node(child, ctx));

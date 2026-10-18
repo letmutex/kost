@@ -1,4 +1,4 @@
 data class Foo(
-  /** doc */
-  val x: Int,
+    /** doc */
+    val x: Int,
 )

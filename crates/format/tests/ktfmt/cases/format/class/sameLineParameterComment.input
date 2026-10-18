@@ -1,0 +1,4 @@
+class Foo(
+    val x: Int, // note
+    val y: String,
+)

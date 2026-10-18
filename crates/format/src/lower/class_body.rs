@@ -256,3 +256,56 @@ pub fn lower_class_body<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
         Doc::text("}"),
     ])
 }
+
+pub fn lower_companion_object<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    let mut docs = Vec::new();
+    let mut cursor = node.walk();
+    let mut has_body = false;
+    for child in node.children(&mut cursor) {
+        if child.kind() == "class_body" {
+            has_body = true;
+        }
+        if !docs.is_empty() && child.kind() != ";" {
+            docs.push(Doc::space());
+        }
+        docs.push(lower_node(child, ctx));
+    }
+    if !has_body && node.next_named_sibling().is_some() {
+        let after = ctx.source.get(node.end_byte()..).unwrap_or("");
+        if after.trim_start().starts_with(';') {
+            docs.push(Doc::text(";"));
+        }
+    }
+    Doc::Concat(docs)
+}
+
+pub fn lower_anonymous_initializer<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    let mut inner_docs = Vec::new();
+    let mut cursor = node.walk();
+    let mut inside_braces = false;
+
+    for child in node.children(&mut cursor) {
+        let kind = child.kind();
+        if kind == "{" {
+            inside_braces = true;
+            continue;
+        }
+        if kind == "}" {
+            break;
+        }
+        if inside_braces {
+            inner_docs.push(lower_node(child, ctx));
+        }
+    }
+
+    if inner_docs.is_empty() {
+        Doc::text("init {}")
+    } else {
+        Doc::Concat(vec![
+            Doc::text("init {"),
+            Doc::indent(Doc::Concat(vec![Doc::HardLine, Doc::Concat(inner_docs)])),
+            Doc::HardLine,
+            Doc::text("}"),
+        ])
+    }
+}

@@ -2,11 +2,35 @@ use tree_sitter::Node;
 
 use crate::doc::Doc;
 use crate::lower::accessors::{is_field_accessor, is_top_level_accessor};
-use crate::lower::constructors::{
-    class_has_body, is_comment_before_orphan_constructor, is_orphan_constructor,
-};
 use crate::lower::context::LowerContext;
 use crate::lower::lower_node;
+
+fn class_has_body(node: &Node<'_>) -> bool {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if matches!(child.kind(), "class_body" | "enum_class_body") {
+            return true;
+        }
+    }
+    false
+}
+
+fn is_orphan_constructor(node: Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
+    (node.kind() == "call_expression" || node.kind() == "secondary_constructor")
+        && ctx.node_text(&node).starts_with("constructor")
+}
+
+fn is_comment_before_orphan_constructor(comment: Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
+    let mut next = comment.next_sibling();
+    while let Some(n) = next {
+        if matches!(n.kind(), "comment" | "line_comment" | "multiline_comment") {
+            next = n.next_sibling();
+        } else {
+            return is_orphan_constructor(n, ctx);
+        }
+    }
+    false
+}
 
 fn is_major_top_level_decl(kind: &str) -> bool {
     matches!(
@@ -17,6 +41,30 @@ fn is_major_top_level_decl(kind: &str) -> bool {
             | "typealias"
             | "interface_declaration"
     )
+}
+
+fn separate_major_top_level_decl<'a>(
+    prev: Node<'a>,
+    child: Node<'a>,
+    docs: &mut Vec<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+) {
+    let is_class_before_constructor = prev.kind() == "class_declaration"
+        && !class_has_body(&prev)
+        && (is_orphan_constructor(child, ctx) || is_comment_before_orphan_constructor(child, ctx));
+    if is_class_before_constructor {
+        if !docs.last().is_some_and(|d| d.ends_with_newline()) {
+            docs.push(Doc::HardLine);
+        }
+    } else if prev.kind() == "import_list" && docs.last().is_some_and(|d| d.ends_with_newline()) {
+        // Already separated by import_list bottom comments
+    } else if matches!(prev.kind(), "annotation" | "parenthesized_expression") {
+        if !docs.last().is_some_and(|d| d.ends_with_newline()) {
+            docs.push(Doc::HardLine);
+        }
+    } else {
+        docs.push(Doc::EmptyLine);
+    }
 }
 
 fn separate_source_file_children<'a>(
@@ -78,20 +126,7 @@ fn separate_source_file_children<'a>(
         "comment" | "line_comment" | "multiline_comment"
     ) && (is_major_top_level_decl(prev.kind()) || is_major_top_level_decl(child.kind()))
     {
-        let is_class_before_constructor = prev.kind() == "class_declaration"
-            && !class_has_body(&prev)
-            && (is_orphan_constructor(child, ctx)
-                || is_comment_before_orphan_constructor(child, ctx));
-        if is_class_before_constructor {
-            if !docs.last().is_some_and(|d| d.ends_with_newline()) {
-                docs.push(Doc::HardLine);
-            }
-        } else if prev.kind() == "import_list" && docs.last().is_some_and(|d| d.ends_with_newline())
-        {
-            // Already separated by import_list bottom comments
-        } else {
-            docs.push(Doc::EmptyLine);
-        }
+        separate_major_top_level_decl(prev, child, docs, ctx);
     } else if !docs.last().is_some_and(|d| d.ends_with_newline()) {
         docs.push(Doc::HardLine);
     }

@@ -171,11 +171,13 @@ pub fn lower_value_argument<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
     let mut expr_node = None;
     let mut has_equals = false;
 
+    let mut equals_node = None;
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         if kind == "=" {
             has_equals = true;
+            equals_node = Some(child);
         } else if !has_equals {
             name = Some(lower_node(child, ctx));
         } else {
@@ -185,9 +187,14 @@ pub fn lower_value_argument<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
     }
 
     if has_equals && let (Some(n), Some(e)) = (name, expr) {
+        let has_user_newline = equals_node
+            .zip(expr_node)
+            .is_some_and(|(eq, ex)| ctx.has_newline_between(&eq, &ex));
         let is_lambda =
             expr_node.is_some_and(|en| matches!(en.kind(), "lambda_literal" | "annotated_lambda"));
-        if is_lambda {
+        let is_call_or_constructor = expr_node
+            .is_some_and(|en| matches!(en.kind(), "call_expression" | "constructor_invocation"));
+        if is_lambda || (is_call_or_constructor && !has_user_newline) {
             Doc::Concat(vec![n, Doc::space(), Doc::text("="), Doc::space(), e])
         } else {
             let reserve = value_argument_closing_reserve(&node);

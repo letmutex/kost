@@ -24,27 +24,13 @@ fn assert_test_group(sub_dir: &str, options: &FormattingOptions, warnings: &[Ski
     }
 }
 
-static ANNOTATION_SKIPPED: &[SkippedInput] = &[
-    SkippedInput::new(
-        "expressions.input",
-        "unsupported syntax: annotations on expressions",
-    ),
-    SkippedInput::new(
-        "expressions2.input",
-        "unsupported syntax: annotations on expressions",
-    ),
-];
+static ANNOTATION_SKIPPED: &[SkippedInput] = &[];
 
-static TYPE_SKIPPED: &[SkippedInput] = &[
-    SkippedInput::new(
-        "intersections.input",
-        "unsupported syntax: intersection types",
-    ),
-    SkippedInput::new(
-        "nullableTypes.input",
-        "unsupported syntax: parenthesized nullable types",
-    ),
-];
+static CALL_SKIPPED: &[SkippedInput] = &[];
+
+static MISC_SKIPPED: &[SkippedInput] = &[];
+
+static TYPE_SKIPPED: &[SkippedInput] = &[];
 
 static GOOGLE_SKIPPED: &[SkippedInput] = &[
     SkippedInput::new(
@@ -61,24 +47,7 @@ static GOOGLE_SKIPPED: &[SkippedInput] = &[
     ),
 ];
 
-static NEW_CODESTYLE_SKIPPED: &[SkippedInput] = &[
-    SkippedInput::new(
-        "AnnotationOnExpression.input",
-        "unsupported syntax: annotations on expressions",
-    ),
-    SkippedInput::new(
-        "AnnotationOnExpressionFullWidth.input",
-        "unsupported syntax: annotations on expressions",
-    ),
-    SkippedInput::new(
-        "DeclarationAnnotations.input",
-        "unsupported syntax: declaration annotations",
-    ),
-    SkippedInput::new(
-        "UseSiteTargets.input",
-        "unsupported syntax: use-site targets on uninitialized property",
-    ),
-];
+static NEW_CODESTYLE_SKIPPED: &[SkippedInput] = &[];
 
 #[test]
 fn test_format_annotation_cases() {
@@ -96,7 +65,7 @@ fn test_format_binary_cases() {
 
 #[test]
 fn test_format_call_cases() {
-    assert_test_group("format/call", &FormattingOptions::meta(), &[]);
+    assert_test_group("format/call", &FormattingOptions::meta(), CALL_SKIPPED);
 }
 
 #[test]
@@ -141,7 +110,7 @@ fn test_format_lambda_cases() {
 
 #[test]
 fn test_format_misc_cases() {
-    assert_test_group("format/misc", &FormattingOptions::meta(), &[]);
+    assert_test_group("format/misc", &FormattingOptions::meta(), MISC_SKIPPED);
 }
 
 #[test]
@@ -193,7 +162,7 @@ fn standard_groups() -> Vec<ProgressGroup> {
             ANNOTATION_SKIPPED,
         ),
         ("format/binary", FormattingOptions::meta(), &[]),
-        ("format/call", FormattingOptions::meta(), &[]),
+        ("format/call", FormattingOptions::meta(), CALL_SKIPPED),
         ("format/class", FormattingOptions::meta(), &[]),
         ("format/comment", FormattingOptions::meta(), &[]),
         ("format/enums", FormattingOptions::meta(), &[]),
@@ -202,7 +171,7 @@ fn standard_groups() -> Vec<ProgressGroup> {
         ("format/import", FormattingOptions::meta(), &[]),
         ("format/kdoc", FormattingOptions::meta(), &[]),
         ("format/lambda", FormattingOptions::meta(), &[]),
-        ("format/misc", FormattingOptions::meta(), &[]),
+        ("format/misc", FormattingOptions::meta(), MISC_SKIPPED),
         ("format/property", FormattingOptions::meta(), &[]),
         ("format/string", FormattingOptions::meta(), &[]),
         ("format/type", FormattingOptions::meta(), TYPE_SKIPPED),

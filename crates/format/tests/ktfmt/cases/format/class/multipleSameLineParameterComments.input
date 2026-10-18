@@ -1,0 +1,4 @@
+class Foo(
+    val x: Int /* tag */, // note
+    val y: String,
+)

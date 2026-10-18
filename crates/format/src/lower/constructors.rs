@@ -2,62 +2,8 @@ use tree_sitter::Node;
 
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
-use crate::lower::expr::lower_statements;
-use crate::lower::lists::{CommaListOptions, format_comma_list, lower_list_with_commas};
+use crate::lower::lists::{CommaListItem, CommaListOptions, format_comma_list};
 use crate::lower::lower_node;
-
-pub fn lower_companion_object<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut docs = Vec::new();
-    let mut cursor = node.walk();
-    let mut has_body = false;
-    for child in node.children(&mut cursor) {
-        if child.kind() == "class_body" {
-            has_body = true;
-        }
-        if !docs.is_empty() && child.kind() != ";" {
-            docs.push(Doc::space());
-        }
-        docs.push(lower_node(child, ctx));
-    }
-    if !has_body && node.next_named_sibling().is_some() {
-        let after = ctx.source.get(node.end_byte()..).unwrap_or("");
-        if after.trim_start().starts_with(';') {
-            docs.push(Doc::text(";"));
-        }
-    }
-    Doc::Concat(docs)
-}
-
-pub fn lower_anonymous_initializer<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut inner_docs = Vec::new();
-    let mut cursor = node.walk();
-    let mut inside_braces = false;
-
-    for child in node.children(&mut cursor) {
-        let kind = child.kind();
-        if kind == "{" {
-            inside_braces = true;
-            continue;
-        }
-        if kind == "}" {
-            break;
-        }
-        if inside_braces {
-            inner_docs.push(lower_node(child, ctx));
-        }
-    }
-
-    if inner_docs.is_empty() {
-        Doc::text("init {}")
-    } else {
-        Doc::Concat(vec![
-            Doc::text("init {"),
-            Doc::indent(Doc::Concat(vec![Doc::HardLine, Doc::Concat(inner_docs)])),
-            Doc::HardLine,
-            Doc::text("}"),
-        ])
-    }
-}
 
 pub fn primary_constructor_has_constructor_keyword(
     node: &Node<'_>,
@@ -83,11 +29,65 @@ pub fn primary_constructor_has_constructor_keyword(
 
 struct PrimaryConstructorChildren<'a> {
     prefix_docs: Vec<Doc<'a>>,
-    items: Vec<Doc<'a>>,
+    items: Vec<CommaListItem<'a>>,
     trailing_docs: Vec<Doc<'a>>,
     has_trailing_comma: bool,
     open_paren_start: Option<usize>,
     close_paren_end: Option<usize>,
+}
+
+fn push_after_paren_comment<'a>(
+    child: Node<'a>,
+    prev_child: Option<Node<'a>>,
+    trailing_docs: &mut Vec<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+) {
+    if prev_child.is_some_and(|p| ctx.has_newline_between(&p, &child)) {
+        trailing_docs.push(Doc::indent(Doc::HardLine));
+    } else {
+        trailing_docs.push(Doc::space());
+    }
+    trailing_docs.push(lower_node(child, ctx));
+}
+
+fn build_parameter_item<'a>(
+    child: Node<'a>,
+    pending_comments: &mut Vec<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+) -> CommaListItem<'a> {
+    let item_doc = lower_node(child, ctx);
+    let doc = if pending_comments.is_empty() {
+        item_doc
+    } else {
+        let mut parts = Vec::new();
+        for c in pending_comments.drain(..) {
+            parts.push(c);
+            parts.push(Doc::HardLine);
+        }
+        parts.push(item_doc);
+        Doc::Concat(parts)
+    };
+    CommaListItem {
+        doc,
+        trailing_comment: None,
+    }
+}
+
+fn attach_same_line_comment<'a>(
+    child: Node<'a>,
+    prev_child: Option<Node<'a>>,
+    items: &mut [CommaListItem<'a>],
+    ctx: &LowerContext<'a, '_>,
+) {
+    let last_item = items.last_mut().unwrap();
+    let comment_doc = lower_node(child, ctx);
+    if child.kind() != "line_comment" && prev_child.is_some_and(|p| p.kind() != ",") {
+        last_item.doc = Doc::Concat(vec![last_item.doc.clone(), Doc::space(), comment_doc]);
+    } else if let Some(existing) = last_item.trailing_comment.take() {
+        last_item.trailing_comment = Some(Doc::Concat(vec![existing, Doc::space(), comment_doc]));
+    } else {
+        last_item.trailing_comment = Some(comment_doc);
+    }
 }
 
 fn collect_primary_constructor_children<'a>(
@@ -95,7 +95,7 @@ fn collect_primary_constructor_children<'a>(
     ctx: &LowerContext<'a, '_>,
 ) -> PrimaryConstructorChildren<'a> {
     let mut prefix_docs = Vec::new();
-    let mut items = Vec::new();
+    let mut items: Vec<CommaListItem<'a>> = Vec::new();
     let mut trailing_docs = Vec::new();
     let mut has_trailing_comma = false;
     let mut inside_parens = false;
@@ -103,6 +103,7 @@ fn collect_primary_constructor_children<'a>(
     let mut open_paren_start = None;
     let mut close_paren_end = None;
 
+    let mut pending_comments = Vec::new();
     let mut prev_child: Option<Node<'a>> = None;
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -114,14 +115,15 @@ fn collect_primary_constructor_children<'a>(
             close_paren_end = Some(child.end_byte());
             inside_parens = false;
             after_parens = true;
+            for c in pending_comments.drain(..) {
+                items.push(CommaListItem {
+                    doc: c,
+                    trailing_comment: None,
+                });
+            }
         } else if after_parens {
             if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-                if prev_child.is_some_and(|p| ctx.has_newline_between(&p, &child)) {
-                    trailing_docs.push(Doc::indent(Doc::HardLine));
-                } else {
-                    trailing_docs.push(Doc::space());
-                }
-                trailing_docs.push(lower_node(child, ctx));
+                push_after_paren_comment(child, prev_child, &mut trailing_docs, ctx);
             }
         } else if !inside_parens {
             if matches!(
@@ -130,13 +132,21 @@ fn collect_primary_constructor_children<'a>(
             ) {
                 prefix_docs.push(lower_node(child, ctx));
             }
+        } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+            let is_same_line =
+                prev_child.is_some_and(|p| child.start_position().row == p.end_position().row);
+            if is_same_line && !items.is_empty() && pending_comments.is_empty() {
+                attach_same_line_comment(child, prev_child, &mut items, ctx);
+            } else {
+                pending_comments.push(lower_node(child, ctx));
+            }
         } else if kind == "," {
             has_trailing_comma = true;
             prev_child = Some(child);
             continue;
         } else {
             has_trailing_comma = false;
-            items.push(lower_node(child, ctx));
+            items.push(build_parameter_item(child, &mut pending_comments, ctx));
         }
         prev_child = Some(child);
     }
@@ -182,10 +192,8 @@ pub fn lower_primary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>)
         (Some(start), Some(end)) => ctx.source.get(start..end).is_some_and(|s| s.contains('\n')),
         _ => ctx.node_text(&node).contains('\n'),
     };
-    let items: Vec<crate::lower::comma_list::CommaListItem<'a>> =
-        parsed.items.into_iter().map(From::from).collect();
     let list_doc = format_comma_list(
-        items,
+        parsed.items,
         parsed.has_trailing_comma,
         "(",
         ")",
@@ -200,143 +208,7 @@ pub fn lower_primary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>)
     );
 
     let list_group = Doc::Group(Box::new(list_doc));
-    if !head_docs.is_empty() {
-        head_docs.push(list_group);
-        head_docs.extend(parsed.trailing_docs);
-        Doc::Concat(head_docs)
-    } else {
-        let mut docs = vec![list_group];
-        docs.extend(parsed.trailing_docs);
-        Doc::Concat(docs)
-    }
-}
-
-pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut prefix_docs = Vec::new();
-    let mut params_doc = None;
-    let mut params_multiline = false;
-    let mut delegation_doc = None;
-    let mut statements_node = None;
-    let mut has_braces = false;
-
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        let kind = child.kind();
-        match kind {
-            "context_receiver" => {
-                prefix_docs.push(lower_node(child, ctx));
-                prefix_docs.push(Doc::HardLine);
-            }
-            "modifiers" => {
-                prefix_docs.push(lower_node(child, ctx));
-            }
-            "constructor" => {
-                prefix_docs.push(Doc::text("constructor"));
-            }
-            "function_value_parameters" => {
-                params_multiline = ctx.node_text(&child).contains('\n');
-                params_doc = Some(lower_list_with_commas(child, ctx));
-            }
-            "constructor_delegation_call" => {
-                delegation_doc = Some(lower_constructor_delegation_call(child, ctx));
-            }
-            "{" => {
-                has_braces = true;
-            }
-            "statements" if child.named_child_count() > 0 => {
-                statements_node = Some(child);
-            }
-            _ => {}
-        }
-    }
-
-    let mut header_parts = prefix_docs;
-    if let Some(params) = params_doc {
-        header_parts.push(params);
-    }
-    let header = Doc::Concat(header_parts);
-
-    let delegation_part = delegation_doc.map(|d| {
-        if params_multiline {
-            Doc::Concat(vec![Doc::space(), Doc::text(": "), d])
-        } else {
-            Doc::Group(Box::new(Doc::Concat(vec![
-                Doc::space(),
-                Doc::text(":"),
-                Doc::continuation_indent(Doc::Concat(vec![Doc::Line, d])),
-            ])))
-        }
-    });
-
-    let mut all_head = vec![header];
-    if let Some(del) = delegation_part {
-        all_head.push(del);
-    }
-    let head_doc = Doc::Group(Box::new(Doc::Concat(all_head)));
-    attach_secondary_constructor_body(head_doc, has_braces, statements_node, ctx)
-}
-
-fn attach_secondary_constructor_body<'a>(
-    head_doc: Doc<'a>,
-    has_braces: bool,
-    statements_node: Option<Node<'a>>,
-    ctx: &LowerContext<'a, '_>,
-) -> Doc<'a> {
-    if !has_braces {
-        return head_doc;
-    }
-    if let Some(stmts) = statements_node {
-        Doc::Concat(vec![
-            head_doc,
-            Doc::space(),
-            Doc::text("{"),
-            Doc::indent(Doc::Concat(vec![
-                Doc::HardLine,
-                lower_statements(stmts, ctx),
-            ])),
-            Doc::HardLine,
-            Doc::text("}"),
-        ])
-    } else {
-        Doc::Concat(vec![head_doc, Doc::space(), Doc::text("{}")])
-    }
-}
-
-pub fn lower_constructor_delegation_call<'a>(
-    node: Node<'a>,
-    ctx: &LowerContext<'a, '_>,
-) -> Doc<'a> {
-    let mut docs = Vec::new();
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        docs.push(lower_node(child, ctx));
-    }
-    Doc::Concat(docs)
-}
-
-pub fn class_has_body(node: &Node<'_>) -> bool {
-    let mut cursor = node.walk();
-    for c in node.children(&mut cursor) {
-        if matches!(c.kind(), "class_body" | "enum_class_body") {
-            return true;
-        }
-    }
-    false
-}
-
-pub fn is_orphan_constructor(node: Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
-    (node.kind() == "call_expression" || node.kind() == "secondary_constructor")
-        && ctx.node_text(&node).starts_with("constructor")
-}
-
-pub fn is_comment_before_orphan_constructor(comment: Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
-    let mut next = comment.next_sibling();
-    while let Some(n) = next {
-        if matches!(n.kind(), "comment" | "line_comment" | "multiline_comment") {
-            next = n.next_sibling();
-        } else {
-            return is_orphan_constructor(n, ctx);
-        }
-    }
-    false
+    head_docs.push(list_group);
+    head_docs.extend(parsed.trailing_docs);
+    Doc::Concat(head_docs)
 }
