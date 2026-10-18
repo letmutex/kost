@@ -38,3 +38,33 @@ fn test_bracket_annotation_in_type_modifiers_inline() {
     let formatted = format_default(source).expect("formatting should succeed");
     assert_eq!(formatted, source);
 }
+
+#[test]
+fn test_multiline_call_arguments_not_split_into_statements() {
+    let source = "fun test() {\n    val x = compute\n        (arg1, arg2)\n}\n";
+    let expected = "fun test() {\n    val x = compute(arg1, arg2)\n}\n";
+    let formatted = format_default(source).expect("formatting should succeed");
+    assert_eq!(formatted, expected);
+}
+
+#[test]
+fn test_nested_call_with_wrapped_arguments_preserves_outer_callee() {
+    let source = "fun test() {\n    val x = outer(\n        inner\n            (arg),\n    )\n}\n";
+    let expected = "fun test() {\n    val x = outer(\n        inner(arg),\n    )\n}\n";
+    let formatted = format_default(source).expect("formatting should succeed");
+    assert_eq!(formatted, expected);
+}
+
+#[test]
+fn test_assignment_same_line_block_comment_preserves_inline_space() {
+    let source = "fun test() {\n    x = /* comment */ y\n}\n";
+    let formatted = format_default(source).expect("formatting should succeed");
+    assert_eq!(formatted, source);
+}
+
+#[test]
+fn test_local_variable_field_assignment_with_comment_continuation_indent() {
+    let source = "fun test() {\n    field =\n        // comment\n        target == null\n}\n";
+    let formatted = format_default(source).expect("formatting should succeed");
+    assert_eq!(formatted, source);
+}

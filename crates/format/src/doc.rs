@@ -151,4 +151,59 @@ impl<'a> Doc<'a> {
             _ => false,
         }
     }
+
+    pub fn flat_len(&self) -> usize {
+        match self {
+            Doc::Text(s) => s.len(),
+            Doc::Smol(s) => s.len(),
+            Doc::Line => 1,
+            Doc::SoftLine | Doc::HardLine | Doc::EmptyLine => 0,
+            Doc::Indent(inner) | Doc::ContinuationIndent(inner) | Doc::Group(inner) => {
+                inner.flat_len()
+            }
+            Doc::IfBreak { flat, .. } => flat.flat_len(),
+            Doc::LineSuffix(s) => s.len(),
+            Doc::ReserveWidth(n) => *n,
+            Doc::Concat(docs) => docs.iter().map(|d| d.flat_len()).sum(),
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_doc_flat_len_variants() {
+        assert_eq!(Doc::text("hello").flat_len(), 5);
+        assert_eq!(Doc::Line.flat_len(), 1);
+        assert_eq!(Doc::HardLine.flat_len(), 0);
+        assert_eq!(Doc::SoftLine.flat_len(), 0);
+        assert_eq!(Doc::EmptyLine.flat_len(), 0);
+        assert_eq!(Doc::ReserveWidth(4).flat_len(), 4);
+        assert_eq!(Doc::line_suffix(" // trailing").flat_len(), 12);
+
+        let group = Doc::Group(Box::new(Doc::text("group")));
+        assert_eq!(group.flat_len(), 5);
+
+        let indent = Doc::indent(Doc::text("indent"));
+        assert_eq!(indent.flat_len(), 6);
+
+        let cont_indent = Doc::continuation_indent(Doc::text("cont"));
+        assert_eq!(cont_indent.flat_len(), 4);
+
+        let if_break = Doc::if_break(Doc::text("broken_branch"), Doc::text("flat_branch"));
+        assert_eq!(if_break.flat_len(), 11);
+
+        let concat = Doc::Concat(vec![
+            Doc::text("val"),
+            Doc::Line,
+            Doc::text("x"),
+            Doc::space(),
+            Doc::text("="),
+            Doc::space(),
+            Doc::text("1"),
+        ]);
+        assert_eq!(concat.flat_len(), 9);
+    }
 }

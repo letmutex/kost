@@ -1,0 +1,9 @@
+// MAX_WIDTH 70
+
+class Foo {
+    private val ijKotlinContinuationIndentSize:
+        PropertyType<Int> = PropertyType.LowerCasingPropertyType(
+            "ij_kotlin_continuation_indent_size",
+            "Denotes continuation indent size",
+        )
+}

@@ -136,6 +136,91 @@ fn separate_statements<'a>(
     }
 }
 
+fn find_statement_expr<'a>(node: Node<'a>) -> Node<'a> {
+    let mut cursor = node.walk();
+    for ch in node.children(&mut cursor) {
+        let k = ch.kind();
+        if k == "=" || k == "by" || k == "property_delegate" {
+            let mut next = ch.next_named_sibling();
+            while let Some(n) = next {
+                if !matches!(n.kind(), "comment" | "line_comment" | "multiline_comment") {
+                    return n;
+                }
+                next = n.next_named_sibling();
+            }
+        }
+    }
+    if node.kind() == "jump_expression" {
+        let mut cursor = node.walk();
+        for ch in node.children(&mut cursor) {
+            if !matches!(
+                ch.kind(),
+                "return"
+                    | "continue"
+                    | "break"
+                    | "throw"
+                    | "label"
+                    | "comment"
+                    | "line_comment"
+                    | "multiline_comment"
+            ) {
+                return ch;
+            }
+        }
+    }
+    node
+}
+
+fn callee_has_call_or_lambda(callee: Node<'_>) -> bool {
+    if callee.kind() == "lambda_literal" {
+        return true;
+    }
+    if callee.kind() == "call_expression" {
+        let mut cursor = callee.walk();
+        for ch in callee.children(&mut cursor) {
+            if ch.kind() == "call_suffix" {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn find_merge_call<'a>(
+    expr: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+) -> Option<(Node<'a>, Node<'a>, Node<'a>)> {
+    let mut curr = expr;
+    loop {
+        if curr.kind() == "call_expression"
+            && let Some(callee) = curr.child(0)
+        {
+            let is_callee_completed =
+                callee_has_call_or_lambda(callee) || ctx.has_blank_line_between(&callee, &curr);
+            let mut cursor = curr.walk();
+            for child in curr.children(&mut cursor) {
+                if child.kind() == "call_suffix"
+                    && child
+                        .child(0)
+                        .is_some_and(|c| c.kind() == "value_arguments")
+                    && ctx.has_newline_between(&callee, &child)
+                    && (is_callee_completed || ctx.has_blank_line_between(&callee, &child))
+                {
+                    return Some((curr, callee, child));
+                }
+            }
+            curr = callee;
+        } else if curr.kind() == "navigation_expression"
+            && let Some(receiver) = curr.child(0)
+        {
+            curr = receiver;
+        } else {
+            break;
+        }
+    }
+    None
+}
+
 pub fn lower_statements<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     let mut stmt_docs = Vec::new();
     let mut cursor = node.walk();
@@ -147,6 +232,29 @@ pub fn lower_statements<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
         }
         if let Some(prev) = prev_stmt {
             separate_statements(prev, child, &mut stmt_docs, ctx);
+        }
+
+        let outer_expr = find_statement_expr(child);
+        if let Some((merge_call, callee, suffix)) = find_merge_call(outer_expr, ctx)
+            && let Some(val_args) = suffix.child(0)
+        {
+            let doc1 = if child.id() == outer_expr.id() {
+                lower_node(callee, ctx)
+            } else {
+                let ctx1 = ctx.with_leaf_override(outer_expr.id(), callee);
+                lower_node(child, &ctx1)
+            };
+            stmt_docs.push(doc1);
+            if ctx.has_blank_line_between(&callee, &suffix) {
+                stmt_docs.push(Doc::EmptyLine);
+            } else {
+                stmt_docs.push(Doc::HardLine);
+            }
+            let ctx2 = ctx.with_leaf_override(merge_call.id(), val_args);
+            let doc2 = lower_node(outer_expr, &ctx2);
+            stmt_docs.push(doc2);
+            prev_stmt = Some(child);
+            continue;
         }
 
         let is_infix_after_anno = prev_stmt.is_some_and(|p| {

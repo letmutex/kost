@@ -82,6 +82,7 @@ pub fn lower_backing_field<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
         init_child,
         op_str,
         trailing_comment,
+        0,
         &node,
         ctx,
     )

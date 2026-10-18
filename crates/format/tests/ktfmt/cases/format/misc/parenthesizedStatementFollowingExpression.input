@@ -1,0 +1,5 @@
+fun test() {
+  val javaTargetVersion = JavaLanguageVersion.of("target")
+
+  (project.kotlinExtension as KotlinJvmExtension).apply {}
+}

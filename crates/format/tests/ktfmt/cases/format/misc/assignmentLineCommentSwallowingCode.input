@@ -1,0 +1,5 @@
+fun test() {
+  stopTraversal =
+      // Prevents null pointer when already at a root node
+      targetPsiElement.parent == null || targetPsiElement.isRoot
+}

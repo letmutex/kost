@@ -3,48 +3,13 @@ use tree_sitter::Node;
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
 use crate::lower::delegates::{
-    PropertyComment, build_property_init_section, parse_comment_before_init,
-    parse_property_delegate,
+    PropertyComment, build_property_init_section, call_with_multiline_args_fits,
+    parse_comment_before_init, parse_property_delegate, property_first_line_fits,
 };
 use crate::lower::lower_node;
 use crate::lower::types::lower_type_constraints;
 
-fn call_with_multiline_args_fits(
-    node: &Node<'_>,
-    init_child: Option<Node<'_>>,
-    ctx: &LowerContext<'_, '_>,
-) -> bool {
-    let Some(r) = init_child else { return false };
-    if r.kind() != "call_expression" || !crate::lower::delegates::call_has_multiline_args(&r) {
-        return false;
-    }
-    let lhs_is_multiline = node
-        .children(&mut node.walk())
-        .find(|ch| ch.kind() == "multi_variable_declaration" || ch.kind() == "variable_declaration")
-        .is_some_and(|d| d.start_position().row != d.end_position().row);
-    if !lhs_is_multiline {
-        return false;
-    }
-    let mut c = node.walk();
-    let op_node = node
-        .children(&mut c)
-        .find(|ch| ch.kind() == "=" || ch.kind() == "by" || ch.kind() == "property_delegate");
-    let actual_op = op_node.and_then(|op| {
-        if op.kind() == "property_delegate" {
-            let mut dc = op.walk();
-            op.children(&mut dc).find(|ch| ch.kind() == "by")
-        } else {
-            Some(op)
-        }
-    });
-    let Some(op) = actual_op else { return false };
-    if ctx.has_newline_between(&op, &r) {
-        return false;
-    }
-    let callee_len = r.child(0).map(|c| ctx.node_text(&c).len() + 1).unwrap_or(0);
-    op.end_position().column + 1 + callee_len <= ctx.options.max_width
-}
-
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_property_header<'a>(
     name_docs: Vec<Doc<'a>>,
     type_docs: Vec<Doc<'a>>,
@@ -52,6 +17,7 @@ pub(crate) fn build_property_header<'a>(
     init_child: Option<Node<'a>>,
     op_str: Option<&'static str>,
     trailing_comment: Option<PropertyComment<'a>>,
+    modifier_len: usize,
     node: &Node<'a>,
     ctx: &LowerContext<'a, '_>,
 ) -> Doc<'a> {
@@ -77,8 +43,30 @@ pub(crate) fn build_property_header<'a>(
         flat_call,
     );
 
+    let name_len = name_doc.flat_len();
+    let type_len = if type_docs.is_empty() {
+        0
+    } else {
+        2 + type_docs.iter().map(|d| d.flat_len()).sum::<usize>()
+    };
+    let init_flat_len = match &init_section {
+        Doc::Concat(items) => items.iter().map(|d| d.flat_len()).sum::<usize>(),
+        other => other.flat_len(),
+    };
+    let first_line_fits = property_first_line_fits(
+        node,
+        modifier_len,
+        name_len,
+        type_len,
+        op,
+        init_child,
+        init_flat_len,
+        flat_call,
+        ctx,
+    );
+
     if type_docs.is_empty() {
-        if flat_init && !property_first_line_fits(node, ctx) {
+        if flat_init && !flat_call && !first_line_fits {
             let inner_init = match init_section {
                 Doc::Concat(mut items) if items.first() == Some(&Doc::space()) => {
                     items.remove(0);
@@ -101,7 +89,7 @@ pub(crate) fn build_property_header<'a>(
             Doc::Concat(vec![name_doc, Doc::space(), Doc::text(op), init_group])
         }
     } else if flat_init {
-        format_flat_property_header(name_doc, type_docs, op, init_section, node, ctx)
+        format_flat_property_header(name_doc, type_docs, op, init_section, first_line_fits)
     } else {
         let type_and_op = Doc::Group(Box::new(Doc::Concat(vec![
             name_doc,
@@ -114,30 +102,14 @@ pub(crate) fn build_property_header<'a>(
     }
 }
 
-fn property_first_line_fits(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
-    let raw = ctx.node_text(node);
-    let indent = node.start_position().column;
-    let before_brace = match raw.find('{') {
-        Some(i) => &raw[..=i],
-        None => raw.lines().next().unwrap_or(""),
-    };
-    let flat_len: usize = before_brace
-        .split_whitespace()
-        .map(|w| w.len())
-        .sum::<usize>()
-        + before_brace.split_whitespace().count().saturating_sub(1);
-    indent + flat_len <= ctx.options.max_width
-}
-
 fn format_flat_property_header<'a>(
     name_doc: Doc<'a>,
     type_docs: Vec<Doc<'a>>,
     op: &'static str,
     init_section: Doc<'a>,
-    node: &Node<'a>,
-    ctx: &LowerContext<'a, '_>,
+    first_line_fits: bool,
 ) -> Doc<'a> {
-    if property_first_line_fits(node, ctx) {
+    if first_line_fits {
         Doc::Concat(vec![
             name_doc,
             Doc::text(": "),
@@ -297,6 +269,11 @@ pub fn lower_property_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
     } else {
         None
     };
+    let modifier_len = parts
+        .modifier_docs
+        .iter()
+        .map(|d| d.flat_len())
+        .sum::<usize>();
     let header_doc = build_property_header(
         parts.name_docs,
         parts.type_docs,
@@ -304,6 +281,7 @@ pub fn lower_property_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
         parts.init_child,
         op_str,
         parts.trailing_comment,
+        modifier_len,
         &node,
         ctx,
     );
