@@ -1,10 +1,7 @@
 //! Single-pass DFS tree-sitter AST traversal engine.
 
 use crate::context::LintCtx;
-use crate::extractor::{
-    populate_class_properties, populate_file_properties, populate_function_properties,
-    populate_import_properties, populate_lambda_properties, populate_property_properties,
-};
+use crate::extractor::{enter_scope_if_matching, populate_file_properties};
 use crate::registry::RuleRegistry;
 use crate::types::{Diagnostic, PropertyKey, PropertyValue, Scope, TextRange};
 
@@ -79,49 +76,94 @@ pub fn lint_source_with_path_and_config(
     ctx.diagnostics
 }
 
+struct WalkerFrame<'a> {
+    node: tree_sitter::Node<'a>,
+    opened_scope: Option<Scope>,
+    entered_string: bool,
+    saved_prev_sibling: Option<tree_sitter::Node<'a>>,
+}
+
 fn walk_cursor<'a>(cursor: &mut tree_sitter::TreeCursor<'a>, source: &[u8], ctx: &mut LintCtx<'a>) {
-    let node = cursor.node();
-    ctx.ancestors.push(node);
+    let mut stack: Vec<WalkerFrame<'a>> = Vec::with_capacity(64);
 
-    if ctx
-        .registry
-        .needed_properties
-        .contains(&PropertyKey::FileMaxIndentSpaces)
-    {
-        update_max_indent_if_needed(node, source, ctx);
-    }
+    loop {
+        let curr_node = cursor.node();
+        ctx.ancestors.push(curr_node);
 
-    let kind = node.kind();
-    let entered_string = if ctx.registry.needs_file_exclusions {
-        collect_exclusions_if_matching(node, kind, source, ctx)
-    } else {
-        false
-    };
-    let opened_scope = enter_scope_if_matching(node, source, ctx);
+        if ctx
+            .registry
+            .needed_properties
+            .contains(&PropertyKey::FileMaxIndentSpaces)
+        {
+            update_max_indent_if_needed(curr_node, source, ctx);
+        }
 
-    // 1. Dispatch pre-order AST rules
-    dispatch_pre_rules(node, kind, source, ctx);
+        let kind = curr_node.kind();
+        let entered_string = if ctx.registry.needs_file_exclusions {
+            collect_exclusions_if_matching(curr_node, kind, source, ctx)
+        } else {
+            false
+        };
+        let opened_scope = enter_scope_if_matching(curr_node, source, ctx);
 
-    // 2. Recurse down children using cursor
-    if cursor.goto_first_child() {
-        let saved_prev = ctx.prev_sibling;
-        let mut prev_sibling = None;
+        // 1. Dispatch pre-order AST rules
+        dispatch_pre_rules(curr_node, kind, source, ctx);
+
+        // 2. Try to descend to first child
+        if cursor.goto_first_child() {
+            stack.push(WalkerFrame {
+                node: curr_node,
+                opened_scope,
+                entered_string,
+                saved_prev_sibling: ctx.prev_sibling,
+            });
+            ctx.prev_sibling = None;
+            continue;
+        }
+
+        // 3. Leaf node: dispatch post-order exit logic
+        exit_node(curr_node, kind, opened_scope, entered_string, source, ctx);
+
+        // 4. Advance to next sibling or ascend to parent
+        let mut last_node = curr_node;
         loop {
-            ctx.prev_sibling = prev_sibling;
-            walk_cursor(cursor, source, ctx);
-            prev_sibling = Some(cursor.node());
-            if !cursor.goto_next_sibling() {
+            if stack.is_empty() {
+                return;
+            }
+
+            if cursor.goto_next_sibling() {
+                ctx.prev_sibling = Some(last_node);
                 break;
             }
+            cursor.goto_parent();
+            let parent = stack.pop().unwrap();
+            ctx.prev_sibling = parent.saved_prev_sibling;
+            exit_node(
+                parent.node,
+                parent.node.kind(),
+                parent.opened_scope,
+                parent.entered_string,
+                source,
+                ctx,
+            );
+            last_node = parent.node;
         }
-        cursor.goto_parent();
-        ctx.prev_sibling = saved_prev;
     }
+}
 
-    // 3. Dispatch post-order AST rules
+#[inline]
+fn exit_node<'a>(
+    node: tree_sitter::Node<'a>,
+    kind: &str,
+    opened_scope: Option<Scope>,
+    entered_string: bool,
+    source: &[u8],
+    ctx: &mut LintCtx<'a>,
+) {
+    // Dispatch post-order AST rules
     dispatch_post_rules(node, kind, source, ctx);
 
-    // 4. Exit scope and evaluate statistical rules for this scope
+    // Exit scope and evaluate statistical rules for this scope
     if let Some(scope) = opened_scope
         && let Some(frame) = ctx.scope_tracker.pop()
     {
@@ -136,21 +178,12 @@ fn walk_cursor<'a>(cursor: &mut tree_sitter::TreeCursor<'a>, source: &[u8], ctx:
 }
 
 #[inline]
-fn dispatch_pre_rules(node: tree_sitter::Node, kind: &str, source: &[u8], ctx: &mut LintCtx) {
-    if let Some(rule_indices) = ctx.registry.ast_dispatch.get(kind) {
-        for &index in rule_indices {
-            if ctx.is_rule_disabled(index) {
-                continue;
-            }
-            let rule = &ctx.registry.ast_rules[index];
-            ctx.active_rule_index = index;
-            ctx.active_severity = ctx.registry.ast_severities[index];
-            ctx.active_ignores_suppressions = rule.ignores_suppressions();
-            rule.check_node(node, source, ctx);
-        }
-    }
-
-    for &index in &ctx.registry.ast_catch_all {
+fn dispatch_rules<F>(kind: &str, ctx: &mut LintCtx, mut apply: F)
+where
+    F: FnMut(&dyn crate::rule::AstRule, &mut LintCtx),
+{
+    let specific = ctx.registry.ast_dispatch.get(kind).into_iter().flatten();
+    for &index in specific.chain(&ctx.registry.ast_catch_all) {
         if ctx.is_rule_disabled(index) {
             continue;
         }
@@ -158,73 +191,18 @@ fn dispatch_pre_rules(node: tree_sitter::Node, kind: &str, source: &[u8], ctx: &
         ctx.active_rule_index = index;
         ctx.active_severity = ctx.registry.ast_severities[index];
         ctx.active_ignores_suppressions = rule.ignores_suppressions();
-        rule.check_node(node, source, ctx);
+        apply(rule.as_ref(), ctx);
     }
 }
 
 #[inline]
-fn dispatch_post_rules(node: tree_sitter::Node, kind: &str, source: &[u8], ctx: &mut LintCtx) {
-    if let Some(rule_indices) = ctx.registry.ast_dispatch.get(kind) {
-        for &index in rule_indices {
-            if ctx.is_rule_disabled(index) {
-                continue;
-            }
-            let rule = &ctx.registry.ast_rules[index];
-            ctx.active_rule_index = index;
-            ctx.active_severity = ctx.registry.ast_severities[index];
-            ctx.active_ignores_suppressions = rule.ignores_suppressions();
-            rule.after_node(node, source, ctx);
-        }
-    }
-
-    for &index in &ctx.registry.ast_catch_all {
-        if ctx.is_rule_disabled(index) {
-            continue;
-        }
-        let rule = &ctx.registry.ast_rules[index];
-        ctx.active_rule_index = index;
-        ctx.active_severity = ctx.registry.ast_severities[index];
-        ctx.active_ignores_suppressions = rule.ignores_suppressions();
-        rule.after_node(node, source, ctx);
-    }
+fn dispatch_pre_rules(node: tree_sitter::Node, kind: &str, source: &[u8], ctx: &mut LintCtx) {
+    dispatch_rules(kind, ctx, |rule, c| rule.check_node(node, source, c));
 }
 
-fn enter_scope_if_matching(
-    node: tree_sitter::Node,
-    source: &[u8],
-    ctx: &mut LintCtx,
-) -> Option<Scope> {
-    let kind = node.kind();
-    let range = TextRange::from_node(node);
-
-    match kind {
-        "function_declaration" => {
-            ctx.scope_tracker.push(Scope::Function, range);
-            populate_function_properties(node, source, ctx);
-            Some(Scope::Function)
-        }
-        "class_declaration" | "object_declaration" => {
-            ctx.scope_tracker.push(Scope::Class, range);
-            populate_class_properties(node, source, ctx);
-            Some(Scope::Class)
-        }
-        "property_declaration" => {
-            ctx.scope_tracker.push(Scope::Property, range);
-            populate_property_properties(node, source, ctx);
-            Some(Scope::Property)
-        }
-        "lambda_literal" => {
-            ctx.scope_tracker.push(Scope::Lambda, range);
-            populate_lambda_properties(node, ctx);
-            Some(Scope::Lambda)
-        }
-        "import_header" => {
-            ctx.scope_tracker.push(Scope::Import, range);
-            populate_import_properties(node, source, ctx);
-            Some(Scope::Import)
-        }
-        _ => None,
-    }
+#[inline]
+fn dispatch_post_rules(node: tree_sitter::Node, kind: &str, source: &[u8], ctx: &mut LintCtx) {
+    dispatch_rules(kind, ctx, |rule, c| rule.after_node(node, source, c));
 }
 
 fn evaluate_scope_stat_rules(

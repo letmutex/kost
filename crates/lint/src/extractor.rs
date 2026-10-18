@@ -1,7 +1,7 @@
 //! AST property extraction for lexical scopes.
 
 use crate::context::LintCtx;
-use crate::types::{PropertyKey, PropertyValue};
+use crate::types::{PropertyKey, PropertyValue, Scope, TextRange};
 use crate::util::{count_function_parameters, find_child_identifier};
 use smallvec::SmallVec;
 use smol_str::SmolStr;
@@ -204,5 +204,43 @@ fn push_annotation(annotations: &mut SmallVec<[SmolStr; 4]>, name: &str) {
         let at_name = crate::concat_smol_str!("@", name);
         annotations.push(name_smol);
         annotations.push(at_name);
+    }
+}
+
+pub fn enter_scope_if_matching(
+    node: tree_sitter::Node,
+    source: &[u8],
+    ctx: &mut LintCtx,
+) -> Option<Scope> {
+    let kind = node.kind();
+    let range = TextRange::from_node(node);
+
+    match kind {
+        "function_declaration" => {
+            ctx.scope_tracker.push(Scope::Function, range);
+            populate_function_properties(node, source, ctx);
+            Some(Scope::Function)
+        }
+        "class_declaration" | "object_declaration" => {
+            ctx.scope_tracker.push(Scope::Class, range);
+            populate_class_properties(node, source, ctx);
+            Some(Scope::Class)
+        }
+        "property_declaration" => {
+            ctx.scope_tracker.push(Scope::Property, range);
+            populate_property_properties(node, source, ctx);
+            Some(Scope::Property)
+        }
+        "lambda_literal" => {
+            ctx.scope_tracker.push(Scope::Lambda, range);
+            populate_lambda_properties(node, ctx);
+            Some(Scope::Lambda)
+        }
+        "import_header" => {
+            ctx.scope_tracker.push(Scope::Import, range);
+            populate_import_properties(node, source, ctx);
+            Some(Scope::Import)
+        }
+        _ => None,
     }
 }

@@ -73,14 +73,10 @@ fn check_call_expression(node: tree_sitter::Node, source: &[u8], ctx: &mut LintC
             return;
         }
         if child.kind() == "value_arguments" {
-            match spaces_before(child, source) {
-                WhitespaceBefore::Spaces(count) if count > 0 => {
-                    ctx.report(target, "Unexpected spacing between function name and '('");
-                }
-                WhitespaceBefore::StartOfLine => {
-                    ctx.report(target, "Unexpected spacing between function name and '('");
-                }
-                _ => {}
+            if let WhitespaceBefore::Spaces(count) = spaces_before(child, source)
+                && count > 0
+            {
+                ctx.report(target, "Unexpected spacing between function name and '('");
             }
             return;
         }

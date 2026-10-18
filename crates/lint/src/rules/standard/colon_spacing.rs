@@ -18,6 +18,9 @@ impl AstRule for ColonSpacing {
 
     fn check_node(&self, node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
         let parent_kind = ctx.parent().map(|p| p.kind()).unwrap_or("");
+        if parent_kind == "ERROR" {
+            return;
+        }
 
         if matches!(parent_kind, "use_site_target" | "file_annotation") {
             if let WhitespaceBefore::Spaces(n) = spaces_before(node, source)

@@ -95,6 +95,7 @@ fn has_following_declaration(node: tree_sitter::Node, source: &[u8]) -> bool {
         while let Some(sibling) = next {
             if is_allowed_declaration(sibling.kind())
                 || is_misparsed_function_declaration(sibling, source)
+                || is_misparsed_typealias(sibling, source)
             {
                 return true;
             }
@@ -124,18 +125,56 @@ fn has_following_declaration(node: tree_sitter::Node, source: &[u8]) -> bool {
     false
 }
 
+fn is_misparsed_typealias(node: tree_sitter::Node, source: &[u8]) -> bool {
+    if node.kind() != "assignment" || !is_top_level(node) {
+        return false;
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "directly_assignable_expression" {
+            if is_plain_variable_assignment(child) {
+                return false;
+            }
+            if contains_typealias_identifier(child, source) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+fn is_plain_variable_assignment(node: tree_sitter::Node) -> bool {
+    node.named_child(0)
+        .is_some_and(|inner| inner.kind() == "simple_identifier" && node.child_count() == 1)
+}
+
+fn is_top_level(node: tree_sitter::Node) -> bool {
+    node.parent()
+        .map(|p| p.kind() == "source_file")
+        .unwrap_or(false)
+}
+
+fn contains_typealias_identifier(node: tree_sitter::Node, source: &[u8]) -> bool {
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "navigation_suffix" {
+            continue;
+        }
+        if child.kind() == "simple_identifier" && child.utf8_text(source) == Ok("typealias") {
+            return true;
+        }
+        if contains_typealias_identifier(child, source) {
+            return true;
+        }
+    }
+    false
+}
+
 fn is_misparsed_function_declaration(node: tree_sitter::Node, source: &[u8]) -> bool {
     if node.kind() == "infix_expression" {
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
             if child.kind() == "simple_identifier" && child.utf8_text(source) == Ok("fun") {
-                return true;
-            }
-        }
-    } else if node.kind() == "annotated_expression" {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if is_misparsed_function_declaration(child, source) {
                 return true;
             }
         }
