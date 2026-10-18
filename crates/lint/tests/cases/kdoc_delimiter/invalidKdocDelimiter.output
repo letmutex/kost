@@ -1,4 +1,4 @@
 1:1: [warning] standard:kdoc-delimiter: A single-line KDoc delimiter must be separated from content by a space
 4:1: [warning] standard:kdoc-delimiter: A multiline KDoc should have '/**' on a separate line
-9:1: [warning] standard:kdoc-delimiter: A multiline KDoc should have '*/' on a separate line
+10:1: [warning] standard:kdoc-delimiter: A multiline KDoc should have '*/' on a separate line
 13:1: [warning] standard:kdoc-delimiter: A line in a multiline KDoc must start with leading asterisk

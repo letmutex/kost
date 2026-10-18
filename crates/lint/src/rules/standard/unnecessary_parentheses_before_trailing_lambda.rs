@@ -15,7 +15,11 @@ impl AstRule for UnnecessaryParenthesesBeforeTrailingLambda {
         &["call_expression"]
     }
 
-    fn check_node(&self, node: tree_sitter::Node, _source: &[u8], ctx: &mut LintCtx) {
+    fn check_node(&self, node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
+        if is_misparsed_function_declaration(node, source) {
+            return;
+        }
+
         let (arguments, lambda) = find_call_arguments_and_trailing_lambda(node);
 
         if let (Some(value_arguments), Some(trailing_lambda)) = (arguments, lambda)
@@ -70,4 +74,26 @@ fn is_empty_value_arguments(arguments_node: tree_sitter::Node) -> bool {
         }
     }
     true
+}
+
+fn is_misparsed_function_declaration(node: tree_sitter::Node, source: &[u8]) -> bool {
+    let mut current = node;
+    while let Some(parent) = current.parent() {
+        if parent.kind() == "infix_expression" {
+            let mut cursor = parent.walk();
+            for child in parent.children(&mut cursor) {
+                if child.kind() == "simple_identifier" && child.utf8_text(source) == Ok("fun") {
+                    return true;
+                }
+            }
+        }
+        if !matches!(
+            parent.kind(),
+            "navigation_expression" | "postfix_expression"
+        ) {
+            break;
+        }
+        current = parent;
+    }
+    false
 }

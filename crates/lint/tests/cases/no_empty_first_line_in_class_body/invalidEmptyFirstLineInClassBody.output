@@ -1,2 +1,2 @@
-3:5: [warning] standard:no-empty-first-line-in-class-body: Redundant empty line at start of class body
-8:5: [warning] standard:no-empty-first-line-in-class-body: Redundant empty line at start of class body
+2:1: [warning] standard:no-empty-first-line-in-class-body: Redundant empty line at start of class body
+7:1: [warning] standard:no-empty-first-line-in-class-body: Redundant empty line at start of class body

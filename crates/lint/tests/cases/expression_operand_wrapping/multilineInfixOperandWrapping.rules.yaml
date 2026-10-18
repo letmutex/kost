@@ -1,0 +1,3 @@
+lint:
+  includes:
+    - standard:expression-operand-wrapping

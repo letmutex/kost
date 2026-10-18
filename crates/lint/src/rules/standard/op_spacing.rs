@@ -32,6 +32,7 @@ impl AstRule for OpSpacing {
                 | "type_projection"
                 | "super_expression"
         ) || (parent_kind == "value_argument" && node.kind() == "*")
+            || (matches!(node.kind(), "<" | ">") && is_misparsed_type_argument(ctx))
         {
             return;
         }
@@ -67,4 +68,25 @@ impl AstRule for OpSpacing {
             _ => {}
         }
     }
+}
+
+fn is_misparsed_type_argument(ctx: &LintCtx) -> bool {
+    let Some(parent) = ctx.parent() else {
+        return false;
+    };
+    if parent.kind() == "comparison_expression" {
+        if parent
+            .parent()
+            .is_some_and(|gp| gp.kind() == "comparison_expression")
+        {
+            return true;
+        }
+        let mut cursor = parent.walk();
+        for child in parent.children(&mut cursor) {
+            if child.kind() == "comparison_expression" {
+                return true;
+            }
+        }
+    }
+    false
 }

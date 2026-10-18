@@ -30,7 +30,9 @@ impl AstRule for FunctionNaming {
             return;
         }
 
-        if has_override_modifier(node, source) || is_annotated_with_composable(node, source) {
+        if has_override_modifier(node, source)
+            || is_annotated_with_ignored_annotation(node, source, ctx)
+        {
             return;
         }
 
@@ -83,16 +85,47 @@ fn has_override_modifier(node: tree_sitter::Node, source: &[u8]) -> bool {
     false
 }
 
-fn is_annotated_with_composable(node: tree_sitter::Node, source: &[u8]) -> bool {
+fn is_annotated_with_ignored_annotation(
+    node: tree_sitter::Node,
+    source: &[u8],
+    ctx: &LintCtx,
+) -> bool {
+    let mut ignored: smallvec::SmallVec<[&str; 4]> = smallvec::smallvec!["Composable"];
+
+    if let Some(config) = ctx.editorconfig
+        && let Some(val) = config
+            .raw_properties
+            .get("ktlint_function_naming_ignore_when_annotated_with")
+            .or_else(|| {
+                config
+                    .raw_properties
+                    .get("ktlint_standard_function_naming_ignore_when_annotated_with")
+            })
+            .or_else(|| {
+                config
+                    .raw_properties
+                    .get("ktlint_standard_function-naming_ignore_when_annotated_with")
+            })
+    {
+        for part in val.as_str().split(',') {
+            let trimmed = part.trim();
+            if !trimmed.is_empty() && !ignored.contains(&trimmed) {
+                ignored.push(trimmed);
+            }
+        }
+    }
+
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if child.kind() == "modifiers" {
             let mut mod_cursor = child.walk();
             for mod_child in child.children(&mut mod_cursor) {
-                if matches!(mod_child.kind(), "annotation" | "single_annotation")
-                    && has_annotation_name(mod_child, "Composable", source)
-                {
-                    return true;
+                if matches!(mod_child.kind(), "annotation" | "single_annotation") {
+                    for &name in &ignored {
+                        if has_annotation_name(mod_child, name, source) {
+                            return true;
+                        }
+                    }
                 }
             }
         }

@@ -37,7 +37,11 @@ impl AstRule for NoEmptyFirstLineInClassBody {
             }
             if child.start_position().row > brace_row {
                 if kind != "}" && child.start_position().row > brace_row + 1 {
-                    ctx.report(child, "Redundant empty line at start of class body");
+                    let empty_line = (brace_row + 2) as u32;
+                    ctx.report_range(
+                        crate::types::TextRange::new(empty_line, 1, empty_line, 1),
+                        "Redundant empty line at start of class body",
+                    );
                 }
                 break;
             }

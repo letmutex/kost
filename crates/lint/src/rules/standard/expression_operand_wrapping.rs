@@ -17,12 +17,8 @@ impl AstRule for ExpressionOperandWrapping {
         &[
             "additive_expression",
             "multiplicative_expression",
-            "comparison_expression",
-            "equality_expression",
             "conjunction_expression",
             "disjunction_expression",
-            "infix_expression",
-            "elvis_expression",
         ]
     }
 

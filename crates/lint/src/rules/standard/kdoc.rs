@@ -38,12 +38,24 @@ fn check_kdoc_placement(node: tree_sitter::Node, ctx: &mut LintCtx) {
         return;
     }
 
-    if let Some(parent) = node.parent()
-        && is_allowed_declaration(parent.kind())
-        && node.prev_named_sibling().is_some()
-    {
-        ctx.report(node, "A KDoc is allowed only at start of declaration");
-        return;
+    if let Some(parent) = node.parent() {
+        if matches!(
+            parent.kind(),
+            "primary_constructor" | "class_parameters" | "function_value_parameters"
+        ) {
+            let mut next = node.next_named_sibling();
+            while let Some(sibling) = next {
+                if matches!(sibling.kind(), "class_parameter" | "parameter") {
+                    return;
+                }
+                next = sibling.next_named_sibling();
+            }
+            ctx.report(node, "A KDoc is allowed only at start of declaration");
+            return;
+        } else if is_allowed_declaration(parent.kind()) && node.prev_named_sibling().is_some() {
+            ctx.report(node, "A KDoc is allowed only at start of declaration");
+            return;
+        }
     }
 
     if !has_following_declaration(node) {
@@ -85,8 +97,10 @@ fn has_following_declaration(node: tree_sitter::Node) -> bool {
                 return true;
             }
             if sibling.is_named()
-                && sibling.kind() != "comment"
-                && sibling.kind() != "multiline_comment"
+                && !matches!(
+                    sibling.kind(),
+                    "comment" | "multiline_comment" | "line_comment"
+                )
             {
                 return false;
             }

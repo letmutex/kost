@@ -82,7 +82,10 @@ fn is_object_val(node: tree_sitter::Node) -> bool {
     let Some(object_decl) = class_body.parent() else {
         return false;
     };
-    if object_decl.kind() != "object_declaration" {
+    if !matches!(
+        object_decl.kind(),
+        "object_declaration" | "companion_object"
+    ) {
         return false;
     }
     node_has_val(node)

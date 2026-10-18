@@ -43,6 +43,16 @@ impl AstRule for StatementWrapping {
                 continue;
             }
 
+            if child.kind() == "label" {
+                if let Some(prev) = prev_statement
+                    && child.start_position().row <= prev.end_position().row
+                {
+                    ctx.report(child, "Missing newline between statements");
+                }
+                prev_statement = Some(child);
+                continue;
+            }
+
             if child.kind() == "parenthesized_expression"
                 && child
                     .prev_named_sibling()
@@ -61,6 +71,7 @@ impl AstRule for StatementWrapping {
 
             if let Some(prev) = prev_statement
                 && child.start_position().row <= prev.end_position().row
+                && prev.kind() != "label"
             {
                 ctx.report(child, "Missing newline between statements");
             }

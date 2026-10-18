@@ -65,7 +65,11 @@ fn check_multiline_kdoc(node: tree_sitter::Node, text: &str, ctx: &mut LintCtx) 
     if let Some(before_closing) = last_line.strip_suffix("*/")
         && !before_closing.trim().is_empty()
     {
-        ctx.report(node, "A multiline KDoc should have '*/' on a separate line");
+        let closing_line = (node.end_position().row + 1) as u32;
+        ctx.report_range(
+            crate::types::TextRange::new(closing_line, 1, closing_line, 1),
+            "A multiline KDoc should have '*/' on a separate line",
+        );
     }
 
     if first_nl < last_nl {
