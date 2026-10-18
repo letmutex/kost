@@ -193,28 +193,30 @@ impl<'a> Doc<'a> {
                     flat.last_line_len()
                 }
             }
-            Doc::Concat(docs) => {
-                let mut len = 0;
-                for d in docs.iter().rev() {
-                    let has_break = match d {
-                        Doc::IfBreak { broken, .. } => broken.has_hardline(),
-                        other => other.has_hardline(),
-                    };
-                    if has_break {
-                        len += d.last_line_len();
-                        break;
-                    }
-                    let last = d.last_line_len();
-                    let flat = d.flat_len();
-                    if last != flat {
-                        len += last;
-                        break;
-                    }
-                    len += flat;
-                }
-                len
-            }
+            Doc::Concat(docs) => Self::slice_last_line_len(docs),
         }
+    }
+
+    pub fn slice_last_line_len(docs: &[Doc<'_>]) -> usize {
+        let mut len = 0;
+        for d in docs.iter().rev() {
+            let has_break = match d {
+                Doc::IfBreak { broken, .. } => broken.has_hardline(),
+                other => other.has_hardline(),
+            };
+            if has_break {
+                len += d.last_line_len();
+                break;
+            }
+            let last = d.last_line_len();
+            let flat = d.flat_len();
+            if last != flat {
+                len += last;
+                break;
+            }
+            len += flat;
+        }
+        len
     }
 }
 
@@ -240,6 +242,14 @@ mod tests {
             ),
         ]);
         assert_eq!(if_break_concat.last_line_len(), 1);
+    }
+
+    #[test]
+    fn test_doc_slice_last_line_len() {
+        let docs = vec![Doc::text("first"), Doc::HardLine, Doc::text("second")];
+        assert_eq!(Doc::slice_last_line_len(&docs), 6);
+        let docs_no_break = vec![Doc::text("a"), Doc::space(), Doc::text("b")];
+        assert_eq!(Doc::slice_last_line_len(&docs_no_break), 3);
     }
 
     #[test]

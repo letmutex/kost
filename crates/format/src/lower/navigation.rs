@@ -170,9 +170,13 @@ pub fn lower_navigation_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
         let is_breakable = !comments.is_empty()
             || (!is_super_or_this(&op_node)
                 && (is_call_receiver(&op_node) || ctx.has_newline_between(&op_node, &suf_node)));
-        let is_raw_string = matches!(op_node.kind(), "multiline_string_literal")
-            || (op_node.kind() == "string_literal"
-                && op_node.start_position().row != op_node.end_position().row);
+        // In Google/ktfmt style (block_indent != 4), calls following a multiline raw string
+        // (such as .trimIndent() or .trimMargin()) must wrap to a new line.
+        // In Kotlinlang/ktlint style (block_indent == 4), they attach directly to the closing quotes.
+        let is_raw_string = ctx.options.block_indent != 4
+            && (matches!(op_node.kind(), "multiline_string_literal")
+                || (op_node.kind() == "string_literal"
+                    && op_node.start_position().row != op_node.end_position().row));
         let suf_doc =
             lower_navigation_suffix_with_break(suf_node, ctx, is_breakable, is_raw_string);
         let mut parts = Vec::new();
@@ -225,6 +229,8 @@ pub fn lower_navigation_suffix<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -
 }
 
 pub fn is_call_receiver_in_chain(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
+    // In Kotlinlang/ktlint style (block_indent == 4), indexing/postfix calls do not
+    // treat call receivers as continuation chain elements.
     if ctx.options.block_indent == 4 {
         return false;
     }

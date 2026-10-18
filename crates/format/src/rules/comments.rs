@@ -1,6 +1,11 @@
 /// Normalizes a single-line comment, ensuring `// text` has a space after `//`
 /// and wrapping lines that exceed `max_width`.
-pub fn normalize_line_comment(text: &str, start_col: usize, max_width: usize) -> String {
+pub fn normalize_line_comment(
+    text: &str,
+    start_col: usize,
+    base_indent: usize,
+    max_width: usize,
+) -> String {
     let trimmed = text.trim_end();
     if trimmed.starts_with("//noinspection") || trimmed.starts_with("//$NON-NLS") {
         return trimmed.to_string();
@@ -23,11 +28,12 @@ pub fn normalize_line_comment(text: &str, start_col: usize, max_width: usize) ->
         let mut lines = Vec::new();
         let mut cur_line = String::from("//");
         let first_budget = max_width.saturating_sub(start_col);
+        let cont_budget = max_width.saturating_sub(base_indent);
         for word in content.split_whitespace() {
             let limit = if lines.is_empty() {
                 first_budget
             } else {
-                max_width.saturating_sub(start_col)
+                cont_budget
             };
             if cur_line.len() == 2 || cur_line.len() + 1 + word.len() <= limit {
                 cur_line.push(' ');
@@ -41,7 +47,7 @@ pub fn normalize_line_comment(text: &str, start_col: usize, max_width: usize) ->
             lines.push(cur_line);
         }
         if lines.len() > 1 && lines[0].len() <= first_budget {
-            let indent_str = " ".repeat(start_col);
+            let indent_str = " ".repeat(base_indent);
             let mut result = lines[0].clone();
             for line in &lines[1..] {
                 result.push('\n');

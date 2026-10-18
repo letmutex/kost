@@ -145,8 +145,12 @@ fn lower_chained_call_expression<'a>(
 
     let op_doc = lower_node(op, ctx);
     let is_breakable = !nav_comments.is_empty() || !is_super_or_this(&op);
-    let is_raw_string = matches!(op.kind(), "multiline_string_literal")
-        || (op.kind() == "string_literal" && op.start_position().row != op.end_position().row);
+    // In Google/ktfmt style (block_indent != 4), calls following a multiline raw string
+    // (such as .trimIndent() or .trimMargin()) must wrap to a new line.
+    // In Kotlinlang/ktlint style (block_indent == 4), they attach directly to the closing quotes.
+    let is_raw_string = ctx.options.block_indent != 4
+        && (matches!(op.kind(), "multiline_string_literal")
+            || (op.kind() == "string_literal" && op.start_position().row != op.end_position().row));
     let suf_doc = lower_navigation_suffix_with_break(suf, ctx, is_breakable, is_raw_string);
     let mut suf_docs = Vec::new();
     for c in nav_comments {

@@ -231,10 +231,28 @@ pub fn lower_comment<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> 
     }
     if text.starts_with("//") {
         let start_col = node.start_position().column;
+        let mut base_node = node;
+        while let Some(parent) = base_node.parent()
+            && parent.start_position().row == node.start_position().row
+            && !matches!(base_node.kind(), "statements")
+            && !matches!(parent.kind(), "source_file" | "class_body")
+        {
+            base_node = parent;
+        }
+        // In Kotlinlang/ktlint style (block_indent == 4), comment continuation lines
+        // are indented relative to the enclosing statement/expression base column.
+        // In Google/ktfmt style, preserving start_col maintains author comment alignment
+        // across passes without altering indentation (per commentStability.input).
+        let base_indent = if ctx.options.block_indent == 4 {
+            base_node.start_position().column
+        } else {
+            start_col
+        };
         Doc::Concat(vec![
             Doc::smol(normalize_line_comment(
                 text,
                 start_col,
+                base_indent,
                 ctx.options.max_width,
             )),
             Doc::HardLine,

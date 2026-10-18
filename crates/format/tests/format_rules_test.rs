@@ -131,3 +131,80 @@ fn test_property_initializer_call_exceeding_max_width_wraps() {
     assert_eq!(pass1, pass2);
     assert!(pass1.lines().all(|l| l.len() <= 100));
 }
+
+#[test]
+fn test_property_delegate_multiline_call_break_idempotence() {
+    let source = "class Nav {\n    private val settings by\n        composeTestRule.stringResource(SettingsR.string.feature_settings_impl_top_app_bar_action_icon_description)\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "property delegate formatting must be idempotent across passes"
+    );
+}
+
+#[test]
+fn test_property_initializer_multiline_call_wrap_idempotence() {
+    let source = "class Formatter {\n    fun format(): String {\n        val javaOutput =\n            JavaOutput(lineSeparator, kotlinInput, KDocCommentsHelper(lineSeparator, options.maxWidth))\n    }\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "property initializer formatting must be idempotent across passes"
+    );
+}
+
+#[test]
+fn test_expression_body_wrapped_parameter_list_break_idempotence() {
+    let source = "class ReporterAggregator {\n    private fun List<String>.configurationOption(reporterConfigurationElement: ReporterConfigurationElement) =\n        lastOrNull { it.startsWith(\"${reporterConfigurationElement.name.lowercase()}=\") }\n            ?.substringAfter(\"=\")\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "expression body function with wrapped parameters must be idempotent across passes"
+    );
+}
+
+#[test]
+fn test_expression_body_chained_call_return_break_idempotence() {
+    let source = "class IdNamingPolicy {\n    fun check(policy: Policy): Result =\n        require(condition) { \"Error message\" }\n            .let { Result.Success }\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "expression body function with chained call must be idempotent across passes"
+    );
+}
+
+#[test]
+fn test_nested_property_initializer_chained_call_break_idempotence() {
+    let source = "class Repo {\n    fun test() {\n        run {\n            run {\n                if (cond) {\n                    val addedNewsResources = newsResourceDao\n                        .getNewsResources(\n                            useFilterTopicIds = true,\n                            filterTopicIds = followedTopicIds,\n                            useFilterNewsIds = true,\n                            filterNewsIds = changedIds.toSet() - existingNewsResourceIdsThatHaveChanged,\n                        )\n                        .first()\n                        .map(PopulatedNewsResource::asExternalModel)\n                }\n            }\n        }\n    }\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "nested property initializer chained call must be idempotent across passes"
+    );
+}
+
+#[test]
+fn test_raw_string_trim_indent_attached_to_closing_quotes() {
+    let source = "fun test() {\n    val x = \"\"\"\n        hello\n    \"\"\".trimIndent()\n}\n";
+    let formatted = format_default(source).expect("formatting should succeed");
+    assert!(
+        formatted.contains("\"\"\".trimIndent()"),
+        "trimIndent should stay attached to triple-quotes, got:\n{}",
+        formatted
+    );
+}
+
+#[test]
+fn test_trailing_line_comment_wrap_idempotence() {
+    let source = "class Outer {\n    class Inner {\n        fun test() {\n            if (cond) {\n                if (semi) {\n                    return // Never add a trailing comma after there is already a terminating semicolon\n                }\n            }\n        }\n    }\n}\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "wrapped trailing line comment must be idempotent across passes"
+    );
+}

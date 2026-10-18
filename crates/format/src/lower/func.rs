@@ -53,15 +53,25 @@ pub fn lower_function_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
         prev_child_node = Some(child);
     }
 
+    let after_params_len = if suffix_docs.len() > 1 {
+        Some(suffix_docs[1..].iter().map(|d| d.flat_len()).sum::<usize>())
+    } else if !suffix_docs.is_empty() {
+        Some(0)
+    } else {
+        None
+    };
+    let has_where = where_doc.is_some();
     let name_group = build_func_name_group(prefix_docs, name_docs, has_dot);
     let header_doc = assemble_func_header(name_group, suffix_docs, where_doc, where_has_newline);
 
-    let mod_len = if modifier_docs.iter().any(|d| d.has_hardline()) {
-        Doc::Concat(modifier_docs.clone()).last_line_len()
-    } else {
-        modifier_docs.iter().map(|d| d.flat_len()).sum::<usize>()
-    };
-    let header_col = node.start_position().column + mod_len + header_doc.last_line_len();
+    let header_col = compute_func_header_col(
+        &node,
+        &modifier_docs,
+        &header_doc,
+        after_params_len,
+        has_where,
+        ctx,
+    );
 
     let body_doc = body_child.map(|b| {
         if b.kind() == "function_body" {
@@ -261,5 +271,26 @@ fn push_func_token<'a>(
         *is_after_colon = false;
     } else {
         target.push(lower_node(child, ctx));
+    }
+}
+
+fn compute_func_header_col<'a>(
+    node: &Node<'a>,
+    modifier_docs: &[Doc<'a>],
+    header_doc: &Doc<'a>,
+    after_params_len: Option<usize>,
+    has_where: bool,
+    ctx: &LowerContext<'a, '_>,
+) -> usize {
+    let mod_len = Doc::slice_last_line_len(modifier_docs);
+    let flat_header_len = node.start_position().column + mod_len + header_doc.flat_len();
+    let is_multiline_header = header_doc.has_hardline() || flat_header_len > ctx.options.max_width;
+    if is_multiline_header
+        && !has_where
+        && let Some(after_params) = after_params_len
+    {
+        node.start_position().column + 1 + after_params
+    } else {
+        node.start_position().column + mod_len + header_doc.last_line_len()
     }
 }

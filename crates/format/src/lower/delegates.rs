@@ -96,7 +96,11 @@ pub(crate) fn build_property_init_section<'a>(
     let init_doc = Doc::Concat(init_docs);
     let flat_init = init_child.is_some_and(|r| {
         crate::lower::scoping::is_scoping_chain_or_lambda(&r)
-            || ((is_kotlinlang || is_destructuring) && chain_root_has_multiline_args(&r))
+            || ((is_kotlinlang || is_destructuring)
+                && (chain_root_has_multiline_args(&r)
+                    || find_innermost_call(r)
+                        .and_then(|c| find_call_opening_paren_len(c, r))
+                        .is_some()))
     });
 
     let is_raw_string = init_child.is_some_and(|r| {
@@ -179,7 +183,12 @@ pub(crate) fn find_call_opening_paren_len(call: Node<'_>, base: Node<'_>) -> Opt
             let mut sc = ch.walk();
             for sub in ch.children(&mut sc) {
                 if sub.kind() == "value_arguments" {
-                    return Some(sub.start_byte().saturating_sub(base.start_byte()) + 1);
+                    let has_args = sub
+                        .children(&mut sub.walk())
+                        .any(|c| c.kind() == "value_argument");
+                    if has_args {
+                        return Some(sub.start_byte().saturating_sub(base.start_byte()) + 1);
+                    }
                 }
             }
         }
@@ -187,10 +196,20 @@ pub(crate) fn find_call_opening_paren_len(call: Node<'_>, base: Node<'_>) -> Opt
     None
 }
 
-fn property_init_first_line_len(init_child: Option<Node<'_>>, init_flat_len: usize) -> usize {
+fn property_init_first_line_len(
+    init_child: Option<Node<'_>>,
+    init_flat_len: usize,
+    is_kotlinlang: bool,
+) -> usize {
     let Some(init) = init_child else { return 0 };
     if let Some(lambda) = find_first_lambda(init) {
         return lambda.start_byte().saturating_sub(init.start_byte()) + 1;
+    }
+    if is_kotlinlang
+        && let Some(call) = find_innermost_call(init)
+        && let Some(len) = find_call_opening_paren_len(call, init)
+    {
+        return len;
     }
     if let Some(call) = find_innermost_call(init)
         && call_has_multiline_args(&call)
@@ -214,6 +233,7 @@ pub(crate) fn property_first_line_fits(
 ) -> bool {
     let indent = node.start_position().column;
     let op_len = op.len() + 2;
-    let init_len = property_init_first_line_len(init_child, init_flat_len);
+    let is_kotlinlang = ctx.options.block_indent == 4;
+    let init_len = property_init_first_line_len(init_child, init_flat_len, is_kotlinlang);
     indent + modifier_len + name_len + type_len + op_len + init_len <= ctx.options.max_width
 }
