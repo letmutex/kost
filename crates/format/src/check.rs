@@ -30,7 +30,9 @@ pub fn check_file(
     path: &Path,
     colorize: bool,
 ) -> CheckOutcome {
-    let formatter = resolve_file_formatter(base_preset, resolver, path);
+    let Some(formatter) = resolve_file_formatter(base_preset, resolver, path) else {
+        return CheckOutcome::Formatted;
+    };
     let content = match std::fs::read_to_string(path) {
         Ok(text) => text,
         Err(err) => {

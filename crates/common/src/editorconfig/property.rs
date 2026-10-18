@@ -110,6 +110,15 @@ pub(crate) fn apply_single_property(
             );
         }
         "ktfmt_style" => target.ktfmt_style = Some(SmolStr::new(val_str.to_ascii_lowercase())),
+        "ij_formatter_enabled" => {
+            update_some(
+                &mut target.ij_formatter_enabled,
+                parse_boolean_value(val_str),
+            );
+        }
+        "ktfmt" => {
+            update_some(&mut target.ktfmt_enabled, parse_enabled_disabled(val_str));
+        }
         "ktlint_code_style" => {
             update_some(
                 &mut target.ktlint_code_style,
@@ -196,6 +205,8 @@ fn unset_property(key: &str, target: &mut ResolvedEditorConfig) {
             target.ktfmt_trailing_comma_strategy = None;
         }
         "ktfmt_style" => target.ktfmt_style = None,
+        "ij_formatter_enabled" => target.ij_formatter_enabled = None,
+        "ktfmt" => target.ktfmt_enabled = None,
         "ktlint_code_style" => target.ktlint_code_style = None,
         other if let Some(toggle) = parse_ktlint_toggle_key(other) => match toggle {
             KtlintToggle::Global => {
@@ -257,5 +268,59 @@ mod tests {
 
         assert_eq!(config.end_of_line, Some(EndOfLine::Crlf));
         assert_eq!(config.insert_final_newline, Some(true));
+    }
+
+    #[test]
+    fn test_apply_property_ij_formatter_enabled_parses_boolean() {
+        let mut config = ResolvedEditorConfig::new();
+        assert!(config.is_formatting_enabled());
+
+        apply_single_property(
+            &SmolStr::new("ij_formatter_enabled"),
+            &SmolStr::new("false"),
+            &mut config,
+        );
+        assert_eq!(config.ij_formatter_enabled, Some(false));
+        assert!(!config.is_formatting_enabled());
+
+        apply_single_property(
+            &SmolStr::new("ij_formatter_enabled"),
+            &SmolStr::new("true"),
+            &mut config,
+        );
+        assert_eq!(config.ij_formatter_enabled, Some(true));
+        assert!(config.is_formatting_enabled());
+    }
+
+    #[test]
+    fn test_apply_property_ktfmt_parses_enabled_disabled() {
+        let mut config = ResolvedEditorConfig::new();
+        apply_single_property(
+            &SmolStr::new("ktfmt"),
+            &SmolStr::new("disabled"),
+            &mut config,
+        );
+        assert_eq!(config.ktfmt_enabled, Some(false));
+        assert!(!config.is_formatting_enabled());
+
+        apply_single_property(
+            &SmolStr::new("ktfmt"),
+            &SmolStr::new("enabled"),
+            &mut config,
+        );
+        assert_eq!(config.ktfmt_enabled, Some(true));
+        assert!(config.is_formatting_enabled());
+    }
+
+    #[test]
+    fn test_formatting_enabled_prefers_ktfmt_over_ij_formatter() {
+        let mut config = ResolvedEditorConfig::new();
+        config.ij_formatter_enabled = Some(false);
+        config.ktfmt_enabled = Some(true);
+        assert!(config.is_formatting_enabled());
+
+        config.ij_formatter_enabled = Some(true);
+        config.ktfmt_enabled = Some(false);
+        assert!(!config.is_formatting_enabled());
     }
 }

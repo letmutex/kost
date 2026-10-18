@@ -152,3 +152,130 @@ fn test_check_mode_unformatted_and_parse_error_combined_failure_with_reject_flag
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_editorconfig_ij_formatter_disabled_skips_in_place_modifications() {
+    let pid = std::process::id().to_string();
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_fmt_skip_inplace_", &pid));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let ec_path = temp_dir.join(".editorconfig");
+    std::fs::write(
+        &ec_path,
+        "root = true\n\n[*.kt]\nij_formatter_enabled = false\n",
+    )
+    .unwrap();
+
+    let unformatted_file = temp_dir.join("Target.kt");
+    let original_content = "fun foo() {\n  println(1)\n}\n";
+    std::fs::write(&unformatted_file, original_content).unwrap();
+
+    let result = run(&[unformatted_file.to_string_lossy().to_string()]);
+    assert!(result.is_ok());
+
+    let content_after = std::fs::read_to_string(&unformatted_file).unwrap();
+    assert_eq!(
+        content_after, original_content,
+        "File with ij_formatter_enabled = false must not be modified"
+    );
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_editorconfig_ktfmt_disabled_bypasses_check_mode_failure() {
+    let pid = std::process::id().to_string();
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_fmt_skip_check_", &pid));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let ec_path = temp_dir.join(".editorconfig");
+    std::fs::write(&ec_path, "root = true\n\n[*.kt]\nktfmt = disabled\n").unwrap();
+
+    let unformatted_file = temp_dir.join("Target.kt");
+    std::fs::write(&unformatted_file, "fun foo() {\n  println(1)\n}\n").unwrap();
+
+    let result = run(&[
+        "--check".to_string(),
+        unformatted_file.to_string_lossy().to_string(),
+    ]);
+    assert!(
+        result.is_ok(),
+        "Check mode must succeed when ktfmt = disabled"
+    );
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_editorconfig_child_section_re_enables_formatting_for_subpath() {
+    let pid = std::process::id().to_string();
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_fmt_re_enable_", &pid));
+    let sub_dir = temp_dir.join("formatted");
+    std::fs::create_dir_all(&sub_dir).unwrap();
+
+    let ec_path = temp_dir.join(".editorconfig");
+    std::fs::write(
+        &ec_path,
+        "root = true\n\n[*.kt]\nij_formatter_enabled = false\n\n[formatted/**.kt]\nij_formatter_enabled = true\n",
+    )
+    .unwrap();
+
+    let skipped_file = temp_dir.join("Skipped.kt");
+    let skipped_content = "fun skip() {\n  println(1)\n}\n";
+    std::fs::write(&skipped_file, skipped_content).unwrap();
+
+    let formatted_file = sub_dir.join("Formatted.kt");
+    let unformatted_content = "fun fmt() {\n  println(1)\n}\n";
+    std::fs::write(&formatted_file, unformatted_content).unwrap();
+
+    let result = run(&[
+        skipped_file.to_string_lossy().to_string(),
+        formatted_file.to_string_lossy().to_string(),
+    ]);
+    assert!(result.is_ok());
+
+    let skipped_after = std::fs::read_to_string(&skipped_file).unwrap();
+    assert_eq!(
+        skipped_after, skipped_content,
+        "Parent section should keep formatting disabled"
+    );
+
+    let formatted_after = std::fs::read_to_string(&formatted_file).unwrap();
+    assert_ne!(
+        formatted_after, unformatted_content,
+        "Child section re-enabling formatting must format the file"
+    );
+    assert!(formatted_after.contains("    println(1)"));
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}
+
+#[test]
+fn test_no_editorconfig_flag_ignores_formatter_disabled_rules() {
+    let pid = std::process::id().to_string();
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_fmt_no_ec_", &pid));
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let ec_path = temp_dir.join(".editorconfig");
+    std::fs::write(
+        &ec_path,
+        "root = true\n\n[*.kt]\nij_formatter_enabled = false\n",
+    )
+    .unwrap();
+
+    let file = temp_dir.join("Target.kt");
+    std::fs::write(&file, "fun foo() {\n  println(1)\n}\n").unwrap();
+
+    // Check with --no-editorconfig: should detect unformatted file despite .editorconfig
+    let check_result = run(&[
+        "--check".to_string(),
+        "--no-editorconfig".to_string(),
+        file.to_string_lossy().to_string(),
+    ]);
+    assert!(
+        check_result.is_err(),
+        "--no-editorconfig must bypass disabled rules and report unformatted file"
+    );
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

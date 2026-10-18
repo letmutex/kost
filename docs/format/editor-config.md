@@ -30,18 +30,24 @@ Kost resolves `.editorconfig` files using standard hierarchy rules:
 | `ktfmt_trailing_comma_management_strategy` | `none`, `only_add`, `complete` | Trailing comma insertion strategy. |
 | `ij_kotlin_allow_trailing_comma` | `true`, `false` | Enables or disables trailing commas on declaration sites. |
 | `ij_kotlin_allow_trailing_comma_on_call_site` | `true`, `false` | Enables or disables trailing commas on call sites. Falls back to `ij_kotlin_allow_trailing_comma`. |
+| `ij_formatter_enabled` | `true`, `false` | Enables or disables code formatting for matching files (JetBrains standard). |
+| `ktfmt` *(Experimental)* | `enabled`, `disabled` | Enables or disables code formatting for matching files. |
 
 > [!NOTE]
 > If both `ij_kotlin_allow_trailing_comma` and `ij_kotlin_allow_trailing_comma_on_call_site` are set to `false`, Kost sets the trailing comma strategy to `none`.
+
+> [!WARNING]
+> `ktfmt = disabled` is an **experimental** property. Because official `ktfmt` does not yet natively support `.editorconfig`-based file disabling (tracked in [Kotlin/ktfmt#686](https://github.com/Kotlin/ktfmt/issues/686)), this support might be deprecated or removed in the future if official `ktfmt`'s configuration differs. For standard, forward-compatible setups, prefer `ij_formatter_enabled = false`.
 
 ## Property Precedence
 
 When properties overlap, Kost resolves them in the following order:
 
-1. **Style Preset Baseline**: Defaults chosen via CLI (e.g., `--style kotlinlang`).
-2. **`ktfmt_style`**: If specified in `.editorconfig`, overrides the base style preset.
-3. **Specific Indent Overrides**: `ij_kotlin_indent_size` overrides `indent_size`.
-4. **Specific Comma Overrides**: `ktfmt_trailing_comma_management_strategy` takes precedence over IntelliJ-style trailing comma booleans.
+1. **Formatter Enablement**: `ktfmt = disabled|enabled` overrides `ij_formatter_enabled = false|true` (default: enabled).
+2. **Style Preset Baseline**: Defaults chosen via CLI (e.g., `--style kotlinlang`).
+3. **`ktfmt_style`**: If specified in `.editorconfig`, overrides the base style preset.
+4. **Specific Indent Overrides**: `ij_kotlin_indent_size` overrides `indent_size`.
+5. **Specific Comma Overrides**: `ktfmt_trailing_comma_management_strategy` takes precedence over IntelliJ-style trailing comma booleans.
 
 ## Example `.editorconfig`
 
@@ -62,11 +68,15 @@ max_line_length = 120
 ij_kotlin_allow_trailing_comma = true
 ij_kotlin_allow_trailing_comma_on_call_site = true
 
-# Use Google style preset for generated or test sources
+# Use Google style preset for test sources
 [**/test/**.kt]
 ktfmt_style = google
 indent_size = 2
 continuation_indent_size = 2
+
+# Exclude generated sources from code formatting
+[**/generated/**.kt]
+ij_formatter_enabled = false
 ```
 
 ## See Also

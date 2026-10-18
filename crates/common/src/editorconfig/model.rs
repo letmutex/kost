@@ -123,6 +123,8 @@ pub struct ResolvedEditorConfig {
 
     pub ktfmt_style: Option<SmolStr>,
     pub ktfmt_trailing_comma_strategy: Option<TrailingCommaStrategy>,
+    pub ij_formatter_enabled: Option<bool>,
+    pub ktfmt_enabled: Option<bool>,
 
     pub ktlint_code_style: Option<KtlintCodeStyle>,
     pub ktlint_enabled: Option<bool>,
@@ -200,5 +202,18 @@ impl ResolvedEditorConfig {
     /// Returns the effective block indent size (prioritizing `ij_kotlin_indent_size` over `indent_size`).
     pub fn effective_indent_size(&self) -> Option<usize> {
         self.ij_kotlin_indent_size.or(self.indent_size)
+    }
+
+    /// Returns whether code formatting is enabled for this file.
+    ///
+    /// Priority:
+    /// 1. `ktfmt` specific toggle (`ktfmt = disabled | enabled`)
+    /// 2. `ij_formatter_enabled` (IntelliJ IDE standard: `true | false`)
+    /// 3. Default: `true`
+    #[inline]
+    pub fn is_formatting_enabled(&self) -> bool {
+        self.ktfmt_enabled
+            .or(self.ij_formatter_enabled)
+            .unwrap_or(true)
     }
 }

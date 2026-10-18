@@ -35,15 +35,16 @@ pub fn run(args: &[String]) -> Result<(), String> {
     };
 
     if parsed_args.targets.len() == 1 && parsed_args.targets[0] == "-" {
+        let stdin_path = parsed_args.stdin_path.as_deref();
         let stdin_formatter = resolve_file_formatter(
             preset,
             resolver.as_ref(),
-            Path::new(parsed_args.stdin_path.as_deref().unwrap_or("<stdin>")),
+            Path::new(stdin_path.unwrap_or("<stdin>")),
         );
         return run_stdin(
-            &stdin_formatter,
+            stdin_formatter.as_ref(),
             parsed_args.check,
-            parsed_args.stdin_path.as_deref(),
+            stdin_path,
             parsed_args.print_mode,
             parsed_args.reject_parse_errors,
         );
@@ -71,7 +72,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
 }
 
 fn run_stdin(
-    formatter: &Formatter,
+    formatter: Option<&Formatter>,
     check_mode: bool,
     stdin_path: Option<&str>,
     print_mode: PrintMode,
@@ -81,6 +82,13 @@ fn run_stdin(
     std::io::stdin()
         .read_to_string(&mut buffer)
         .map_err(|err| err.to_string())?;
+
+    let Some(formatter) = formatter else {
+        if !check_mode {
+            print!("{buffer}");
+        }
+        return Ok(());
+    };
 
     let file_type = if buffer.starts_with("#!") {
         FileType::Script
@@ -145,13 +153,16 @@ pub(crate) fn resolve_file_formatter(
     base_preset: StylePreset,
     resolver: Option<&common::editorconfig::EditorConfigResolver>,
     path: &Path,
-) -> Formatter {
+) -> Option<Formatter> {
     if let Some(r) = resolver {
         let resolved = r.resolve_for_path(path);
+        if !resolved.is_formatting_enabled() {
+            return None;
+        }
         let options = crate::options::FormattingOptions::from_editorconfig(base_preset, &resolved);
-        Formatter::with_options(options)
+        Some(Formatter::with_options(options))
     } else {
-        Formatter::from_preset(base_preset)
+        Some(Formatter::from_preset(base_preset))
     }
 }
 
@@ -166,7 +177,9 @@ fn format_file_inplace(
     resolver: Option<&common::editorconfig::EditorConfigResolver>,
     path: &Path,
 ) -> InplaceOutcome {
-    let formatter = resolve_file_formatter(base_preset, resolver, path);
+    let Some(formatter) = resolve_file_formatter(base_preset, resolver, path) else {
+        return InplaceOutcome::Unchanged;
+    };
     let content = match std::fs::read_to_string(path) {
         Ok(text) => text,
         Err(err) => {
