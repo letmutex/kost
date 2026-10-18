@@ -27,7 +27,7 @@ impl AstRule for StatementWrapping {
         let mut prev_statement: Option<tree_sitter::Node> = None;
 
         for child in node.children(&mut cursor) {
-            if !child.is_named() {
+            if !child.is_named() || child.is_error() {
                 continue;
             }
             if matches!(

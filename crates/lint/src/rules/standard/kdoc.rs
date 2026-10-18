@@ -52,7 +52,10 @@ fn check_kdoc_placement(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCt
             }
             ctx.report(node, "A KDoc is allowed only at start of declaration");
             return;
-        } else if is_allowed_declaration(parent.kind()) && node.prev_named_sibling().is_some() {
+        } else if is_allowed_declaration(parent.kind())
+            && node.prev_named_sibling().is_some()
+            && !(parent.kind() == "property_declaration" && is_accessor_kdoc(node))
+        {
             ctx.report(node, "A KDoc is allowed only at start of declaration");
             return;
         }
@@ -182,6 +185,30 @@ fn is_misparsed_function_declaration(node: tree_sitter::Node, source: &[u8]) -> 
     false
 }
 
+fn is_accessor_kdoc(node: tree_sitter::Node) -> bool {
+    let mut next = node.next_sibling();
+    while let Some(sibling) = next {
+        if matches!(sibling.kind(), "getter" | "setter") {
+            return true;
+        }
+        if sibling.is_named()
+            && !matches!(
+                sibling.kind(),
+                "comment"
+                    | "multiline_comment"
+                    | "line_comment"
+                    | "annotation"
+                    | "single_annotation"
+                    | "modifiers"
+            )
+        {
+            return false;
+        }
+        next = sibling.next_sibling();
+    }
+    false
+}
+
 fn is_allowed_declaration(kind: &str) -> bool {
     matches!(
         kind,
@@ -196,5 +223,7 @@ fn is_allowed_declaration(kind: &str) -> bool {
             | "enum_entry"
             | "parameter"
             | "class_parameter"
+            | "getter"
+            | "setter"
     )
 }

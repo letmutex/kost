@@ -38,6 +38,10 @@ fn check_primary_constructor(node: tree_sitter::Node, source: &[u8], ctx: &mut L
 
     collect_constructor_items(node, &mut parameters, &mut closing_parenthesis);
 
+    if parameters.is_empty() {
+        return;
+    }
+
     for parameter in parameters {
         if spaces_before(parameter, source) != WhitespaceBefore::StartOfLine {
             ctx.report(parameter, "Parameter should start on a newline");
