@@ -57,9 +57,16 @@ fn lower_chain_root_with_call_suffix<'a>(
                 "type_arguments" | "value_arguments" | "annotated_lambda" | "lambda_literal"
             )
         })
-        .map(|c| c.start_byte())
+        .map(|c| {
+            if matches!(c.kind(), "annotated_lambda" | "lambda_literal") {
+                c.start_byte() + 1
+            } else {
+                c.start_byte()
+            }
+        })
         .unwrap_or(last_suffix.end_byte());
     let chain_len = chain_end.saturating_sub(node.start_byte());
+
     let is_broken = is_chain_broken(&node, ctx, chain_len) || op_doc.has_hardline();
 
     let chain_body = Doc::Concat(vec![

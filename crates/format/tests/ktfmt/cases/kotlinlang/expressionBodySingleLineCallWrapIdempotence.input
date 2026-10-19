@@ -1,0 +1,2 @@
+public fun HttpMessageBuilder.basicAuth(username: String, password: String): Unit =
+    header(HttpHeaders.Authorization, "Basic ${Base64.encode("$username:$password".encodeToByteArray())}")

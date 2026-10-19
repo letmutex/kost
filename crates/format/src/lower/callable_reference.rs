@@ -39,7 +39,7 @@ pub fn lower_double_colon_navigation<'a>(
 }
 
 pub fn lower_callable_reference<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut receiver = None;
+    let mut receiver_docs = Vec::new();
     let mut op_text = "::";
     let mut member = None;
     let mut seen_colon = false;
@@ -51,15 +51,17 @@ pub fn lower_callable_reference<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) 
             op_text = ctx.node_text(&child);
             seen_colon = true;
         } else if !seen_colon {
-            receiver = Some(child);
+            receiver_docs.push(lower_node(child, ctx));
         } else {
             member = Some(child);
         }
     }
 
-    if let (Some(recv), Some(mem)) = (receiver, member) {
+    if !receiver_docs.is_empty()
+        && let Some(mem) = member
+    {
         Doc::Group(Box::new(Doc::Concat(vec![
-            lower_node(recv, ctx),
+            Doc::Concat(receiver_docs),
             Doc::text(op_text),
             Doc::continuation_indent(Doc::Concat(vec![Doc::SoftLine, lower_node(mem, ctx)])),
         ])))

@@ -1,0 +1,14 @@
+class Test {
+    fun test() {
+        launch(recipientId).use { launched ->
+            await(timeoutMs = 20_000, description = "conversation loaded") {
+                val recycler =
+                    launched
+                        .latestConversationFragment()
+                        ?.view
+                        ?.findViewById<RecyclerView>(R.id.conversation_item_recycler)
+                if ((recycler?.childCount ?: 0) > 0) true else null
+            }
+        }
+    }
+}

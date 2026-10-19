@@ -1,0 +1,8 @@
+class FakeConnection {
+  fun handshake() {
+    val result =
+      runCatching {
+        handshaker.handshake(clientInputs, serverInputs)
+      }
+  }
+}

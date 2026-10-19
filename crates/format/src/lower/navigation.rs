@@ -3,9 +3,9 @@ use tree_sitter::Node;
 use crate::doc::Doc;
 use crate::lower::callable_reference::lower_double_colon_navigation;
 pub use crate::lower::chain::{
-    count_chain_lambdas, is_call_receiver, is_call_receiver_in_chain, is_chain_broken,
-    is_navigation_chain_root, is_part_of_call_chain, is_spine_root, is_super_or_this,
-    is_type_name_receiver,
+    count_chain_lambdas, has_call_in_receiver_chain, is_call_receiver, is_call_receiver_in_chain,
+    is_chain_broken, is_navigation_chain_root, is_part_of_call_chain, is_spine_root,
+    is_super_or_this, is_type_name_receiver,
 };
 use crate::lower::context::LowerContext;
 use crate::lower::lower_node;
@@ -43,7 +43,9 @@ pub fn lower_navigation_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
 
         let is_breakable = !comments.is_empty()
             || (!is_super_or_this(&op_node)
-                && (is_call_receiver(&op_node) || ctx.has_newline_between(&op_node, &suf_node)));
+                && (is_call_receiver(&op_node)
+                    || (ctx.options.block_indent == 4 && has_call_in_receiver_chain(&op_node))
+                    || ctx.has_newline_between(&op_node, &suf_node)));
         // In Google/ktfmt style (block_indent != 4), calls following a multiline raw string
         // (such as .trimIndent() or .trimMargin()) must wrap to a new line.
         // In Kotlinlang/ktlint style (block_indent == 4), they attach directly to the closing quotes.

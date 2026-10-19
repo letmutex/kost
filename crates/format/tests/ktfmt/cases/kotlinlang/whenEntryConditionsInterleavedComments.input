@@ -1,0 +1,9 @@
+fun test(x: Any) =
+    when (x) {
+        is ScriptCustomization,
+        // Synthetic Java declarations might have an implicit return type,
+        // so lazy resolution is required to calculate it
+        is Enhancement,
+        -> true
+        else -> false
+    }

@@ -1,0 +1,9 @@
+fun test() {
+    return if (
+        irCall.origin == IrStatementOrigin.MINUS &&
+            (irCall.arguments[1] as? IrConst)?.value == 1 &&
+            irCall.dispatchReceiverName() in allowedMethods // to avoid possible underflow
+    )
+        irCall.dispatchReceiver
+    else null
+}

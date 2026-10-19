@@ -30,9 +30,10 @@ impl AstRule for ChainMethodContinuation {
             return;
         }
 
-        let is_any_on_newline = operators
-            .iter()
-            .any(|&op| spaces_before(op, source) == WhitespaceBefore::StartOfLine);
+        let is_any_on_newline = operators.iter().any(|&op| {
+            spaces_before(op, source) == WhitespaceBefore::StartOfLine
+                || is_on_closing_delimiter_line(op, source)
+        });
 
         let force_multiline = operators.len() >= 4 || is_any_on_newline;
 
@@ -42,7 +43,11 @@ impl AstRule for ChainMethodContinuation {
                     .utf8_text(source)
                     .unwrap_or(operator_node.kind());
 
-                if spaces_before(operator_node, source) != WhitespaceBefore::StartOfLine {
+                let is_valid_start = spaces_before(operator_node, source)
+                    == WhitespaceBefore::StartOfLine
+                    || is_on_closing_delimiter_line(operator_node, source);
+
+                if !is_valid_start {
                     let message =
                         crate::concat_str!("Expected newline before '", operator_text, "'");
                     ctx.report(operator_node, message);
@@ -59,6 +64,40 @@ impl AstRule for ChainMethodContinuation {
             }
         }
     }
+}
+
+fn is_on_closing_delimiter_line(operator_node: tree_sitter::Node, source: &[u8]) -> bool {
+    let start = operator_node.start_byte();
+    let mut i = start;
+    while i > 0 && (source[i - 1] == b' ' || source[i - 1] == b'\t') {
+        i -= 1;
+    }
+    if i == 0 {
+        return false;
+    }
+    let delim = source[i - 1];
+    if delim != b')' && delim != b'}' && delim != b']' && delim != b'"' {
+        return false;
+    }
+    let mut j = i - 1;
+    if delim == b'"' {
+        if j >= 2 && source[j - 1] == b'"' && source[j - 2] == b'"' {
+            j -= 2;
+        } else {
+            return false;
+        }
+    }
+    while j > 0 {
+        let b = source[j - 1];
+        if b == b'\n' || b == b'\r' {
+            return true;
+        }
+        if b != b' ' && b != b'\t' {
+            return false;
+        }
+        j -= 1;
+    }
+    true
 }
 
 fn is_chain_root(ctx: &LintCtx) -> bool {

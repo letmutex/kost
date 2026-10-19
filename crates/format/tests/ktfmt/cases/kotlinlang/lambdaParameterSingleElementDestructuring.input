@@ -1,0 +1,5 @@
+fun test() {
+    items.also { (url) ->
+        resourceCache[cacheKey] = url
+    }
+}

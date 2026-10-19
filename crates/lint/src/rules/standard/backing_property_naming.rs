@@ -85,6 +85,11 @@ fn has_private_modifier(node: tree_sitter::Node, source: &[u8]) -> bool {
     has_modifier_named(node, "private", source)
 }
 
+fn is_companion_object(decl: tree_sitter::Node, source: &[u8]) -> bool {
+    decl.kind() == "companion_object"
+        || (decl.kind() == "object_declaration" && has_modifier_named(decl, "companion", source))
+}
+
 fn is_in_private_companion_object(node: tree_sitter::Node, source: &[u8]) -> bool {
     let Some(class_body) = node.parent() else {
         return false;
@@ -92,9 +97,7 @@ fn is_in_private_companion_object(node: tree_sitter::Node, source: &[u8]) -> boo
     let Some(object_decl) = class_body.parent() else {
         return false;
     };
-    if object_decl.kind() == "object_declaration"
-        && has_modifier_named(object_decl, "companion", source)
-    {
+    if is_companion_object(object_decl, source) {
         return has_modifier_named(object_decl, "private", source);
     }
     false
@@ -136,8 +139,7 @@ fn find_correlated_member<'a>(
     }
 
     if let Some(obj_decl) = class_body.parent()
-        && obj_decl.kind() == "object_declaration"
-        && has_modifier_named(obj_decl, "companion", source)
+        && is_companion_object(obj_decl, source)
         && let Some(outer_body) = obj_decl.parent()
         && outer_body.kind() == "class_body"
         && let Some(found) =
@@ -148,8 +150,7 @@ fn find_correlated_member<'a>(
 
     let mut cursor = class_body.walk();
     for child in class_body.children(&mut cursor) {
-        if child.kind() == "object_declaration"
-            && has_modifier_named(child, "companion", source)
+        if is_companion_object(child, source)
             && let Some(companion_body) = find_class_body(child)
             && let Some(found) = search_body_for_correlated(
                 companion_body,

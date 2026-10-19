@@ -1,0 +1,8 @@
+open class SocketOptions {
+    private class GeneralSocketOptions {
+        override fun copy(): GeneralSocketOptions =
+            GeneralSocketOptions(HashMap(customOptions)).apply {
+                copyCommon(this@GeneralSocketOptions)
+            }
+    }
+}

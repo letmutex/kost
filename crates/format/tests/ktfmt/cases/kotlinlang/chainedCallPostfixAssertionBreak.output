@@ -1,7 +1,11 @@
 class C {
     private fun runTests(predicate: (String) -> Boolean = { true }) {
-        val testFiles = InstrumentationRegistry.getInstrumentation()
-            .context.resources.assets
-            .list(TESTS_FOLDER)!!.filter(predicate)
+        val testFiles =
+            InstrumentationRegistry.getInstrumentation()
+                .context
+                .resources
+                .assets
+                .list(TESTS_FOLDER)!!
+                .filter(predicate)
     }
 }

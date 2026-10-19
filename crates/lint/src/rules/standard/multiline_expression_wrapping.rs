@@ -51,7 +51,12 @@ impl AstRule for MultilineExpressionWrapping {
                 | "lambda_literal"
                 | "annotated_lambda"
                 | "object_literal"
+                | "when_expression"
         ) {
+            return;
+        }
+
+        if has_trailing_lambda_on_row(expr_node, eq_node.start_position().row) {
             return;
         }
 
@@ -74,4 +79,27 @@ impl AstRule for MultilineExpressionWrapping {
             ctx.report(eq_node, "Expected newline after '='");
         }
     }
+}
+
+fn has_trailing_lambda_on_row(node: tree_sitter::Node, row: usize) -> bool {
+    let mut curr = Some(node);
+    while let Some(n) = curr {
+        if n.kind() == "call_expression" {
+            let mut cursor = n.walk();
+            for child in n.children(&mut cursor) {
+                if child.kind() == "call_suffix" {
+                    let mut sc = child.walk();
+                    for suffix_child in child.children(&mut sc) {
+                        if matches!(suffix_child.kind(), "lambda_literal" | "annotated_lambda")
+                            && suffix_child.start_position().row == row
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+        }
+        curr = n.child(0);
+    }
+    false
 }

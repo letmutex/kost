@@ -88,12 +88,21 @@ pub(crate) fn call_has_multiline_args(node: &Node<'_>, ctx: &LowerContext<'_, '_
 pub(crate) fn find_innermost_call<'a>(node: Node<'a>) -> Option<Node<'a>> {
     let mut curr = node;
     let mut root_call = None;
-    while curr.kind() == "navigation_expression" || curr.kind() == "call_expression" {
+    while matches!(
+        curr.kind(),
+        "navigation_expression" | "call_expression" | "postfix_expression" | "indexing_expression"
+    ) {
         if curr.kind() == "call_expression" {
             root_call = Some(curr);
         }
         if let Some(first) = curr.child(0)
-            && (first.kind() == "navigation_expression" || first.kind() == "call_expression")
+            && matches!(
+                first.kind(),
+                "navigation_expression"
+                    | "call_expression"
+                    | "postfix_expression"
+                    | "indexing_expression"
+            )
         {
             curr = first;
             continue;
@@ -107,11 +116,45 @@ pub(crate) fn find_opening_call<'a>(node: Node<'a>) -> Option<Node<'a>> {
     find_innermost_call(node)
 }
 
+pub(crate) fn find_first_call_with_multiline_args<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'_, '_>,
+) -> Option<Node<'a>> {
+    let mut calls = Vec::new();
+    let mut curr = node;
+    while matches!(
+        curr.kind(),
+        "navigation_expression" | "call_expression" | "postfix_expression" | "indexing_expression"
+    ) {
+        if curr.kind() == "call_expression" {
+            calls.push(curr);
+        }
+        if let Some(first) = curr.child(0)
+            && matches!(
+                first.kind(),
+                "navigation_expression"
+                    | "call_expression"
+                    | "postfix_expression"
+                    | "indexing_expression"
+            )
+        {
+            curr = first;
+            continue;
+        }
+        break;
+    }
+    calls.reverse();
+    calls
+        .into_iter()
+        .find(|call| call_has_multiline_args(call, ctx))
+}
+
 pub(crate) fn build_property_init_section<'a>(
     init_docs: Vec<Doc<'a>>,
     init_child: Option<Node<'a>>,
     trailing_comments: Vec<PropertyComment<'a>>,
     is_destructuring: bool,
+    _is_untyped: bool,
     ctx: &LowerContext<'a, '_>,
 ) -> (Doc<'a>, bool) {
     let init_doc = Doc::Concat(init_docs);
@@ -136,6 +179,7 @@ pub(crate) fn build_property_init_section<'a>(
             || (curr.kind() == "string_literal"
                 && curr.start_position().row != curr.end_position().row)
     });
+    let flat_init = flat_init && !is_raw_string && trailing_comments.is_empty();
 
     let doc = if !trailing_comments.is_empty() {
         let (first_is_line, first_has_newline) = (
@@ -226,11 +270,10 @@ pub(crate) fn find_call_opening_paren_len(
                         .children(&mut sub.walk())
                         .any(|c| c.kind() == "value_argument");
                     if has_args {
-                        if base.start_position().row != sub.start_position().row {
-                            let first_line = ctx.node_text(&base).lines().next().unwrap_or("");
-                            return Some(first_line.len());
-                        }
-                        return Some(sub.start_byte().saturating_sub(base.start_byte()) + 1);
+                        return ctx
+                            .source
+                            .get(base.start_byte()..=sub.start_byte())
+                            .map(crate::lower::expression_body::collapsed_text_len);
                     }
                 }
             }
@@ -246,17 +289,29 @@ pub(crate) fn property_init_first_line_len(
     ctx: &LowerContext<'_, '_>,
 ) -> usize {
     let Some(init) = init_child else { return 0 };
+    if is_kotlinlang {
+        if let Some(call) = find_first_call_with_multiline_args(init, ctx)
+            && let Some(len) = find_call_opening_paren_len(call, init, ctx)
+        {
+            return len;
+        }
+        let continuation_col = ctx.compute_target_indent(&init) + ctx.options.continuation_indent;
+        if continuation_col + init_flat_len <= ctx.options.max_width {
+            return init_flat_len;
+        }
+        return crate::lower::expression_body::expression_first_line_len(&init, 0, ctx);
+    }
     if let Some(call) = find_opening_call(init)
         && (is_kotlinlang || call_has_args(&call))
-        && let Some(len) = find_call_opening_paren_len(call, init, ctx)
     {
-        return len;
+        if let Some(len) = find_call_opening_paren_len(call, init, ctx) {
+            return len;
+        }
+        if let Some(lambda) = find_first_lambda(call) {
+            return lambda.start_byte().saturating_sub(init.start_byte()) + 1;
+        }
     }
     if let Some(lambda) = find_first_lambda(init) {
-        if init.start_position().row != lambda.start_position().row {
-            let first_line = ctx.node_text(&init).lines().next().unwrap_or("");
-            return first_line.len();
-        }
         return lambda.start_byte().saturating_sub(init.start_byte()) + 1;
     }
     init_flat_len

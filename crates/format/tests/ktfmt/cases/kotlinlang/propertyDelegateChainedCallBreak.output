@@ -1,0 +1,7 @@
+@Composable
+internal fun SearchScreen(
+    searchViewModel: SearchViewModel = hiltViewModel(),
+) {
+    val recentSearchQueriesUiState by
+        searchViewModel.recentSearchQueriesUiState.collectAsStateWithLifecycle()
+}

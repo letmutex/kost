@@ -1,0 +1,5 @@
+fun test() =
+    when (it) {
+        is IrCall -> [it]
+        else -> []
+    }

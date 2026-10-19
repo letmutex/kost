@@ -29,6 +29,7 @@ pub(crate) fn extract_comma_list_items<'a>(
     node: Node<'a>,
     ctx: &LowerContext<'a, '_>,
 ) -> (Vec<CommaListItem<'a>>, bool) {
+    let mut modifier_docs: Vec<Doc<'a>> = Vec::new();
     let mut prefix_docs = Vec::new();
     let mut rhs_docs = Vec::new();
     let mut has_equals = false;
@@ -38,16 +39,17 @@ pub(crate) fn extract_comma_list_items<'a>(
 
     let mut pending_comments: Vec<Doc<'a>> = Vec::new();
 
-    let flush_item = |prefix: &mut Vec<Doc<'a>>,
+    let flush_item = |modifier: &mut Vec<Doc<'a>>,
+                      prefix: &mut Vec<Doc<'a>>,
                       rhs: &mut Vec<Doc<'a>>,
                       has_eq: &mut bool,
                       pending: &mut Vec<Doc<'a>>,
                       items: &mut Vec<CommaListItem<'a>>| {
-        if !prefix.is_empty() || !rhs.is_empty() {
+        if !modifier.is_empty() || !prefix.is_empty() || !rhs.is_empty() {
             let mut doc = if *has_eq {
                 let p = Doc::Concat(std::mem::take(prefix));
                 let r = Doc::Concat(std::mem::take(rhs));
-                Doc::Group(Box::new(Doc::Concat(vec![
+                let eq_group = Doc::Group(Box::new(Doc::Concat(vec![
                     p,
                     Doc::space(),
                     Doc::text("="),
@@ -55,9 +57,19 @@ pub(crate) fn extract_comma_list_items<'a>(
                         Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, r.clone()])),
                         Doc::Concat(vec![Doc::space(), r]),
                     ),
-                ])))
+                ])));
+                if modifier.is_empty() {
+                    eq_group
+                } else {
+                    Doc::Concat(vec![Doc::Concat(std::mem::take(modifier)), eq_group])
+                }
             } else {
-                Doc::Concat(std::mem::take(prefix))
+                let p = Doc::Concat(std::mem::take(prefix));
+                if modifier.is_empty() {
+                    p
+                } else {
+                    Doc::Concat(vec![Doc::Concat(std::mem::take(modifier)), p])
+                }
             };
             if !pending.is_empty() {
                 let mut parts = Vec::new();
@@ -89,10 +101,38 @@ pub(crate) fn extract_comma_list_items<'a>(
         if child.is_missing() || child.byte_range().is_empty() {
             continue;
         }
+        let is_modifier = prev_token.is_some_and(|p| {
+            matches!(
+                p.kind(),
+                "parameter_modifiers" | "modifiers" | "type_parameter_modifiers" | "annotation"
+            )
+        });
+        if matches!(
+            kind,
+            "parameter_modifiers" | "modifiers" | "type_parameter_modifiers"
+        ) {
+            let mod_doc = lower_node(child, ctx);
+            modifier_docs.push(mod_doc);
+            prev_token = Some(child);
+            continue;
+        }
         if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+            if is_modifier {
+                let comment_doc = lower_node(child, ctx);
+                if !modifier_docs
+                    .last()
+                    .is_some_and(|d| d.ends_with_space() || d.ends_with_line())
+                {
+                    modifier_docs.push(Doc::space());
+                }
+                modifier_docs.push(comment_doc);
+                prev_token = Some(child);
+                continue;
+            }
             let is_same_line =
                 prev_token.is_some_and(|p| child.start_position().row == p.end_position().row);
             flush_item(
+                &mut modifier_docs,
                 &mut prefix_docs,
                 &mut rhs_docs,
                 &mut has_equals,
@@ -109,6 +149,7 @@ pub(crate) fn extract_comma_list_items<'a>(
         }
         if kind == "," {
             flush_item(
+                &mut modifier_docs,
                 &mut prefix_docs,
                 &mut rhs_docs,
                 &mut has_equals,
@@ -143,6 +184,7 @@ pub(crate) fn extract_comma_list_items<'a>(
         prev_token = Some(child);
     }
     flush_item(
+        &mut modifier_docs,
         &mut prefix_docs,
         &mut rhs_docs,
         &mut has_equals,
@@ -210,7 +252,20 @@ fn should_break_after_open(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> bool 
         let mut prev = node.prev_sibling();
         while let Some(p) = prev {
             if p.kind() == "type_arguments" {
-                return ctx.node_text(&p).contains('\n');
+                if ctx.node_text(&p).contains('\n') {
+                    return true;
+                }
+                if ctx.options.block_indent == 4
+                    && let Some(call_expr) =
+                        parent.parent().filter(|n| n.kind() == "call_expression")
+                    && crate::lower::chain::is_chain_broken(
+                        &call_expr,
+                        ctx,
+                        call_expr.byte_range().len(),
+                    )
+                {
+                    return true;
+                }
             }
             prev = p.prev_sibling();
         }

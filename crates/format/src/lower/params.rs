@@ -172,6 +172,7 @@ pub fn lower_value_argument<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
     let mut has_equals = false;
 
     let mut equals_node = None;
+    let mut comments_after_eq = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
@@ -180,6 +181,8 @@ pub fn lower_value_argument<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
             equals_node = Some(child);
         } else if !has_equals {
             name = Some(lower_node(child, ctx));
+        } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+            comments_after_eq.push(lower_node(child, ctx));
         } else {
             expr = Some(lower_node(child, ctx));
             expr_node = Some(child);
@@ -194,23 +197,26 @@ pub fn lower_value_argument<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
             expr_node.is_some_and(|en| matches!(en.kind(), "lambda_literal" | "annotated_lambda"));
         let is_call_or_constructor = expr_node
             .is_some_and(|en| matches!(en.kind(), "call_expression" | "constructor_invocation"));
+        let mut prefix = vec![n, Doc::space(), Doc::text("=")];
+        for c in comments_after_eq {
+            prefix.push(Doc::space());
+            prefix.push(c);
+        }
         if is_lambda || (is_call_or_constructor && !has_user_newline) {
-            Doc::Concat(vec![n, Doc::space(), Doc::text("="), Doc::space(), e])
+            prefix.push(Doc::space());
+            prefix.push(e);
+            Doc::Concat(prefix)
         } else {
             let reserve = value_argument_closing_reserve(&node);
             let mut flat_parts = vec![Doc::space(), e.clone()];
             if reserve > 0 {
                 flat_parts.push(Doc::reserve_width(reserve));
             }
-            Doc::Group(Box::new(Doc::Concat(vec![
-                n,
-                Doc::space(),
-                Doc::text("="),
-                Doc::if_break(
-                    Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, e])),
-                    Doc::Concat(flat_parts),
-                ),
-            ])))
+            prefix.push(Doc::if_break(
+                Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, e])),
+                Doc::Concat(flat_parts),
+            ));
+            Doc::Group(Box::new(Doc::Concat(prefix)))
         }
     } else {
         let mut docs = Vec::new();

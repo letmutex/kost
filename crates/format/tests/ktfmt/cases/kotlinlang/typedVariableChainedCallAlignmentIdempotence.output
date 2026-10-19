@@ -1,0 +1,6 @@
+fun test() {
+    val previousDatabaseAttachmentId: AttachmentId = SignalDatabase.attachments
+        .insertAttachmentsForMessage(1, listOf(previousAttachment), emptyList())
+        .values
+        .first()
+}

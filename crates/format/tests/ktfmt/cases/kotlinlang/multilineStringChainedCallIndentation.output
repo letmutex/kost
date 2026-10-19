@@ -1,0 +1,11 @@
+class Test {
+    @Test
+    fun `Token index is advanced after a string token`() {
+        val code =
+            """
+            |val b="a"
+            |val a=5
+            |"""
+                .trimMargin()
+    }
+}

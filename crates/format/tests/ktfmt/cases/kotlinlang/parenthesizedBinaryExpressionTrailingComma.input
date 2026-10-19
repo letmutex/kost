@@ -1,0 +1,13 @@
+val functionBody =
+    if (errorParameter != null) {
+        val outErrorName = errorParameter.name.kotlinIdentifier
+        val callArgsWithOutError = (callArgs + "$outErrorName.ptr").joinToString()
+        (shadowDeclarations + """
+            |return kotlinx.cinterop.memScoped {
+            |    val $outErrorName = alloc<${errorParameter.bridge.kotlinType.repr}>()
+            |    val _result = $swiftBridgeName($callArgsWithOutError)
+            |    throwErrorFromReverseBridge($outErrorName.value)
+            |    $resultConversion
+            |}
+        """.trimMargin()).joinToString("\n")
+    } else null

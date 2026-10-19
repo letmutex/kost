@@ -1,8 +1,6 @@
 class TlsUtil {
     private fun newEmptyKeyStore(keyStoreType: String?): KeyStore =
-        KeyStore.getInstance(
-            keyStoreType ?: KeyStore.getDefaultType(),
-        ).apply {
+        KeyStore.getInstance(keyStoreType ?: KeyStore.getDefaultType()).apply {
             val inputStream: InputStream? = null
             load(inputStream, password)
         }

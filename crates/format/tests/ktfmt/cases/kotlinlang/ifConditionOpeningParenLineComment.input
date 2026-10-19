@@ -1,0 +1,6 @@
+fun test() {
+    if (// For `(a[0]) = ...` where `a: Array<A>`
+        (source.elementType in UNWRAPPABLE_TOKEN_TYPES) && callee.isArrayAccess
+    ) {
+    }
+}

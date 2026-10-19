@@ -1,22 +1,9 @@
 use tree_sitter::Node;
 
 use crate::doc::Doc;
-use crate::lower::assignment::has_trailing_lambda_child;
 use crate::lower::context::LowerContext;
 use crate::lower::lower_node;
-
-fn is_pascal_case_call(node: &Node<'_>, source: &str) -> bool {
-    if node.kind() != "call_expression" {
-        return false;
-    }
-    let Some(callee) = node.child(0) else {
-        return false;
-    };
-    callee.kind() == "simple_identifier"
-        && source
-            .get(callee.start_byte()..callee.end_byte())
-            .is_some_and(|n| n.starts_with(|c: char| c.is_ascii_uppercase()))
-}
+use crate::lower::scoping::{is_pure_lambda_or_labeled, is_scoping_chain_or_lambda};
 
 fn has_complex_or_control_receiver(node: &Node<'_>) -> bool {
     let mut curr = Some(*node);
@@ -36,7 +23,20 @@ fn has_complex_or_control_receiver(node: &Node<'_>) -> bool {
     false
 }
 
-fn chain_root_element<'a>(node: Node<'a>) -> Node<'a> {
+fn is_pascal_case_call(node: &Node<'_>, source: &str) -> bool {
+    if node.kind() != "call_expression" {
+        return false;
+    }
+    let Some(callee) = node.child(0) else {
+        return false;
+    };
+    callee.kind() == "simple_identifier"
+        && source
+            .get(callee.start_byte()..callee.end_byte())
+            .is_some_and(|n| n.starts_with(|c: char| c.is_ascii_uppercase()))
+}
+
+pub(crate) fn chain_root_element<'a>(node: Node<'a>) -> Node<'a> {
     let mut curr = node;
     loop {
         let callee = if curr.kind() == "call_expression" {
@@ -49,8 +49,13 @@ fn chain_root_element<'a>(node: Node<'a>) -> Node<'a> {
         let Some(nav) = callee.filter(|c| c.kind() == "navigation_expression") else {
             break;
         };
-        let Some(receiver) = nav.child(0) else {
+        let Some(raw_receiver) = nav.child(0) else {
             break;
+        };
+        let receiver = if raw_receiver.kind() == "postfix_expression" {
+            raw_receiver.child(0).unwrap_or(raw_receiver)
+        } else {
+            raw_receiver
         };
         if matches!(receiver.kind(), "call_expression" | "navigation_expression") {
             curr = receiver;
@@ -79,9 +84,50 @@ pub(crate) fn find_lambda_first_line_end_byte(lambda: Node<'_>) -> usize {
     lambda.end_byte()
 }
 
-fn expression_first_line_len(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> usize {
+pub(crate) fn collapsed_text_len(text: &str) -> usize {
+    let mut len = 0;
+    let mut in_whitespace = false;
+    for ch in text.chars() {
+        if ch.is_whitespace() {
+            in_whitespace = true;
+        } else {
+            if in_whitespace {
+                if len > 0 && !matches!(ch, '.' | '(' | ')' | '[' | ']' | ',' | '?' | ':') {
+                    len += 1;
+                }
+                in_whitespace = false;
+            }
+            len += 1;
+        }
+    }
+    len
+}
+
+pub(crate) fn expression_first_line_len(
+    node: &Node<'_>,
+    _eq_col: usize,
+    ctx: &LowerContext<'_, '_>,
+) -> usize {
+    if let Some(call) = crate::lower::delegates::find_first_call_with_multiline_args(*node, ctx)
+        && let Some(len) = crate::lower::delegates::find_call_opening_paren_len(call, *node, ctx)
+    {
+        return len;
+    }
+    if let Some(lambda) = crate::lower::delegates::find_first_lambda(*node)
+        && crate::lower::chain::count_chain_lambdas(node) <= 1
+    {
+        let len = find_lambda_first_line_end_byte(lambda).saturating_sub(node.start_byte());
+        if len <= ctx.options.max_width {
+            return len;
+        }
+    }
     let root = chain_root_element(*node);
     if let Some(call) = crate::lower::delegates::find_innermost_call(root)
+        && (crate::lower::delegates::call_has_multiline_args(&call, ctx)
+            || ctx.compute_target_indent(node)
+                + ctx.options.continuation_indent
+                + call.byte_range().len()
+                > ctx.options.max_width)
         && let Some(len) = crate::lower::delegates::find_call_opening_paren_len(call, root, ctx)
     {
         return len;
@@ -89,7 +135,10 @@ fn expression_first_line_len(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> usi
     if let Some(lambda) = crate::lower::delegates::find_first_lambda(root) {
         return find_lambda_first_line_end_byte(lambda).saturating_sub(root.start_byte());
     }
-    lower_node(root, ctx).flat_len()
+    if matches!(root.kind(), "string_literal" | "multiline_string_literal") {
+        return ctx.node_text(&root).lines().next().unwrap_or("").len();
+    }
+    collapsed_text_len(ctx.node_text(&root))
 }
 
 fn append_comments_after_expr<'a>(
@@ -144,7 +193,6 @@ pub fn format_expression_body<'a>(
     header_col: Option<usize>,
     is_multiline_header: bool,
 ) -> Doc<'a> {
-    let is_pascal_call = expr_child.is_some_and(|c| is_pascal_case_call(&c, ctx.source));
     let raw_expr_doc = expr_child
         .map(|c| lower_node(c, ctx))
         .unwrap_or_else(Doc::empty);
@@ -152,36 +200,39 @@ pub fn format_expression_body<'a>(
     if !comments_before_expr.is_empty() {
         return format_comments_before_expr(comments_before_expr, expr_doc, ctx);
     }
-    if is_pascal_call {
-        return Doc::Concat(vec![
-            Doc::text("="),
-            Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, expr_doc])),
-        ]);
-    }
+
     if let Some(expr_node) = expr_child {
-        if matches!(expr_node.kind(), "lambda_literal" | "annotated_lambda") {
+        if is_pure_lambda_or_labeled(&expr_node) {
             return Doc::Concat(vec![Doc::text("="), Doc::space(), expr_doc]);
         }
+        let eq_col = header_col.unwrap_or_else(|| ctx.compute_target_indent(&node));
         let is_chain_or_multiline_call = expr_node.kind() == "navigation_expression"
             || expr_node
                 .child(0)
                 .is_some_and(|c| c.kind() == "navigation_expression")
             || crate::lower::delegates::find_innermost_call(expr_node).is_some_and(|innermost| {
-                crate::lower::delegates::call_has_multiline_args(&innermost, ctx)
+                let will_wrap = crate::lower::delegates::call_has_multiline_args(&innermost, ctx)
+                    || ctx.compute_target_indent(&node)
+                        + ctx.options.continuation_indent
+                        + innermost.byte_range().len()
+                        > ctx.options.max_width;
+                will_wrap
                     && crate::lower::delegates::find_call_opening_paren_len(
                         innermost, expr_node, ctx,
                     )
                     .is_some()
             });
-        let is_block_like = (expr_node.kind() == "call_expression"
-            || expr_node.kind() == "navigation_expression")
-            && (has_trailing_lambda_child(&expr_node)
+        let is_block_like = !is_pascal_case_call(&expr_node, ctx.source)
+            && (expr_node.kind() == "call_expression"
+                || expr_node.kind() == "navigation_expression")
+            && (crate::lower::assignment::has_trailing_lambda_child(&expr_node)
+                || is_scoping_chain_or_lambda(&expr_node)
                 || (!is_multiline_header
                     && ctx.options.block_indent == 4
                     && is_chain_or_multiline_call));
+
         if is_block_like && !has_complex_or_control_receiver(&expr_node) {
-            let first_line_len = expression_first_line_len(&expr_node, ctx);
-            let eq_col = header_col.unwrap_or_else(|| ctx.compute_target_indent(&node));
+            let first_line_len = expression_first_line_len(&expr_node, eq_col, ctx);
             let total = eq_col + 3 + first_line_len;
             if total <= ctx.options.max_width {
                 return Doc::Concat(vec![Doc::text("="), Doc::space(), expr_doc]);

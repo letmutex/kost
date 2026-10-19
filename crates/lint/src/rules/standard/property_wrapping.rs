@@ -53,7 +53,14 @@ fn check_property_declaration(node: tree_sitter::Node, ctx: &mut LintCtx) {
     let has_sibling_accessor = next_code_sibling(node)
         .is_some_and(|sibling| sibling.kind() == "getter" || sibling.kind() == "setter");
 
-    let is_multiline_decl = node.start_position().row != header_end_row;
+    let decl_keyword = node
+        .children(&mut node.walk())
+        .find(|c| c.kind() == "binding_pattern_kind" || c.kind() == "val" || c.kind() == "var");
+    let decl_start_row = decl_keyword
+        .map(|k| k.start_position().row)
+        .unwrap_or_else(|| node.start_position().row);
+
+    let is_multiline_decl = decl_start_row != header_end_row;
     let requires_wrapping = accessors.len() > 1
         || has_sibling_accessor
         || is_multiline_decl

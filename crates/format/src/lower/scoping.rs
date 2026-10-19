@@ -1,7 +1,18 @@
 use tree_sitter::Node;
 
+pub(crate) fn is_pure_lambda_or_labeled(node: &Node<'_>) -> bool {
+    if node.kind() == "lambda_literal" {
+        return true;
+    }
+    if node.kind() == "annotated_lambda" {
+        let mut c = node.walk();
+        return !node.children(&mut c).any(|ch| ch.kind() == "annotation");
+    }
+    false
+}
+
 pub(crate) fn is_scoping_function(node: &Node<'_>) -> bool {
-    if matches!(node.kind(), "lambda_literal" | "annotated_lambda") {
+    if is_pure_lambda_or_labeled(node) {
         return true;
     }
     if node.kind() == "call_expression" {
@@ -16,7 +27,7 @@ pub(crate) fn is_scoping_function(node: &Node<'_>) -> bool {
             } else if child.kind() == "call_suffix" {
                 let mut sc = child.walk();
                 for g in child.children(&mut sc) {
-                    if matches!(g.kind(), "lambda_literal" | "annotated_lambda") {
+                    if is_pure_lambda_or_labeled(&g) {
                         has_lambda = true;
                     } else if g.kind() == "value_arguments" {
                         let mut vac = g.walk();

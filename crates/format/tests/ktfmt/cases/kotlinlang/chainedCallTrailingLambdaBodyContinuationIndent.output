@@ -1,0 +1,8 @@
+class WebSockets {
+    internal fun convertSessionToDefault(session: WebSocketSession): DefaultWebSocketSession {
+        return DefaultWebSocketSession(session, pingIntervalMillis, timeoutMillis, channelsConfig)
+            .also {
+                it.maxFrameSize = this@WebSockets.maxFrameSize
+            }
+    }
+}

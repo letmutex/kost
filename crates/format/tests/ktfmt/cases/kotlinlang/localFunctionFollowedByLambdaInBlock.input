@@ -1,0 +1,8 @@
+fun test() {
+    processCompiledFileData =
+        incrementalResultsConsumer?.let { icConsumer ->
+            fun SerializedIrFile.processIrFile() {}
+
+            { ioFile, compiledFile, inlineIds -> 1 }
+        }
+}

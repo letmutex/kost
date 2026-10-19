@@ -226,6 +226,9 @@ impl KDocParser {
 }
 
 fn parse_kdoc(comment: &str) -> Vec<KDocParagraph> {
+    if comment.len() < 5 {
+        return Vec::new();
+    }
     let inner = &comment[3..comment.len() - 2];
     let mut parser = KDocParser::default();
     for raw_line in inner.lines() {
@@ -280,6 +283,9 @@ pub fn format_kdoc(comment: &str, max_width: usize) -> Doc<'static> {
     let comment_trimmed = comment.trim();
     if !comment_trimmed.starts_with("/**") || !comment_trimmed.ends_with("*/") {
         return Doc::smol(SmolStr::new(comment_trimmed));
+    }
+    if comment_trimmed.len() < 5 {
+        return Doc::text("/** */");
     }
     let mut paragraphs = parse_kdoc(comment_trimmed);
     if paragraphs.is_empty() {

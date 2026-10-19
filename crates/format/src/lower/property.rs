@@ -8,7 +8,8 @@ use crate::lower::delegates::{
 };
 use crate::lower::lower_node;
 use crate::lower::property_header::{
-    format_flat_property_header, format_property_without_init, format_untyped_property_header,
+    format_flat_property_header, format_property_where_header, format_property_without_init,
+    format_untyped_property_header,
 };
 use crate::lower::types::lower_type_constraints;
 
@@ -38,6 +39,7 @@ pub(crate) fn build_property_header<'a>(
         init_child,
         trailing_comments,
         is_destructuring,
+        type_docs.is_empty(),
         ctx,
     );
 
@@ -69,7 +71,10 @@ pub(crate) fn build_property_header<'a>(
 
     let is_scoping_or_lambda =
         init_child.is_some_and(|r| crate::lower::scoping::is_scoping_chain_or_lambda(&r));
-    let allow_flat_header = flat_init && (op == "=" || is_scoping_or_lambda);
+    let has_args = init_child
+        .and_then(crate::lower::delegates::find_opening_call)
+        .is_some_and(|c| crate::lower::delegates::call_has_args(&c));
+    let allow_flat_header = flat_init && (is_scoping_or_lambda || has_args);
 
     if type_docs.is_empty() {
         format_untyped_property_header(name_doc, op, init_section, flat_init, first_line_fits)
@@ -97,6 +102,8 @@ struct PropertyParts<'a> {
     accessors: Vec<Doc<'a>>,
     where_doc: Option<Doc<'a>>,
     where_has_newline: bool,
+    backing_field_doc: Option<Doc<'a>>,
+    backing_field_has_newline: bool,
     is_after_equals: bool,
     is_after_by: bool,
     trailing_comments: Vec<PropertyComment<'a>>,
@@ -141,6 +148,10 @@ fn parse_property_parts<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Prope
         let kind = child.kind();
         if kind == "modifiers" {
             parts.modifier_docs.push(lower_node(child, ctx));
+        } else if kind == "member_modifier" {
+            parts
+                .modifier_docs
+                .push(Doc::Concat(vec![lower_node(child, ctx), Doc::space()]));
         } else if kind == "=" {
             parts.is_after_equals = true;
             eq_node = Some(child);
@@ -168,6 +179,10 @@ fn parse_property_parts<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Prope
             ])));
         } else if kind == "variable_declaration" {
             parse_variable_declaration(child, ctx, &mut parts);
+        } else if kind == "backing_field" {
+            parts.backing_field_has_newline =
+                prev_child.is_some_and(|p| ctx.has_newline_between(&p, &child));
+            parts.backing_field_doc = Some(lower_node(child, ctx));
         } else if is_after_colon {
             push_spaced_doc(&mut parts.type_docs, lower_node(child, ctx));
         } else if kind == "." {
@@ -238,36 +253,54 @@ pub fn lower_property_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
             .map(|d| d.flat_len())
             .sum::<usize>()
     };
-    let header_doc = build_property_header(
-        parts.name_docs,
-        parts.type_docs,
-        parts.init_docs,
-        parts.init_child,
-        op_str,
-        parts.trailing_comments,
-        modifier_len,
-        &node,
-        ctx,
-    );
-
-    let header_with_where = if let Some(w) = parts.where_doc {
-        let line = if parts.where_has_newline {
-            Doc::HardLine
-        } else {
-            Doc::Line
-        };
-        Doc::Group(Box::new(Doc::Concat(vec![
-            header_doc,
-            Doc::continuation_indent(Doc::Concat(vec![line, w])),
-        ])))
+    let header_doc = if let Some(w) = parts.where_doc {
+        let is_untyped = parts.type_docs.is_empty();
+        let init_section = op_str.map(|_| {
+            let is_destructuring = node
+                .children(&mut node.walk())
+                .any(|ch| ch.kind() == "multi_variable_declaration");
+            build_property_init_section(
+                parts.init_docs,
+                parts.init_child,
+                parts.trailing_comments,
+                is_destructuring,
+                is_untyped,
+                ctx,
+            )
+            .0
+        });
+        format_property_where_header(
+            parts.name_docs,
+            parts.type_docs,
+            w,
+            parts.where_has_newline,
+            op_str,
+            init_section,
+        )
     } else {
-        header_doc
+        build_property_header(
+            parts.name_docs,
+            parts.type_docs,
+            parts.init_docs,
+            parts.init_child,
+            op_str,
+            parts.trailing_comments,
+            modifier_len,
+            &node,
+            ctx,
+        )
     };
 
+    let with_bf = attach_backing_field(
+        header_doc,
+        parts.backing_field_doc,
+        parts.backing_field_has_newline,
+        !parts.accessors.is_empty(),
+    );
     let full_doc = if parts.accessors.is_empty() {
-        header_with_where
+        with_bf
     } else {
-        Doc::Concat(vec![header_with_where, Doc::Concat(parts.accessors)])
+        Doc::Concat(vec![with_bf, Doc::Concat(parts.accessors)])
     };
 
     let with_modifiers = if parts.modifier_docs.is_empty() {
@@ -279,5 +312,21 @@ pub fn lower_property_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
         with_modifiers
     } else {
         Doc::Group(Box::new(with_modifiers))
+    }
+}
+
+fn attach_backing_field<'a>(
+    header: Doc<'a>,
+    bf: Option<Doc<'a>>,
+    newline: bool,
+    has_accessors: bool,
+) -> Doc<'a> {
+    match bf {
+        Some(bf) if newline || has_accessors => Doc::Concat(vec![
+            header,
+            Doc::indent(Doc::Concat(vec![Doc::HardLine, bf])),
+        ]),
+        Some(bf) => Doc::Concat(vec![header, Doc::space(), bf]),
+        None => header,
     }
 }

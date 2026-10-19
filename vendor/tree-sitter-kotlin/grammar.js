@@ -113,10 +113,27 @@ module.exports = grammar({
     [$.prefix_expression, $.value_argument],
     [$._positional_destructuring_entry, $.prefix_expression],
     [$._name_based_destructuring_entry, $.prefix_expression],
+    [$._explicit_positional_destructuring_entry, $.prefix_expression],
+    [$._explicit_name_based_destructuring_entry, $.prefix_expression],
+    [$._positional_destructuring_entry, $._explicit_positional_destructuring_entry],
+    [$._name_based_destructuring_entry, $._explicit_name_based_destructuring_entry],
+    [$._positional_destructuring_entry, $._explicit_positional_destructuring_entry, $.prefix_expression],
+    [$._name_based_destructuring_entry, $._explicit_name_based_destructuring_entry, $.prefix_expression],
+    [$._name_based_destructuring_entry, $._primary_expression],
+    [$._positional_destructuring_entry, $._primary_expression],
     [$.variable_declaration, $.prefix_expression],
     [$.variable_declaration, $._type_modifier],
     [$._annotated_delegation_specifier, $._type_modifier],
     [$._name_based_destructuring_entry, $._type_modifier],
+    [$._explicit_name_based_destructuring_entry, $._type_modifier],
+    [$._name_based_destructuring_entry, $._explicit_name_based_destructuring_entry, $._type_modifier],
+    [$._name_based_destructuring_entry, $.prefix_expression, $._type_modifier],
+    [$._explicit_name_based_destructuring_entry, $.prefix_expression, $._type_modifier],
+    [$._name_based_destructuring_entry, $._explicit_name_based_destructuring_entry, $.prefix_expression, $._type_modifier],
+    [$.companion_object, $.member_modifier],
+    [$.companion_object, $._modifier],
+    [$.multi_variable_declaration, $.parenthesized_expression],
+    [$.prefix_expression, $._type_modifier],
     // ambiguity between prefix unary operators and other expression types
     [$.call_expression, $._generic_call_expression, $.navigation_expression, $.prefix_expression, $.comparison_expression],
 
@@ -173,6 +190,8 @@ module.exports = grammar({
 
     // ambiguity between call_suffix and _generic_call_suffix (both can match type_arguments + args)
     [$.call_suffix, $._generic_call_suffix],
+
+    [$.companion_modifiers, $.modifiers],
   ],
 
   externals: $ => [
@@ -187,6 +206,7 @@ module.exports = grammar({
     $._interpolation_identifier_start,
     $._by_delegation_hint,
     $._function_type_arrow_ahead,
+    $._where_hint,
   ],
 
   extras: $ => [
@@ -287,9 +307,9 @@ module.exports = grammar({
 
     class_declaration: $ => prec.dynamic(1, prec.right(choice(
       seq(
-        optional($.context_receiver),
         optional($.modifiers),
         optional($.context_receiver),
+        optional($.modifiers),
         choice("class", seq(optional("fun"), "interface")),
         alias($.simple_identifier, $.type_identifier),
         optional($.type_parameters),
@@ -299,9 +319,9 @@ module.exports = grammar({
         optional($.class_body)
       ),
       seq(
-        optional($.context_receiver),
         optional($.modifiers),
         optional($.context_receiver),
+        optional($.modifiers),
         "enum", "class",
         alias($.simple_identifier, $.type_identifier),
         optional($.type_parameters),
@@ -436,7 +456,7 @@ module.exports = grammar({
       optional(seq(":", $._type))
     ),
 
-    type_constraints: $ => prec.right(seq("where", sep1($.type_constraint, ","))),
+    type_constraints: $ => prec.right(seq(optional($._where_hint), "where", sep1($.type_constraint, ","))),
 
     type_constraint: $ => seq(
       repeat($.annotation),
@@ -452,8 +472,8 @@ module.exports = grammar({
     _class_member_declarations: $ => repeat1(seq($._class_member_declaration, $._semi)),
 
     _class_member_declaration: $ => choice(
+      prec(2, $.companion_object),
       $._declaration,
-      $.companion_object,
       $.anonymous_initializer,
       $.secondary_constructor,
       $.backing_field
@@ -461,14 +481,23 @@ module.exports = grammar({
 
     anonymous_initializer: $ => seq("init", $._block),
 
-    companion_object: $ => seq(
-      optional($.modifiers),
-      "companion",
-      "object",
-      optional(alias($.simple_identifier, $.type_identifier)),
-      optional(seq(":", $._delegation_specifiers)),
-      optional($.class_body)
+    companion_modifiers: $ => prec.right(
+      repeat1(prec.right(PREC.MODIFIERS, choice($.annotation, $.visibility_modifier)))
     ),
+
+    companion_object: $ => prec.dynamic(2, seq(
+      optional(alias($.companion_modifiers, $.modifiers)),
+      "companion",
+      choice(
+        seq(
+          "object",
+          optional(alias($.simple_identifier, $.type_identifier)),
+          optional(seq(":", $._delegation_specifiers)),
+          optional($.class_body)
+        ),
+        $.class_body
+      )
+    )),
 
     function_value_parameters: $ => seq(
       "(",
@@ -494,9 +523,9 @@ module.exports = grammar({
     ),
 
     function_declaration: $ => prec.right(seq( // TODO
-      optional($.context_receiver),
       optional($.modifiers),
       optional($.context_receiver),
+      optional($.modifiers),
       "fun",
       optional($.type_parameters),
       optional(seq(field("receiver", $.receiver_type), optional('.'))),
@@ -516,21 +545,21 @@ module.exports = grammar({
     )),
 
     // Entry in name-based (parenthesized) destructuring — supports optional val/var and renaming
-    _name_based_destructuring_entry: $ => prec.left(PREC.VAR_DECL, seq(
+    _name_based_destructuring_entry: $ => seq(
       repeat($.annotation),
       optional($.binding_pattern_kind),
       $.simple_identifier,
       optional(seq(":", $._type)),
       optional(seq("=", $.simple_identifier))  // renaming: val localName = propertyName
-    )),
+    ),
 
     // Entry in positional (bracketed) destructuring — supports optional val/var, NO renaming
-    _positional_destructuring_entry: $ => prec.left(PREC.VAR_DECL, seq(
+    _positional_destructuring_entry: $ => seq(
       repeat($.annotation),
       optional($.binding_pattern_kind),
       $.simple_identifier,
       optional(seq(":", $._type))
-    )),
+    ),
 
     backing_field: $ => prec.right(seq(
       optional($.modifiers),
@@ -542,9 +571,9 @@ module.exports = grammar({
     )),
 
     property_declaration: $ => prec.right(seq(
-      optional($.context_receiver),
       optional($.modifiers),
       optional($.context_receiver),
+      optional($.modifiers),
       $.binding_pattern_kind,
       optional($.type_parameters),
       optional(seq(field("receiver", $.receiver_type), optional('.'))),
@@ -564,9 +593,41 @@ module.exports = grammar({
 
     property_delegate: $ => seq(optional($._by_delegation_hint), "by", $._expression),
 
+    _explicit_name_based_destructuring_entry: $ => prec.left(PREC.VAR_DECL, seq(
+      repeat($.annotation),
+      $.binding_pattern_kind,
+      $.simple_identifier,
+      optional(seq(":", $._type)),
+      optional(seq("=", $.simple_identifier))
+    )),
+
+    _explicit_positional_destructuring_entry: $ => prec.left(PREC.VAR_DECL, seq(
+      repeat($.annotation),
+      $.binding_pattern_kind,
+      $.simple_identifier,
+      optional(seq(":", $._type))
+    )),
+
+    _explicit_destructuring_parameters: $ => choice(
+      seq(
+        '(',
+        alias($._explicit_name_based_destructuring_entry, $.variable_declaration),
+        repeat(seq(',', alias($._name_based_destructuring_entry, $.variable_declaration))),
+        optional(','),
+        ')'
+      ),
+      seq(
+        '[',
+        alias($._explicit_positional_destructuring_entry, $.variable_declaration),
+        repeat(seq(',', alias($._positional_destructuring_entry, $.variable_declaration))),
+        optional(','),
+        ']'
+      )
+    ),
+
     destructuring_declaration: $ => prec.right(seq(
       optional($.modifiers),
-      $.multi_variable_declaration,
+      alias($._explicit_destructuring_parameters, $.multi_variable_declaration),
       optional($.type_constraints),
       "=",
       $._expression,
@@ -738,7 +799,7 @@ module.exports = grammar({
     ),
 
     _statement: $ => choice(
-      $._declaration,
+      prec.dynamic(2, $._declaration),
       seq(
         repeat(choice($.label, alias($._statement_annotation, $.annotation))),
         choice(
@@ -892,8 +953,8 @@ module.exports = grammar({
     elvis_expression: $ => prec.left(PREC.ELVIS, seq($._expression, "?:", $._expression)),
 
     check_expression: $ => prec.left(PREC.CHECK, seq($._expression, choice(
-      seq(optional("!"), $._in_operator, $._expression),
-      seq(optional("!"), $._is_operator, $._type)))),
+      seq(optional("!"), "in", $._expression),
+      seq(optional("!"), "is", $._type)))),
 
     comparison_expression: $ => prec.left(PREC.COMPARISON, seq($._expression, $._comparison_operator, $._expression)),
 
@@ -989,10 +1050,13 @@ module.exports = grammar({
     // https://kotlinlang.org/spec/syntax-and-grammar.html#grammar-rule-collectionLiteral
     collection_literal: $ => seq(
       "[",
-      $._expression,
-      repeat(seq(",", $._expression)),
-      optional(","),
-      "]"),
+      optional(seq(
+        $._expression,
+        repeat(seq(",", $._expression)),
+        optional(",")
+      )),
+      "]"
+    ),
 
     _literal_constant: $ => choice(
       $.boolean_literal,
@@ -1021,8 +1085,11 @@ module.exports = grammar({
 
     lambda_literal: $ => prec(PREC.LAMBDA_LITERAL, seq(
       "{",
-      optional(seq(optional($.lambda_parameters), "->")),
-      optional($.statements),
+      choice(
+        seq($.lambda_parameters, "->", optional($.statements)),
+        seq("->", optional($.statements)),
+        optional($.statements)
+      ),
       "}"
     )),
 
@@ -1092,12 +1159,12 @@ module.exports = grammar({
       "(", field('condition', $._expression), ")",
       choice(
         field('consequence', $.control_structure_body),
-        seq(
+        prec.dynamic(1, seq(
           optional(field('consequence', $.control_structure_body)),
           optional(";"),
           "else",
           choice(field('alternative', $.control_structure_body), ";")
-        ),
+        )),
         ";"
       )
     )),
@@ -1143,9 +1210,9 @@ module.exports = grammar({
       $.type_test,
     ),
 
-    range_test: $ => seq(optional("!"), $._in_operator, $._expression),
+    range_test: $ => seq(optional("!"), "in", $._expression),
 
-    type_test: $ => seq(optional("!"), $._is_operator, $._type),
+    type_test: $ => seq(optional("!"), "is", $._type),
 
     try_expression: $ => prec.right(seq(
       "try",
@@ -1180,7 +1247,11 @@ module.exports = grammar({
     ),
 
     callable_reference: $ => seq(
-      optional(alias($.simple_identifier, $.type_identifier)),
+      optional(seq(
+        alias($.simple_identifier, $.type_identifier),
+        optional($.type_arguments),
+        repeat($.quest)
+      )),
       choice("::", "?::"),
       choice($.simple_identifier, "class")
     ),
@@ -1259,7 +1330,8 @@ module.exports = grammar({
 
     member_modifier: $ => choice(
       "override",
-      "lateinit"
+      "lateinit",
+      "companion"
     ),
 
     visibility_modifier: $ => choice(
@@ -1336,7 +1408,7 @@ module.exports = grammar({
     ),
 
     use_site_target: $ => seq(
-      choice("field", "property", "get", "set", "receiver", "param", "setparam", "delegate"),
+      choice("field", "property", "get", "set", "receiver", "param", "setparam", "delegate", "all"),
       ":"
     ),
 

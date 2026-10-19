@@ -146,6 +146,7 @@ pub fn lower_finally_block<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
 pub fn lower_try_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     let mut try_body_nodes = Vec::new();
     let mut handlers = Vec::new();
+    let mut leading_comments = Vec::new();
     let mut in_try_body = false;
 
     let mut cursor = node.walk();
@@ -157,17 +158,33 @@ pub fn lower_try_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
             in_try_body = false;
         } else if in_try_body {
             try_body_nodes.push(child);
+        } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+            leading_comments.push(lower_node(child, ctx));
         } else if kind == "catch_block" {
-            handlers.push(lower_catch_block(child, ctx));
+            handlers.push((
+                std::mem::take(&mut leading_comments),
+                lower_catch_block(child, ctx),
+            ));
         } else if kind == "finally_block" {
-            handlers.push(lower_finally_block(child, ctx));
+            handlers.push((
+                std::mem::take(&mut leading_comments),
+                lower_finally_block(child, ctx),
+            ));
         }
     }
 
     let try_body_doc = lower_braced_children(&try_body_nodes, ctx);
     let mut parts = vec![Doc::text("try "), try_body_doc];
-    for handler in handlers {
-        parts.push(Doc::space());
+    for (comments, handler) in handlers {
+        if comments.is_empty() {
+            parts.push(Doc::space());
+        } else {
+            for c in comments {
+                parts.push(Doc::HardLine);
+                parts.push(c);
+            }
+            parts.push(Doc::HardLine);
+        }
         parts.push(handler);
     }
     Doc::Concat(parts)

@@ -1,0 +1,6 @@
+class Delegate {
+    override fun URLSession(
+        session: NSURLSession,
+        taskIsWaitingForConnectivity: NSURLSessionTask,
+    ) {}
+}

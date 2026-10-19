@@ -10,12 +10,34 @@ fn push_class_header_child<'a>(
     header_docs: &mut Vec<Doc<'a>>,
     child: Node<'a>,
     prev_child_node: Option<Node<'a>>,
+    has_seen_primary_constructor: bool,
     ctx: &LowerContext<'a, '_>,
 ) {
     let kind = child.kind();
     if kind == "context_receiver" {
         header_docs.push(lower_node(child, ctx));
         header_docs.push(Doc::HardLine);
+        return;
+    }
+    if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+        let is_same_line = prev_child_node.is_some_and(|p| !ctx.has_newline_between(&p, &child));
+        if is_same_line {
+            if !header_docs.last().is_some_and(|d| d.ends_with_space()) {
+                header_docs.push(Doc::space());
+            }
+            header_docs.push(lower_node(child, ctx));
+        } else if has_seen_primary_constructor {
+            header_docs.push(Doc::indent(Doc::Concat(vec![
+                Doc::HardLine,
+                lower_node(child, ctx),
+            ])));
+            header_docs.push(Doc::HardLine);
+        } else {
+            if !header_docs.last().is_some_and(|d| d.ends_with_newline()) {
+                header_docs.push(Doc::HardLine);
+            }
+            header_docs.push(lower_node(child, ctx));
+        }
         return;
     }
     if !header_docs.is_empty()
@@ -31,13 +53,7 @@ fn push_class_header_child<'a>(
             .last()
             .is_some_and(|d| d.ends_with_line() || d.ends_with_space())
     {
-        if matches!(kind, "comment" | "line_comment" | "multiline_comment")
-            && prev_child_node.is_some_and(|p| ctx.has_newline_between(&p, &child))
-        {
-            header_docs.push(Doc::HardLine);
-        } else {
-            header_docs.push(Doc::space());
-        }
+        header_docs.push(Doc::space());
     }
     if kind == "primary_constructor" && primary_constructor_has_constructor_keyword(&child, ctx) {
         if prev_child_node.is_some_and(|p| ctx.has_newline_between(&p, &child)) {
@@ -72,6 +88,29 @@ fn build_supertypes_group<'a>(
     ]))))
 }
 
+fn push_supertype_child<'a>(
+    supertypes_docs: &mut Vec<Doc<'a>>,
+    child: Node<'a>,
+    prev_child_node: Option<Node<'a>>,
+    ctx: &LowerContext<'a, '_>,
+) {
+    if child.kind() == "," {
+        supertypes_docs.push(Doc::text(","));
+    } else {
+        if !supertypes_docs.is_empty() {
+            if prev_child_node.is_some_and(|p| ctx.has_blank_line_between(&p, &child)) {
+                supertypes_docs.push(Doc::EmptyLine);
+            } else if !supertypes_docs
+                .last()
+                .is_some_and(|d| d.ends_with_newline())
+            {
+                supertypes_docs.push(Doc::Line);
+            }
+        }
+        supertypes_docs.push(lower_node(child, ctx));
+    }
+}
+
 pub fn lower_class_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     let mut header_docs = Vec::new();
     let mut supertypes_docs = Vec::new();
@@ -79,6 +118,7 @@ pub fn lower_class_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -
     let mut where_has_newline = false;
     let mut body_doc = None;
     let mut is_after_colon = false;
+    let mut has_seen_primary_constructor = false;
 
     let mut cursor = node.walk();
     let mut prev_child_node: Option<Node<'a>> = None;
@@ -93,23 +133,18 @@ pub fn lower_class_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -
         } else if kind == ":" {
             is_after_colon = true;
         } else if is_after_colon {
-            if kind == "," {
-                supertypes_docs.push(Doc::text(","));
-            } else {
-                if !supertypes_docs.is_empty() {
-                    if prev_child_node.is_some_and(|p| ctx.has_blank_line_between(&p, &child)) {
-                        supertypes_docs.push(Doc::EmptyLine);
-                    } else if !supertypes_docs
-                        .last()
-                        .is_some_and(|d| d.ends_with_newline())
-                    {
-                        supertypes_docs.push(Doc::Line);
-                    }
-                }
-                supertypes_docs.push(lower_node(child, ctx));
-            }
+            push_supertype_child(&mut supertypes_docs, child, prev_child_node, ctx);
         } else {
-            push_class_header_child(&mut header_docs, child, prev_child_node, ctx);
+            push_class_header_child(
+                &mut header_docs,
+                child,
+                prev_child_node,
+                has_seen_primary_constructor,
+                ctx,
+            );
+        }
+        if kind == "primary_constructor" {
+            has_seen_primary_constructor = true;
         }
         prev_child_node = Some(child);
     }
@@ -134,7 +169,11 @@ pub fn lower_class_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -
     }
     let header_group = Doc::Group(Box::new(Doc::Concat(all_header)));
     if let Some(body) = body_doc {
-        Doc::Concat(vec![header_group, Doc::space(), body])
+        if header_group.ends_with_newline() {
+            Doc::Concat(vec![header_group, body])
+        } else {
+            Doc::Concat(vec![header_group, Doc::space(), body])
+        }
     } else {
         header_group
     }

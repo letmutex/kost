@@ -1,0 +1,8 @@
+@file:kotlin.internal.JvmBuiltin
+
+package kotlin
+
+import kotlin.internal.RequireKotlin
+
+@RequireKotlin("1.4")
+fun test() {}

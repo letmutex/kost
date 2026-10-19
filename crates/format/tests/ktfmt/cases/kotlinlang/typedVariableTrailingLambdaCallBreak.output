@@ -1,0 +1,9 @@
+@Composable
+fun EditCallLinkNameScreen(
+    roomId: CallLinkRoomId,
+    initialName: String,
+) {
+    val viewModel: CallLinkDetailsViewModel = viewModel {
+        CallLinkDetailsViewModel(roomId)
+    }
+}

@@ -1068,7 +1068,15 @@
       "required": false,
       "types": [
         {
+          "type": "quest",
+          "named": true
+        },
+        {
           "type": "simple_identifier",
+          "named": true
+        },
+        {
+          "type": "type_arguments",
           "named": true
         },
         {
@@ -1151,7 +1159,7 @@
     "fields": {},
     "children": {
       "multiple": true,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "additive_expression",
@@ -7811,7 +7819,7 @@
     "fields": {},
     "children": {
       "multiple": false,
-      "required": true,
+      "required": false,
       "types": [
         {
           "type": "additive_expression",
@@ -8099,7 +8107,6 @@
   {
     "type": "source_file",
     "named": true,
-    "root": true,
     "fields": {},
     "children": {
       "multiple": true,
@@ -10050,6 +10057,10 @@
     "named": false
   },
   {
+    "type": "${",
+    "named": false
+  },
+  {
     "type": "%",
     "named": false
   },
@@ -10215,6 +10226,10 @@
   },
   {
     "type": "actual",
+    "named": false
+  },
+  {
+    "type": "all",
     "named": false
   },
   {

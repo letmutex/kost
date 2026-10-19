@@ -1,0 +1,26 @@
+class DnsQueryTest {
+    fun query() {
+        return DnsOverHttpsQuery(
+            call =
+                client.newCall(
+                    request =
+                        Request
+                            .Builder()
+                            .header("Accept", DNS_MESSAGE.toString())
+                            .apply {
+                                if (post) {
+                                    url(dnsUrl)
+                                } else {
+                                    val requestUrl =
+                                        dnsUrl
+                                            .newBuilder()
+                                            .addQueryParameter("dns", dnsMessage.asQueryParameter())
+                                            .build()
+                                    url(requestUrl)
+                                }
+                            }
+                            .build(),
+                ),
+        )
+    }
+}

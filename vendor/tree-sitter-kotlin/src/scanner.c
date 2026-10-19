@@ -18,6 +18,7 @@ enum TokenType {
   INTERPOLATION_IDENTIFIER_START,
   BY_DELEGATION_HINT,
   FUNCTION_TYPE_ARROW_AHEAD,
+  WHERE_HINT,
 };
 
 /* Pretty much all of this code is taken from the Julia tree-sitter
@@ -189,15 +190,17 @@ static bool scan_string_content(TSLexer *lexer, Stack *stack,
       if (lexer->lookahead == '$') {
         advance(lexer);
         // however this leaves an edgecase where an escaped dollar sign could
-        // appear at the end of a string (e.g "aa\$") which isn't handled
+        // appear at the end of a single-quoted string (e.g "aa\$") which isn't handled
         // correctly; if we were at the end of the string, terminate properly
-        if (lexer->lookahead == end_char) {
+        if (!is_triple && lexer->lookahead == end_char) {
           stack_pop(stack);
           advance(lexer);
           lexer->mark_end(lexer);
           lexer->result_symbol = STRING_END;
           return true;
         }
+        has_content = true;
+        continue;
       } else if (is_triple && lexer->lookahead == end_char) {
         // In triple-quoted strings, `\` is NOT an escape character. So `\"` is
         // also literal backslash + quote, and the `"` might be the start of
@@ -407,28 +410,39 @@ static bool followed_by_arrow(TSLexer *lexer) {
   return lexer->lookahead == '>';
 }
 
-// Check if the current position has a visibility modifier (public, private,
-// protected, internal) followed by horizontal whitespace and "constructor".
+static bool is_constructor_modifier(const char *word) {
+  return strcmp(word, "public") == 0 || strcmp(word, "private") == 0 ||
+         strcmp(word, "protected") == 0 || strcmp(word, "internal") == 0 ||
+         strcmp(word, "actual") == 0 || strcmp(word, "expect") == 0;
+}
+
+// Check if the current position has modifiers (public, private, protected,
+// internal, actual, expect) followed by horizontal whitespace and "constructor".
 // Uses skip() — safe to call speculatively since no token boundary is changed.
 static bool check_modifier_then_constructor(TSLexer *lexer) {
-  // Buffer the first word to identify the modifier
-  char word[20];
-  unsigned len = 0;
-  while (is_word_char(lexer->lookahead) && len < 19) {
-    word[len++] = (char)lexer->lookahead;
-    skip(lexer);
+  for (;;) {
+    char word[20];
+    unsigned len = 0;
+    while (is_word_char(lexer->lookahead) && len < 19) {
+      word[len++] = (char)lexer->lookahead;
+      skip(lexer);
+    }
+    word[len] = '\0';
+
+    if (!is_constructor_modifier(word)) {
+      return false;
+    }
+
+    // Skip horizontal whitespace (not newlines)
+    while (lexer->lookahead == ' ' || lexer->lookahead == '\t') skip(lexer);
+
+    if (lexer->lookahead == 'c' && check_word(lexer, "constructor", 11)) {
+      return true;
+    }
+    if (!is_word_char(lexer->lookahead)) {
+      return false;
+    }
   }
-  word[len] = '\0';
-
-  if (strcmp(word, "public") != 0 && strcmp(word, "private") != 0 &&
-      strcmp(word, "protected") != 0 && strcmp(word, "internal") != 0) {
-    return false;
-  }
-
-  // Skip horizontal whitespace (not newlines)
-  while (lexer->lookahead == ' ' || lexer->lookahead == '\t') skip(lexer);
-
-  return check_word(lexer, "constructor", 11);
 }
 
 // Look ahead past one or more annotations (e.g. @Bar, @com.example.Bar,
@@ -481,35 +495,68 @@ static bool check_annotation_then_constructor(TSLexer *lexer) {
 // Check if '[' or '(' after a newline is the start of a destructuring declaration
 // (e.g. `[val x, val y] = d` or `(val name, val age) = person`) rather than
 // an indexing expression or function call.
-static bool check_destructuring_ahead(TSLexer *lexer) {
+static bool lambda_has_arrow_ahead(TSLexer *lexer) {
+  if (lexer->lookahead != '{') return false;
   skip(lexer);
-  if (!skip_whitespace_and_comments(lexer)) return false;
-  while (lexer->lookahead == '@') {
-    skip(lexer);
-    while (is_word_char(lexer->lookahead)) skip(lexer);
-    if (!skip_whitespace_and_comments(lexer)) return false;
+  int max_chars = 128;
+  int depth = 0;
+  while (!lexer->eof(lexer) && max_chars-- > 0) {
     if (lexer->lookahead == '(') {
+      depth++;
+    } else if (lexer->lookahead == ')') {
+      depth--;
+    } else if (depth == 0 && lexer->lookahead == '-') {
       skip(lexer);
-      int depth = 1;
-      while (depth > 0 && !lexer->eof(lexer) && lexer->lookahead != '\n') {
-        if (lexer->lookahead == '(') depth++;
-        else if (lexer->lookahead == ')') depth--;
-        skip(lexer);
-      }
-      if (!skip_whitespace_and_comments(lexer)) return false;
+      if (lexer->lookahead == '>') return true;
+    } else if (depth == 0 && (lexer->lookahead == '{' || lexer->lookahead == '}' || lexer->lookahead == ';')) {
+      return false;
     }
+    skip(lexer);
+  }
+  return false;
+}
+
+static bool paren_has_comma_ahead(TSLexer *lexer) {
+  if (lexer->lookahead != '(') return false;
+  skip(lexer);
+  while (lexer->lookahead == ' ' || lexer->lookahead == '\t' || lexer->lookahead == '\n' || lexer->lookahead == '\r') {
+    skip(lexer);
   }
   if (lexer->lookahead == 'v') {
     skip(lexer);
     if (lexer->lookahead == 'a') {
       skip(lexer);
-      if (lexer->lookahead == 'l' || lexer->lookahead == 'r') {
+      if (lexer->lookahead == 'r' || lexer->lookahead == 'l') {
         skip(lexer);
-        if (!is_word_char(lexer->lookahead)) return true;
+        if (lexer->lookahead == ' ' || lexer->lookahead == '\t' || lexer->lookahead == '\n' || lexer->lookahead == '\r') {
+          return false;
+        }
       }
     }
   }
-  return false;
+  int depth = 1;
+  int max_chars = 256;
+  bool has_comma = false;
+  while (!lexer->eof(lexer) && max_chars-- > 0 && depth > 0) {
+    if (lexer->lookahead == '(' || lexer->lookahead == '[' || lexer->lookahead == '{') {
+      depth++;
+    } else if (lexer->lookahead == ')' || lexer->lookahead == ']' || lexer->lookahead == '}') {
+      depth--;
+    } else if (depth == 1 && lexer->lookahead == ',') {
+      has_comma = true;
+    } else if (depth == 1 && lexer->lookahead == ';') {
+      return false;
+    }
+    skip(lexer);
+  }
+  if (!has_comma) return false;
+  while (lexer->lookahead == ' ' || lexer->lookahead == '\t' || lexer->lookahead == '\n' || lexer->lookahead == '\r') {
+    skip(lexer);
+  }
+  if (lexer->lookahead == '=') {
+    return false;
+  }
+  return true;
 }
 
 static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols) {
@@ -577,16 +624,17 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols) 
       case '>':
       case '<':
       case '=':
-      case '{':
       case '?':
       case '|':
       case '&':
         return false;
+      case '{':
+        return lambda_has_arrow_ahead(lexer);
       case '[':
         return true;
       case '(':
-        if (check_destructuring_ahead(lexer)) return true;
-        return false;
+        if (paren_has_comma_ahead(lexer)) return false;
+        return true;
 
       // Handle `/` — could be division, line comment, or block comment.
       // For division: no ASI (continuation operator).
@@ -609,32 +657,110 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols) 
           if (!skip_whitespace_and_comments(lexer)) return false;
           switch (lexer->lookahead) {
             case '.': case ',': case ':': case '*': case '%':
-            case '>': case '<': case '=': case '{':
+            case '>': case '<': case '=':
             case '?': case '|': case '&': case '/':
             case ';':
               return false;
-            case '[':
-            case '(':
-              if (check_destructuring_ahead(lexer)) return true;
+            case '{':
               return false;
+            case '[':
+              return true;
+            case '(':
+              return true;
             case '!':
               skip(lexer);
               if (lexer->lookahead == '=') return false;
               return true;
-            case 'e':
-              if (scan_for_word(lexer, "lse", 3)) {
+            case 'e': {
+              char word[20];
+              unsigned len = 0;
+              while (is_word_char(lexer->lookahead) && len < 19) {
+                word[len++] = (char)lexer->lookahead;
+                skip(lexer);
+              }
+              word[len] = '\0';
+              if (strcmp(word, "else") == 0) {
                 if (followed_by_arrow(lexer)) return true;
                 return false;
               }
+              if (strcmp(word, "expect") == 0 && valid_symbols[PRIMARY_CONSTRUCTOR_KEYWORD] &&
+                  !valid_symbols[STRING_CONTENT]) {
+                while (lexer->lookahead == ' ' || lexer->lookahead == '\t') skip(lexer);
+                if (lexer->lookahead == 'c' && check_word(lexer, "constructor", 11)) {
+                  return false;
+                }
+                if (is_word_char(lexer->lookahead) && check_modifier_then_constructor(lexer)) {
+                  return false;
+                }
+              }
               return true;
-            case 'a':
-              if (scan_for_word(lexer, "s", 1)) return false;
+            }
+            case 'a': {
+              char word[20];
+              unsigned len = 0;
+              while (is_word_char(lexer->lookahead) && len < 19) {
+                word[len++] = (char)lexer->lookahead;
+                skip(lexer);
+              }
+              word[len] = '\0';
+              if (strcmp(word, "as") == 0) {
+                return false;
+              }
+              if (strcmp(word, "actual") == 0 && valid_symbols[PRIMARY_CONSTRUCTOR_KEYWORD] &&
+                  !valid_symbols[STRING_CONTENT]) {
+                while (lexer->lookahead == ' ' || lexer->lookahead == '\t') skip(lexer);
+                if (lexer->lookahead == 'c' && check_word(lexer, "constructor", 11)) {
+                  return false;
+                }
+                if (is_word_char(lexer->lookahead) && check_modifier_then_constructor(lexer)) {
+                  return false;
+                }
+              }
               return true;
+            }
             case 'w':
-              if (scan_for_word(lexer, "here", 4)) return false;
+              if (valid_symbols[WHERE_HINT] && scan_for_word(lexer, "here", 4)) return false;
               return true;
             case 'c':
-              if (scan_for_word(lexer, "atch", 4)) return false;
+              if (valid_symbols[PRIMARY_CONSTRUCTOR_KEYWORD] &&
+                  !valid_symbols[STRING_CONTENT]) {
+                if (check_word(lexer, "constructor", 11)) {
+                  return false;
+                }
+              }
+              if (scan_for_word(lexer, "atch", 4)) {
+                while (lexer->lookahead == ' ' || lexer->lookahead == '\t') skip(lexer);
+                if (lexer->lookahead == '(') return false;
+                return true;
+              }
+              return true;
+            case '@':
+              if (valid_symbols[PRIMARY_CONSTRUCTOR_KEYWORD] &&
+                  !valid_symbols[STRING_CONTENT] &&
+                  check_annotation_then_constructor(lexer)) {
+                return false;
+              }
+              return true;
+            case 'i':
+              if (valid_symbols[PRIMARY_CONSTRUCTOR_KEYWORD] &&
+                  !valid_symbols[STRING_CONTENT]) {
+                if (check_word(lexer, "nternal", 7)) {
+                  while (lexer->lookahead == ' ' || lexer->lookahead == '\t') skip(lexer);
+                  if (lexer->lookahead == 'c' && check_word(lexer, "constructor", 11)) {
+                    return false;
+                  }
+                  if (is_word_char(lexer->lookahead) && check_modifier_then_constructor(lexer)) {
+                    return false;
+                  }
+                }
+              }
+              return true;
+            case 'p':
+              if (valid_symbols[PRIMARY_CONSTRUCTOR_KEYWORD] &&
+                  !valid_symbols[STRING_CONTENT] &&
+                  check_modifier_then_constructor(lexer)) {
+                return false;
+              }
               return true;
             case 'b':
               if (valid_symbols[BY_DELEGATION_HINT] &&
@@ -722,17 +848,59 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols) 
 
       // Don't insert a semicolon before an else, unless it's
       // followed by "->" (a when-entry's else, not an if-else).
-      case 'e':
-        if (!scan_for_word(lexer, "lse", 3)) return true;
-        return followed_by_arrow(lexer);
+      // Also don't insert before 'expect constructor'.
+      case 'e': {
+        char word[20];
+        unsigned len = 0;
+        while (is_word_char(lexer->lookahead) && len < 19) {
+          word[len++] = (char)lexer->lookahead;
+          skip(lexer);
+        }
+        word[len] = '\0';
+        if (strcmp(word, "else") == 0) {
+          return followed_by_arrow(lexer);
+        }
+        if (strcmp(word, "expect") == 0 && valid_symbols[PRIMARY_CONSTRUCTOR_KEYWORD] &&
+            !valid_symbols[STRING_CONTENT]) {
+          while (lexer->lookahead == ' ' || lexer->lookahead == '\t') skip(lexer);
+          if (lexer->lookahead == 'c' && check_word(lexer, "constructor", 11)) {
+            return false;
+          }
+          if (is_word_char(lexer->lookahead) && check_modifier_then_constructor(lexer)) {
+            return false;
+          }
+        }
+        return true;
+      }
 
-      // Don't insert a semicolon before an as
-      case 'a':
-        return !scan_for_word(lexer, "s", 1);
+      // Don't insert a semicolon before an as, or before 'actual constructor'
+      case 'a': {
+        char word[20];
+        unsigned len = 0;
+        while (is_word_char(lexer->lookahead) && len < 19) {
+          word[len++] = (char)lexer->lookahead;
+          skip(lexer);
+        }
+        word[len] = '\0';
+        if (strcmp(word, "as") == 0) {
+          return false;
+        }
+        if (strcmp(word, "actual") == 0 && valid_symbols[PRIMARY_CONSTRUCTOR_KEYWORD] &&
+            !valid_symbols[STRING_CONTENT]) {
+          while (lexer->lookahead == ' ' || lexer->lookahead == '\t') skip(lexer);
+          if (lexer->lookahead == 'c' && check_word(lexer, "constructor", 11)) {
+            return false;
+          }
+          if (is_word_char(lexer->lookahead) && check_modifier_then_constructor(lexer)) {
+            return false;
+          }
+        }
+        return true;
+      }
 
-      // Don't insert a semicolon before a where
+      // Don't insert a semicolon before a where in type constraints context
       case 'w':
-        return !scan_for_word(lexer, "here", 4);
+        return !(valid_symbols[WHERE_HINT] && scan_for_word(lexer, "here", 4));
 
       // Don't insert a semicolon before `instanceof`, or before `internal`
       // when followed by `constructor` in a class declaration context.
@@ -784,7 +952,12 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols) 
           return true;
         }
         // Not in constructor context — check for 'catch'
-        return !scan_for_word(lexer, "atch", 4);
+        if (scan_for_word(lexer, "atch", 4)) {
+          while (lexer->lookahead == ' ' || lexer->lookahead == '\t') skip(lexer);
+          if (lexer->lookahead == '(') return false;
+          return true;
+        }
+        return true;
 
       // Don't insert a semicolon before finally (continues try_expression)
       case 'f':
@@ -855,7 +1028,7 @@ static inline bool is_ascii_space(int32_t c) {
 static bool scan_function_type_arrow_ahead(TSLexer *lexer, bool *consumed_paren) {
   *consumed_paren = false;
   bool has_whitespace = false;
-  while (is_ascii_space(lexer->lookahead)) {
+  while (lexer->lookahead == ' ' || lexer->lookahead == '\t') {
     has_whitespace = true;
     skip(lexer);
   }

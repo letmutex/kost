@@ -28,6 +28,8 @@ pub fn lower_function_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
             context_doc = Some(lower_node(child, ctx));
         } else if kind == "modifiers" {
             modifier_docs.push(lower_node(child, ctx));
+        } else if kind == "member_modifier" {
+            modifier_docs.push(Doc::Concat(vec![lower_node(child, ctx), Doc::space()]));
         } else if kind == "function_body" || kind == "block" {
             body_child = Some(child);
         } else if kind == "type_constraints" {
@@ -157,7 +159,7 @@ fn attach_func_body<'a>(
     header_doc: Doc<'a>,
     body_doc: Option<Doc<'a>>,
     body_child: Option<Node<'a>>,
-    ctx: &LowerContext<'a, '_>,
+    _ctx: &LowerContext<'a, '_>,
 ) -> Doc<'a> {
     let Some(body) = body_doc else {
         return Doc::Group(Box::new(header_doc));
@@ -169,8 +171,10 @@ fn attach_func_body<'a>(
     });
 
     let is_empty_block = body_child.is_some_and(|b| {
-        let text = ctx.node_text(&b).trim();
-        text == "{}" || text == "{ }"
+        b.named_child_count() == 0
+            && !b
+                .children(&mut b.walk())
+                .any(|ch| matches!(ch.kind(), "comment" | "line_comment" | "multiline_comment"))
     });
 
     if is_empty_block {

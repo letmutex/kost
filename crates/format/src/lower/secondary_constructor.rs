@@ -17,6 +17,7 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
     let mut has_braces = false;
 
     let mut cursor = node.walk();
+    let mut prev_child: Option<Node<'a>> = None;
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         match kind {
@@ -26,6 +27,29 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
             }
             "modifiers" => {
                 modifier_docs.push(lower_node(child, ctx));
+            }
+            "comment" | "line_comment" | "multiline_comment" => {
+                let is_same_line =
+                    prev_child.is_some_and(|p| child.start_position().row == p.end_position().row);
+                if is_same_line && !modifier_docs.is_empty() {
+                    let last = modifier_docs.pop().unwrap();
+                    let trimmed = match last {
+                        Doc::Concat(mut items) => {
+                            if items.last().is_some_and(|d| matches!(d, Doc::HardLine)) {
+                                items.pop();
+                            }
+                            Doc::Concat(items)
+                        }
+                        other => other,
+                    };
+                    modifier_docs.push(trimmed);
+                    modifier_docs.push(Doc::space());
+                    modifier_docs.push(lower_node(child, ctx));
+                    modifier_docs.push(Doc::HardLine);
+                } else {
+                    modifier_docs.push(lower_node(child, ctx));
+                    modifier_docs.push(Doc::HardLine);
+                }
             }
             "constructor" => {
                 prefix_docs.push(Doc::text("constructor"));
@@ -48,6 +72,7 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
             }
             _ => {}
         }
+        prev_child = Some(child);
     }
 
     let mut header_parts = prefix_docs;

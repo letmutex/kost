@@ -1,0 +1,6 @@
+class AvatarView {
+    private val avatar: AvatarImageView =
+        findViewById<AvatarImageView>(R.id.avatar_image_view).apply {
+            initialize(context, attrs)
+        }
+}

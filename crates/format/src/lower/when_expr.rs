@@ -105,6 +105,19 @@ fn is_braced_body(node: Node<'_>) -> bool {
     )
 }
 
+fn is_if_expression(node: Node<'_>) -> bool {
+    if node.kind() == "control_structure_body" {
+        let mut cursor = node.walk();
+        for child in node.children(&mut cursor) {
+            if child.kind() == "if_expression" || is_if_expression(child) {
+                return true;
+            }
+        }
+        return false;
+    }
+    node.kind() == "if_expression"
+}
+
 fn lower_guard_condition<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     let mut parts = vec![Doc::text("if ")];
     let mut cursor = node.walk();
@@ -117,6 +130,8 @@ fn lower_guard_condition<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<
 }
 
 fn build_when_entry_head<'a>(
+    is_else: bool,
+    else_comments: Vec<Node<'a>>,
     conditions: Vec<Node<'a>>,
     guard: Option<Node<'a>>,
     has_trailing_comma: bool,
@@ -124,21 +139,21 @@ fn build_when_entry_head<'a>(
     ctx: &LowerContext<'a, '_>,
 ) -> Doc<'a> {
     let mut head_parts = Vec::new();
-    if conditions.is_empty() {
+    if is_else {
         head_parts.push(Doc::text("else"));
+        for comment in else_comments {
+            head_parts.push(Doc::space());
+            head_parts.push(lower_node(comment, ctx));
+        }
     } else {
         let mut prev_item: Option<Node<'a>> = None;
         for item in conditions {
-            let is_comment = matches!(
-                item.kind(),
-                "comment" | "line_comment" | "multiline_comment"
-            );
             if let Some(prev) = prev_item {
                 let prev_is_comment = matches!(
                     prev.kind(),
                     "comment" | "line_comment" | "multiline_comment"
                 );
-                let should_comma = is_comment || !prev_is_comment;
+                let should_comma = !prev_is_comment;
                 if should_comma {
                     if ctx.has_newline_between(&prev, &item) {
                         head_parts.push(Doc::text(","));
@@ -146,6 +161,10 @@ fn build_when_entry_head<'a>(
                     } else {
                         head_parts.push(Doc::text(", "));
                     }
+                } else if ctx.has_newline_between(&prev, &item) {
+                    head_parts.push(Doc::HardLine);
+                } else {
+                    head_parts.push(Doc::space());
                 }
             }
             head_parts.push(lower_node(item, ctx));
@@ -194,7 +213,7 @@ fn format_when_entry_body<'a>(
             head,
             Doc::continuation_indent(Doc::Concat(inner_comments)),
         ])
-    } else if is_braced_body(body) {
+    } else if is_braced_body(body) || is_if_expression(body) {
         Doc::Concat(vec![head, Doc::space(), body_doc])
     } else {
         Doc::Concat(vec![
@@ -225,6 +244,8 @@ fn format_when_entry_body<'a>(
 }
 
 pub fn lower_when_entry<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    let mut is_else = false;
+    let mut else_comments = Vec::new();
     let mut conditions = Vec::new();
     let mut guard_node = None;
     let mut comments_before_body = Vec::new();
@@ -244,12 +265,15 @@ pub fn lower_when_entry<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
         }
 
         if !after_arrow {
-            if kind == "," {
+            if kind == "else" {
+                is_else = true;
+            } else if is_else && matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+                else_comments.push(child);
+            } else if kind == "," {
                 has_trailing_comma = true;
             } else if kind == "guard_condition" {
                 guard_node = Some(child);
             } else if kind == "when_condition"
-                || kind == "else"
                 || matches!(kind, "comment" | "line_comment" | "multiline_comment")
             {
                 has_trailing_comma = false;
@@ -267,13 +291,17 @@ pub fn lower_when_entry<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
         }
     }
 
-    let last_before_arrow = guard_node.or_else(|| conditions.last().copied());
+    let last_before_arrow = guard_node
+        .or_else(|| else_comments.last().copied())
+        .or_else(|| conditions.last().copied());
     let arrow_has_newline = match (last_before_arrow, arrow_node) {
         (Some(l), Some(a)) => ctx.has_newline_between(&l, &a),
         _ => false,
     };
 
     let head = build_when_entry_head(
+        is_else,
+        else_comments,
         conditions,
         guard_node,
         has_trailing_comma,

@@ -1,0 +1,4 @@
+val tagLinks =
+    kdocSection.getChildrenOfType<KDocTag>().flatMap { tag ->
+        tag.getChildrenOfType<KDocLink>().toList()
+    }

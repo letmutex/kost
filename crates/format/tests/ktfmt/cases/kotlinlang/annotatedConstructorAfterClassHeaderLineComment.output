@@ -1,0 +1,4 @@
+public value class Duration
+// temporary workaround
+@Deprecated("msg")
+internal constructor(val x: Long)
