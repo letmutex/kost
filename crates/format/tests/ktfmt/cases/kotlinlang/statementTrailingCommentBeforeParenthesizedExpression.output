@@ -1,0 +1,5 @@
+fun test() {
+    val x = 1
+    // Cast it only for testing purposes!
+    (incoming as Channel<*>).invokeOnClose {}
+}
