@@ -64,7 +64,7 @@ pub fn lower_function_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
     let name_group = build_func_name_group(prefix_docs, name_docs, has_dot);
     let header_doc = assemble_func_header(name_group, suffix_docs, where_doc, where_has_newline);
 
-    let header_col = compute_func_header_col(
+    let (header_col, is_multiline_header) = compute_func_header_col(
         &node,
         &modifier_docs,
         &header_doc,
@@ -75,7 +75,7 @@ pub fn lower_function_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
 
     let body_doc = body_child.map(|b| {
         if b.kind() == "function_body" {
-            lower_function_body_with_header(b, ctx, Some(header_col))
+            lower_function_body_with_header(b, ctx, Some(header_col), is_multiline_header)
         } else {
             lower_node(b, ctx)
         }
@@ -187,13 +187,14 @@ fn attach_func_body<'a>(
 }
 
 pub fn lower_function_body<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    lower_function_body_with_header(node, ctx, None)
+    lower_function_body_with_header(node, ctx, None, false)
 }
 
 pub fn lower_function_body_with_header<'a>(
     node: Node<'a>,
     ctx: &LowerContext<'a, '_>,
     header_col: Option<usize>,
+    is_multiline_header: bool,
 ) -> Doc<'a> {
     let mut cursor = node.walk();
     let mut is_expression_body = false;
@@ -229,6 +230,7 @@ pub fn lower_function_body_with_header<'a>(
             comments_after_expr,
             ctx,
             header_col,
+            is_multiline_header,
         );
     }
 
@@ -281,16 +283,18 @@ fn compute_func_header_col<'a>(
     after_params_len: Option<usize>,
     has_where: bool,
     ctx: &LowerContext<'a, '_>,
-) -> usize {
+) -> (usize, bool) {
+    let indent = ctx.compute_target_indent(node);
     let mod_len = Doc::slice_last_line_len(modifier_docs);
-    let flat_header_len = node.start_position().column + mod_len + header_doc.flat_len();
+    let flat_header_len = indent + mod_len + header_doc.flat_len();
     let is_multiline_header = header_doc.has_hardline() || flat_header_len > ctx.options.max_width;
-    if is_multiline_header
+    let col = if is_multiline_header
         && !has_where
         && let Some(after_params) = after_params_len
     {
-        node.start_position().column + 1 + after_params
+        indent + 1 + after_params
     } else {
-        node.start_position().column + mod_len + header_doc.last_line_len()
-    }
+        indent + mod_len + header_doc.last_line_len()
+    };
+    (col, is_multiline_header)
 }

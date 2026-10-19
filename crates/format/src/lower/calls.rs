@@ -87,9 +87,17 @@ fn lower_chain_root_with_call_suffix<'a>(
         chain_parts.push(va_doc);
     }
     let chain_head = Doc::Concat(chain_parts);
+    let val_args_breaks = last_suffix
+        .children(&mut last_suffix.walk())
+        .find(|c| c.kind() == "value_arguments")
+        .is_some_and(|va| {
+            va.start_position().row != va.end_position().row
+                || va.byte_range().len() > ctx.options.max_width
+        });
+    let already_continuation_indented = val_args_breaks && ctx.options.block_indent != 4;
     match trailing_lambda {
         Some(l) => {
-            let lambda_doc = if is_broken {
+            let lambda_doc = if is_broken && !already_continuation_indented {
                 Doc::continuation_indent(l)
             } else {
                 l
@@ -128,9 +136,10 @@ fn lower_chained_call_expression<'a>(
     suffixes: &[Node<'a>],
     ctx: &LowerContext<'a, '_>,
 ) -> Option<Doc<'a>> {
-    let (Some(op), nav_comments, Some(suf)) = parse_callee_navigation(callee_node) else {
+    let (Some(raw_op), nav_comments, Some(suf)) = parse_callee_navigation(callee_node) else {
         return None;
     };
+    let op = ctx.resolve_leaf(raw_op);
 
     let is_chain = !nav_comments.is_empty()
         || is_call_receiver(&op)
@@ -144,7 +153,13 @@ fn lower_chained_call_expression<'a>(
     }
 
     let op_doc = lower_node(op, ctx);
-    let is_breakable = !nav_comments.is_empty() || !is_super_or_this(&op);
+    let has_multiline_args = crate::lower::delegates::call_has_multiline_args(&node, ctx);
+    let is_opening_call_on_simple_receiver =
+        !is_call_receiver(&op) && op.kind() != "navigation_expression";
+    let is_breakable = (!nav_comments.is_empty() || !is_super_or_this(&op))
+        && (!is_opening_call_on_simple_receiver
+            || !has_multiline_args
+            || ctx.has_newline_between(&op, &suf));
     // In Google/ktfmt style (block_indent != 4), calls following a multiline raw string
     // (such as .trimIndent() or .trimMargin()) must wrap to a new line.
     // In Kotlinlang/ktlint style (block_indent == 4), they attach directly to the closing quotes.
@@ -175,10 +190,14 @@ fn lower_chained_call_expression<'a>(
     for s in suffixes {
         suf_docs.push(lower_node(*s, ctx));
     }
-    let chain_doc = Doc::Concat(vec![
-        op_doc,
-        Doc::continuation_indent(Doc::Concat(suf_docs)),
-    ]);
+    let chain_doc = if is_breakable {
+        Doc::Concat(vec![
+            op_doc,
+            Doc::continuation_indent(Doc::Concat(suf_docs)),
+        ])
+    } else {
+        Doc::Concat(vec![op_doc, Doc::Concat(suf_docs)])
+    };
     let result = if is_root {
         if count_chain_lambdas(&node) > 1 {
             chain_doc
@@ -217,7 +236,7 @@ fn format_call_suffix_lambda<'a>(
     };
 
     let raw_lambda = lower_node(l_node, ctx);
-    let l = if val_args_node.is_some() && val_args_breaks {
+    let l = if val_args_node.is_some() && val_args_breaks && ctx.options.block_indent != 4 {
         Doc::continuation_indent(raw_lambda)
     } else {
         raw_lambda
@@ -262,9 +281,9 @@ pub fn lower_call_suffix_parts<'a>(
         if kind == "value_arguments" {
             val_args_node = Some(child);
             let trailing = has_trailing_comma(&child);
-            let text = ctx.node_text(&child);
-            val_args_breaks =
-                !trailing && (text.contains('\n') || text.len() > ctx.options.max_width);
+            val_args_breaks = !trailing
+                && (child.start_position().row != child.end_position().row
+                    || child.byte_range().len() > ctx.options.max_width);
             val_args_doc = Some(lower_node(child, ctx));
         } else if kind == "annotated_lambda" || kind == "lambda_literal" {
             lambda_node = Some(child);

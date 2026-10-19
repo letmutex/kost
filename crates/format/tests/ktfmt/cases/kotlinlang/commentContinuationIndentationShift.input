@@ -1,0 +1,9 @@
+class C {
+    companion object {
+        private val WAIT_INTERVAL_MAX_OCCURRENCES =
+            // The local machine is most often faster than the GitHub CICD when running the CLI tests. A system environment property has
+            // been defined in the gradle-pr-build workflow to increase the timeout.
+            System
+                .getenv("CLI_TEST_MAX_DURATION_IN_SECONDS")
+    }
+}

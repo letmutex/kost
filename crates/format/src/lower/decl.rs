@@ -97,7 +97,14 @@ pub fn lower_class_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -
                 supertypes_docs.push(Doc::text(","));
             } else {
                 if !supertypes_docs.is_empty() {
-                    supertypes_docs.push(Doc::Line);
+                    if prev_child_node.is_some_and(|p| ctx.has_blank_line_between(&p, &child)) {
+                        supertypes_docs.push(Doc::EmptyLine);
+                    } else if !supertypes_docs
+                        .last()
+                        .is_some_and(|d| d.ends_with_newline())
+                    {
+                        supertypes_docs.push(Doc::Line);
+                    }
                 }
                 supertypes_docs.push(lower_node(child, ctx));
             }

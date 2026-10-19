@@ -5,7 +5,7 @@ use crate::lower::binary::is_binary_expression_kind;
 use crate::lower::context::LowerContext;
 use crate::rules::comments::{format_kdoc, normalize_line_comment};
 
-fn compute_comment_indent<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> usize {
+pub(crate) fn compute_comment_indent<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> usize {
     let mut indent = 0;
     let mut curr = node.parent();
     while let Some(parent_node) = curr {
@@ -107,6 +107,12 @@ fn collapsed_statement_len<'a>(node: Node<'a>) -> Option<usize> {
             }
         }
         if len > 0 { Some(len) } else { None }
+    } else if node.kind() == "jump_expression" {
+        if node.start_position().row == node.end_position().row {
+            Some(node.byte_range().len())
+        } else {
+            None
+        }
     } else {
         None
     }
@@ -116,7 +122,13 @@ fn resolve_comment_columns<'a>(
     node: Node<'a>,
     ctx: &LowerContext<'a, '_>,
     is_standalone: bool,
+    prefix: &str,
+    override_col: Option<usize>,
 ) -> (usize, usize) {
+    if let Some(col) = override_col {
+        let block_indent = compute_comment_indent(node, ctx);
+        return (col, block_indent);
+    }
     if ctx.options.block_indent != 4 {
         let col = node.start_position().column;
         return (col, col);
@@ -128,19 +140,27 @@ fn resolve_comment_columns<'a>(
     let col = if let Some(prev) = node.prev_sibling()
         && let Some(flat_len) = collapsed_statement_len(prev)
     {
-        let collapsed_col = block_indent + flat_len + 1;
-        if collapsed_col <= ctx.options.max_width {
-            collapsed_col
-        } else {
-            node.start_position().column
-        }
+        block_indent + flat_len + 1
     } else {
-        node.start_position().column
+        let trimmed_prefix = prefix.trim();
+        if !trimmed_prefix.is_empty() {
+            block_indent + trimmed_prefix.len() + 1
+        } else {
+            block_indent
+        }
     };
     (col, block_indent)
 }
 
 pub fn lower_comment<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    lower_comment_with_col(node, ctx, None)
+}
+
+pub fn lower_comment_with_col<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    override_col: Option<usize>,
+) -> Doc<'a> {
     let mut text = ctx.node_text(&node);
     if text.is_empty() {
         let end = node.start_byte();
@@ -159,7 +179,8 @@ pub fn lower_comment<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> 
         let prefix = ctx.source.get(line_start..node.start_byte()).unwrap_or("");
         let is_standalone = prefix.trim().is_empty();
 
-        let (start_col, base_indent) = resolve_comment_columns(node, ctx, is_standalone);
+        let (start_col, base_indent) =
+            resolve_comment_columns(node, ctx, is_standalone, prefix, override_col);
         let lines = normalize_line_comment(text, start_col, base_indent, ctx.options.max_width);
         if ctx.options.block_indent != 4 && lines.len() > 1 {
             let indent_str = " ".repeat(start_col);

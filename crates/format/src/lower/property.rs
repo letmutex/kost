@@ -7,6 +7,9 @@ use crate::lower::delegates::{
     parse_property_delegate, property_first_line_fits,
 };
 use crate::lower::lower_node;
+use crate::lower::property_header::{
+    format_flat_property_header, format_property_without_init, format_untyped_property_header,
+};
 use crate::lower::types::lower_type_constraints;
 
 #[allow(clippy::too_many_arguments)]
@@ -16,7 +19,7 @@ pub(crate) fn build_property_header<'a>(
     init_docs: Vec<Doc<'a>>,
     init_child: Option<Node<'a>>,
     op_str: Option<&'static str>,
-    trailing_comment: Option<PropertyComment<'a>>,
+    trailing_comments: Vec<PropertyComment<'a>>,
     modifier_len: usize,
     node: &Node<'a>,
     ctx: &LowerContext<'a, '_>,
@@ -33,9 +36,9 @@ pub(crate) fn build_property_header<'a>(
     let (init_section, flat_init) = build_property_init_section(
         init_docs,
         init_child,
-        trailing_comment,
-        ctx.options.block_indent == 4,
+        trailing_comments,
         is_destructuring,
+        ctx,
     );
 
     let name_len = name_doc.last_line_len();
@@ -64,9 +67,13 @@ pub(crate) fn build_property_header<'a>(
         ctx,
     );
 
+    let is_scoping_or_lambda =
+        init_child.is_some_and(|r| crate::lower::scoping::is_scoping_chain_or_lambda(&r));
+    let allow_flat_header = flat_init && (op == "=" || is_scoping_or_lambda);
+
     if type_docs.is_empty() {
         format_untyped_property_header(name_doc, op, init_section, flat_init, first_line_fits)
-    } else if flat_init {
+    } else if allow_flat_header {
         format_flat_property_header(name_doc, type_docs, op, init_section, first_line_fits)
     } else {
         let type_and_op = Doc::Group(Box::new(Doc::Concat(vec![
@@ -77,81 +84,6 @@ pub(crate) fn build_property_header<'a>(
             Doc::text(op),
         ])));
         Doc::Group(Box::new(Doc::Concat(vec![type_and_op, init_section])))
-    }
-}
-
-fn format_property_without_init<'a>(name_doc: Doc<'a>, type_docs: Vec<Doc<'a>>) -> Doc<'a> {
-    if type_docs.is_empty() {
-        Doc::Group(Box::new(name_doc))
-    } else {
-        Doc::Group(Box::new(Doc::Concat(vec![
-            name_doc,
-            Doc::text(":"),
-            Doc::continuation_indent(Doc::Concat(vec![Doc::Line, Doc::Concat(type_docs)])),
-        ])))
-    }
-}
-
-fn format_untyped_property_header<'a>(
-    name_doc: Doc<'a>,
-    op: &'static str,
-    init_section: Doc<'a>,
-    flat_init: bool,
-    first_line_fits: bool,
-) -> Doc<'a> {
-    if flat_init && !first_line_fits {
-        let inner_init = match init_section {
-            Doc::Concat(mut items) if items.first() == Some(&Doc::space()) => {
-                items.remove(0);
-                Doc::Concat(items)
-            }
-            other => other,
-        };
-        Doc::Concat(vec![
-            name_doc,
-            Doc::space(),
-            Doc::text(op),
-            Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, inner_init])),
-        ])
-    } else {
-        let init_group = if flat_init {
-            init_section
-        } else {
-            Doc::Group(Box::new(init_section))
-        };
-        Doc::Concat(vec![name_doc, Doc::space(), Doc::text(op), init_group])
-    }
-}
-
-fn format_flat_property_header<'a>(
-    name_doc: Doc<'a>,
-    type_docs: Vec<Doc<'a>>,
-    op: &'static str,
-    init_section: Doc<'a>,
-    first_line_fits: bool,
-) -> Doc<'a> {
-    if first_line_fits {
-        Doc::Concat(vec![
-            name_doc,
-            Doc::text(": "),
-            Doc::Concat(type_docs),
-            Doc::space(),
-            Doc::text(op),
-            init_section,
-        ])
-    } else {
-        let type_and_rest = Doc::continuation_indent(Doc::Concat(vec![
-            Doc::Line,
-            Doc::Concat(type_docs),
-            Doc::space(),
-            Doc::text(op),
-            init_section,
-        ]));
-        Doc::Group(Box::new(Doc::Concat(vec![
-            name_doc,
-            Doc::text(":"),
-            type_and_rest,
-        ])))
     }
 }
 
@@ -167,7 +99,7 @@ struct PropertyParts<'a> {
     where_has_newline: bool,
     is_after_equals: bool,
     is_after_by: bool,
-    trailing_comment: Option<PropertyComment<'a>>,
+    trailing_comments: Vec<PropertyComment<'a>>,
 }
 
 fn push_property_init_child<'a>(
@@ -178,8 +110,15 @@ fn push_property_init_child<'a>(
 ) {
     let kind = child.kind();
     let is_comment = matches!(kind, "comment" | "line_comment" | "multiline_comment");
-    if is_comment && parts.init_docs.is_empty() && parts.trailing_comment.is_none() {
-        parts.trailing_comment = Some(parse_comment_before_init(child, eq_node, ctx));
+    if is_comment && parts.init_child.is_none() {
+        let prev_op = if parts.trailing_comments.is_empty() {
+            eq_node
+        } else {
+            None
+        };
+        parts
+            .trailing_comments
+            .push(parse_comment_before_init(child, prev_op, ctx));
         return;
     }
     if parts.init_child.is_none() && !is_comment {
@@ -217,7 +156,7 @@ fn parse_property_parts<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Prope
                 ctx,
                 &mut parts.init_child,
                 &mut parts.init_docs,
-                &mut parts.trailing_comment,
+                &mut parts.trailing_comments,
             );
             parts.is_after_by = true;
         } else if parts.is_after_equals {
@@ -305,7 +244,7 @@ pub fn lower_property_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>
         parts.init_docs,
         parts.init_child,
         op_str,
-        parts.trailing_comment,
+        parts.trailing_comments,
         modifier_len,
         &node,
         ctx,

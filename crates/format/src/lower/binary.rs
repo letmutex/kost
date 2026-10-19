@@ -114,7 +114,15 @@ fn push_comment_doc<'a>(
         .is_some_and(|p| !ctx.has_newline_between(&p, &child))
     {
         docs.push(Doc::space());
-        docs.push(lower_node(child, ctx));
+        let comment_doc = if state.pending_elvis {
+            let block_indent = crate::lower::comment::compute_comment_indent(child, ctx);
+            let lhs_len = Doc::slice_last_line_len(docs);
+            let start_col = block_indent + lhs_len;
+            crate::lower::comment::lower_comment_with_col(child, ctx, Some(start_col))
+        } else {
+            lower_node(child, ctx)
+        };
+        docs.push(comment_doc);
         state.is_after_comment = docs.last().is_some_and(|d| d.ends_with_newline());
     } else {
         let line_doc = if docs.last().is_some_and(|d| d.ends_with_newline()) {

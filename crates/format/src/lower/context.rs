@@ -41,6 +41,17 @@ impl<'a, 'o> LowerContext<'a, 'o> {
     }
 
     #[inline]
+    pub fn resolve_leaf(&self, node: tree_sitter::Node<'a>) -> tree_sitter::Node<'a> {
+        if let Some((id, over)) = self.leaf_override
+            && id == node.id()
+        {
+            over
+        } else {
+            node
+        }
+    }
+
+    #[inline]
     pub fn node_text(&self, node: &tree_sitter::Node<'_>) -> &'a str {
         self.source
             .get(node.start_byte()..node.end_byte())
@@ -94,5 +105,45 @@ impl<'a, 'o> LowerContext<'a, 'o> {
             return between.bytes().any(|b| b == b'\n');
         }
         next.start_position().row > prev.end_position().row
+    }
+
+    pub fn compute_target_indent(&self, node: &tree_sitter::Node<'_>) -> usize {
+        let mut indent_levels = 0;
+        let mut curr = *node;
+        while let Some(parent) = curr.parent() {
+            match parent.kind() {
+                "class_body" | "enum_class_body" | "statements" => {
+                    indent_levels += 1;
+                }
+                "block" => {
+                    if curr.kind() != "statements" {
+                        indent_levels += 1;
+                    }
+                }
+                "control_structure_body" => {
+                    if curr.kind() != "block" && curr.kind() != "statements" {
+                        indent_levels += 1;
+                    }
+                }
+                "when_entry"
+                    if curr.kind() != "block"
+                        && curr.kind() != "statements"
+                        && curr.kind() != "when_condition" =>
+                {
+                    indent_levels += 1;
+                }
+                "lambda_literal"
+                    if curr.kind() != "lambda_parameters"
+                        && curr.kind() != "->"
+                        && curr.kind() != "{"
+                        && curr.kind() != "}" =>
+                {
+                    indent_levels += 1;
+                }
+                _ => {}
+            }
+            curr = parent;
+        }
+        indent_levels * self.options.block_indent
     }
 }

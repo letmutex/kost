@@ -83,26 +83,74 @@ fn parse_assignment_parts<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Ass
     parts
 }
 
+fn append_post_rhs_comments<'a>(
+    rhs_doc: Doc<'a>,
+    parts: &AssignmentParts<'a>,
+    ctx: &LowerContext<'a, '_>,
+) -> Doc<'a> {
+    if parts.comments_after_rhs.is_empty() {
+        return rhs_doc;
+    }
+    let mut after_parts = vec![rhs_doc];
+    let mut prev = parts.rhs_node;
+    for c in &parts.comments_after_rhs {
+        if prev.is_some_and(|p| p.end_position().row == c.start_position().row) {
+            after_parts.push(Doc::space());
+        } else {
+            after_parts.push(Doc::HardLine);
+        }
+        after_parts.push(lower_node(*c, ctx));
+        prev = Some(*c);
+    }
+    Doc::Concat(after_parts)
+}
+
+fn compute_assignment_rhs_first_line_len(r_node: Node<'_>, ctx: &LowerContext<'_, '_>) -> usize {
+    if let Some(innermost) = crate::lower::delegates::find_innermost_call(r_node)
+        && let Some(len) =
+            crate::lower::delegates::find_call_opening_paren_len(innermost, r_node, ctx)
+    {
+        len
+    } else if let Some(lambda) = crate::lower::delegates::find_first_lambda(r_node) {
+        if r_node.start_position().row != lambda.start_position().row {
+            ctx.node_text(&r_node).lines().next().unwrap_or("").len()
+        } else {
+            crate::lower::expression_body::find_lambda_first_line_end_byte(lambda)
+                .saturating_sub(r_node.start_byte())
+        }
+    } else {
+        r_node.byte_range().len()
+    }
+}
+
+fn assignment_rhs_first_line_fits(
+    node: &Node<'_>,
+    r_node: Node<'_>,
+    op_str: &str,
+    ctx: &LowerContext<'_, '_>,
+) -> bool {
+    let flat_rhs = has_trailing_lambda_child(&r_node)
+        || (ctx.options.block_indent == 4
+            && matches!(r_node.kind(), "call_expression" | "navigation_expression")
+            && crate::lower::delegates::find_innermost_call(r_node).is_some_and(|innermost| {
+                crate::lower::delegates::find_call_opening_paren_len(innermost, r_node, ctx)
+                    .is_some()
+            }));
+    if !flat_rhs {
+        return false;
+    }
+    let first_line_len = compute_assignment_rhs_first_line_len(r_node, ctx);
+    let indent = ctx.compute_target_indent(node);
+    let lhs_len = node.child(0).map(|c| ctx.node_text(&c).len()).unwrap_or(0);
+    indent + lhs_len + 1 + op_str.len() + 1 + first_line_len <= ctx.options.max_width
+}
+
 pub fn lower_assignment<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     let mut parts = parse_assignment_parts(node, ctx);
     let lhs_doc = parts.lhs.take().unwrap_or_else(Doc::empty);
     let op_str = parts.op.unwrap_or("=");
-    let mut rhs_doc = parts.rhs.take().unwrap_or_else(Doc::empty);
-
-    if !parts.comments_after_rhs.is_empty() {
-        let mut after_parts = vec![rhs_doc];
-        let mut prev = parts.rhs_node;
-        for c in &parts.comments_after_rhs {
-            if prev.is_some_and(|p| p.end_position().row == c.start_position().row) {
-                after_parts.push(Doc::space());
-            } else {
-                after_parts.push(Doc::HardLine);
-            }
-            after_parts.push(lower_node(*c, ctx));
-            prev = Some(*c);
-        }
-        rhs_doc = Doc::Concat(after_parts);
-    }
+    let rhs_doc =
+        append_post_rhs_comments(parts.rhs.take().unwrap_or_else(Doc::empty), &parts, ctx);
 
     if !parts.comments_before_rhs.is_empty() {
         return format_assignment_with_preceding_comments(
@@ -110,26 +158,17 @@ pub fn lower_assignment<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
         );
     }
 
-    let is_block_like = parts.rhs_node.is_some_and(|r| {
-        has_trailing_lambda_child(&r)
-            || (ctx.options.block_indent == 4
-                && matches!(r.kind(), "call_expression" | "navigation_expression")
-                && ctx.node_text(&r).contains('\n'))
-    });
-    if is_block_like && let Some(r_node) = parts.rhs_node {
-        let rhs_raw = ctx.node_text(&r_node);
-        let first_line = rhs_raw.lines().next().unwrap_or("");
-        let lhs_len = node.child(0).map(|c| ctx.node_text(&c).len()).unwrap_or(0);
-        let total = lhs_len + 1 + op_str.len() + 1 + first_line.len();
-        if total + ctx.options.block_indent <= ctx.options.max_width {
-            return Doc::Concat(vec![
-                lhs_doc,
-                Doc::space(),
-                Doc::text(op_str),
-                Doc::space(),
-                rhs_doc,
-            ]);
-        }
+    if parts
+        .rhs_node
+        .is_some_and(|r| assignment_rhs_first_line_fits(&node, r, op_str, ctx))
+    {
+        return Doc::Concat(vec![
+            lhs_doc,
+            Doc::space(),
+            Doc::text(op_str),
+            Doc::space(),
+            rhs_doc,
+        ]);
     }
 
     Doc::Concat(vec![

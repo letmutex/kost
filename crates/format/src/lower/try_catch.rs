@@ -8,10 +8,10 @@ pub fn lower_braced_children<'a>(children: &[Node<'a>], ctx: &LowerContext<'a, '
     let mut stmt_docs = Vec::new();
     let mut prev: Option<Node<'a>> = None;
     for &child in children {
-        if let Some(p) = prev {
-            if ctx.has_blank_line_between(&p, &child) {
+        if let Some(prev_child) = prev {
+            if ctx.has_blank_line_between(&prev_child, &child) {
                 stmt_docs.push(Doc::EmptyLine);
-            } else if !ctx.has_newline_between(&p, &child) {
+            } else if !ctx.has_newline_between(&prev_child, &child) {
                 stmt_docs.push(Doc::space());
             } else if !stmt_docs.last().is_some_and(|d| d.ends_with_newline()) {
                 stmt_docs.push(Doc::HardLine);
@@ -78,6 +78,7 @@ pub fn lower_catch_block<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<
     let mut in_params = false;
     let mut in_body = false;
     let mut body_nodes = Vec::new();
+    let mut prev_param_child = None;
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -98,14 +99,21 @@ pub fn lower_catch_block<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<
             } else if kind == "," {
                 // trailing comma handled by format_comma_list
             } else {
-                if !param_docs.is_empty()
-                    && !param_docs
-                        .last()
-                        .is_some_and(|d| matches!(d, Doc::Text(": ")))
-                {
-                    param_docs.push(Doc::space());
+                if let Some(prev_child) = prev_param_child {
+                    if ctx.has_newline_between(&prev_child, &child) {
+                        if !param_docs.last().is_some_and(|d| d.ends_with_newline()) {
+                            param_docs.push(Doc::HardLine);
+                        }
+                    } else if !param_docs.is_empty()
+                        && !param_docs
+                            .last()
+                            .is_some_and(|d| matches!(d, Doc::Text(": ")) || d.ends_with_newline())
+                    {
+                        param_docs.push(Doc::space());
+                    }
                 }
                 param_docs.push(lower_node(child, ctx));
+                prev_param_child = Some(child);
             }
         }
     }
@@ -158,9 +166,9 @@ pub fn lower_try_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
 
     let try_body_doc = lower_braced_children(&try_body_nodes, ctx);
     let mut parts = vec![Doc::text("try "), try_body_doc];
-    for h in handlers {
+    for handler in handlers {
         parts.push(Doc::space());
-        parts.push(h);
+        parts.push(handler);
     }
     Doc::Concat(parts)
 }

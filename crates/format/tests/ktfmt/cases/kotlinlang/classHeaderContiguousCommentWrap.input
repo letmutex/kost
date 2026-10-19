@@ -1,0 +1,7 @@
+public class KtlintSuppressionRule(
+    private val allowedRuleIds: List<RuleId>,
+) : InternalRule("ktlint-suppression"),
+    // The SuppressionLocatorBuilder no longer support the old ktlint suppression directives using comments. This rule may not be disabled
+    // in any way as it would fail to process suppressions.
+    IgnoreKtlintSuppressions {
+}

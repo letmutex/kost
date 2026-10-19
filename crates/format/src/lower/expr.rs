@@ -171,8 +171,11 @@ fn find_statement_expr<'a>(node: Node<'a>) -> Node<'a> {
     node
 }
 
-fn callee_has_call_or_lambda(callee: Node<'_>) -> bool {
-    if callee.kind() == "lambda_literal" {
+fn is_completed_callee(callee: Node<'_>) -> bool {
+    if matches!(
+        callee.kind(),
+        "lambda_literal" | "as_expression" | "check_expression"
+    ) {
         return true;
     }
     if callee.kind() == "call_expression" {
@@ -196,7 +199,7 @@ fn find_merge_call<'a>(
             && let Some(callee) = curr.child(0)
         {
             let is_callee_completed =
-                callee_has_call_or_lambda(callee) || ctx.has_blank_line_between(&callee, &curr);
+                is_completed_callee(callee) || ctx.has_blank_line_between(&callee, &curr);
             let mut cursor = curr.walk();
             for child in curr.children(&mut cursor) {
                 if child.kind() == "call_suffix"

@@ -34,7 +34,7 @@ pub fn lower_backing_field<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
     let mut type_docs = Vec::new();
     let mut init_docs = Vec::new();
     let mut init_child = None;
-    let mut trailing_comment = None;
+    let mut trailing_comments = Vec::new();
     let mut in_type = false;
     let mut in_init = false;
     let mut eq_node = None;
@@ -54,8 +54,13 @@ pub fn lower_backing_field<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
             continue;
         }
         if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-            if in_init && init_child.is_none() && trailing_comment.is_none() {
-                trailing_comment = Some(parse_comment_before_init(child, eq_node, ctx));
+            if in_init && init_child.is_none() {
+                let prev_op = if trailing_comments.is_empty() {
+                    eq_node
+                } else {
+                    None
+                };
+                trailing_comments.push(parse_comment_before_init(child, prev_op, ctx));
             }
             continue;
         }
@@ -81,7 +86,7 @@ pub fn lower_backing_field<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Do
         init_docs,
         init_child,
         op_str,
-        trailing_comment,
+        trailing_comments,
         0,
         &node,
         ctx,
