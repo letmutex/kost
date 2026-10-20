@@ -26,6 +26,7 @@ fn push_class_header_child<'a>(
                 header_docs.push(Doc::space());
             }
             header_docs.push(lower_node(child, ctx));
+            header_docs.push(Doc::HardLine);
         } else if has_seen_primary_constructor {
             header_docs.push(Doc::indent(Doc::Concat(vec![
                 Doc::HardLine,
@@ -37,6 +38,7 @@ fn push_class_header_child<'a>(
                 header_docs.push(Doc::HardLine);
             }
             header_docs.push(lower_node(child, ctx));
+            header_docs.push(Doc::HardLine);
         }
         return;
     }

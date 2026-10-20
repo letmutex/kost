@@ -1,0 +1,4 @@
+fun test() {
+    val after =
+        text.substring(index + tag.length).replace("<code>", "", true).trim().fooExtraCharsLongMethod()
+}

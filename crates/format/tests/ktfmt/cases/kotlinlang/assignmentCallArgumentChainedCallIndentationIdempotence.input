@@ -1,0 +1,7 @@
+class DemoStorageController {
+    override suspend fun commitRegistrationData() = withContext(Dispatchers.IO) {
+        if (accountData.aciIdentityKeyPair.size > 0) {
+            RegistrationPreferences.aciIdentityKeyPair = IdentityKeyPair(accountData.aciIdentityKeyPair.toByteArray())
+        }
+    }
+}

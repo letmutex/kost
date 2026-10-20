@@ -1,10 +1,8 @@
 class C {
     private fun visitFunctionLiteral() {
         val inspectNode =
-            node
-                .children
-                .lastOrNull { it.elementType == ARROW } // lambda w/o an arrow -> no
-            // arguments -> no commas
-                ?: return
+            node.children.lastOrNull { it.elementType == ARROW }
+                ?: // lambda w/o an arrow -> no arguments -> no commas
+                return
     }
 }

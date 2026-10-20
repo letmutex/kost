@@ -22,16 +22,12 @@ fn is_kdoc_tag(s: &str) -> bool {
     let Some(rest) = s.strip_prefix('@') else {
         return false;
     };
-    let Some(first) = rest.chars().next() else {
-        return false;
-    };
-    if !first.is_ascii_alphabetic() {
+    let tag = rest.split_whitespace().next().unwrap_or(rest);
+    let tag_name = tag.split_once('[').map_or(tag, |(b, _)| b);
+    if tag_name.len() < 2 || tag.contains('@') {
         return false;
     }
-    let end = rest
-        .find(|c: char| c.is_whitespace() || c == '[')
-        .unwrap_or(rest.len());
-    end >= 2
+    tag_name.chars().all(|c| c.is_ascii_lowercase())
 }
 
 fn is_list_item(s: &str) -> bool {

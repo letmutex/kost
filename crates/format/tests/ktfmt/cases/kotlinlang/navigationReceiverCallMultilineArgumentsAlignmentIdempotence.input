@@ -1,0 +1,4 @@
+fun test() {
+    val firProvideDelegateCall = firProperty.delegate
+        ?.asFunctionOperatorCall(KtFakeSourceElementKind.DelegatedPropertyAccessor.DelegateExpression)
+}

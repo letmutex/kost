@@ -191,3 +191,44 @@ fn test_expression_body_multiline_opening_chain_break_idempotence() {
         "expression body function with multiline opening chain must be idempotent across passes"
     );
 }
+
+#[test]
+fn test_class_annotation_trailing_line_comment_idempotence() {
+    let source = "@OkHttpInternalApi\n@OptIn(ExperimentalTime::class) // We know Clock and Instant will be stable in Kotlin 2.3.\nclass RealDnsCache\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "class annotation with trailing line comment must be idempotent across passes"
+    );
+    assert!(
+        pass1.contains("@OptIn(ExperimentalTime::class) // We know Clock and Instant will be stable in Kotlin 2.3.\nclass RealDnsCache"),
+        "trailing line comment must remain attached to annotation on same line: actual:\n{pass1}"
+    );
+}
+
+#[test]
+fn test_simple_receiver_call_multiline_arguments_idempotence() {
+    let source = "public val CSRF =\n    createRouteScopedPlugin(\"CSRF\", ::CSRFConfig) {\n        if (!checkHost && allowedOrigins.isEmpty() && headerChecks.isEmpty()) {\n            application.log.info(\"CSRF configuration is empty; defaulting to allow only local origins\")\n        }\n    }\n";
+    let pass1 = format_default(source).expect("formatting pass 1 should succeed");
+    let pass2 = format_default(&pass1).expect("formatting pass 2 should succeed");
+    assert_eq!(
+        pass1, pass2,
+        "simple receiver call with multiline arguments must not oscillate between passes"
+    );
+    assert!(
+        pass1.contains("            application.log.info(\n                \"CSRF configuration is empty; defaulting to allow only local origins\",\n            )"),
+        "call on simple receiver must stay on single line with properly indented arguments: actual:\n{pass1}"
+    );
+}
+
+#[test]
+fn test_destructuring_declaration_lambda_call_idempotence() {
+    let source = "class C {\n    private suspend fun ByteReadChannel.scanHeaders() = Headers.build {\n        do {\n            val line = readLineStrict()\n            if (line.isNullOrBlank()) break\n\n            val (header, value) = line.chomp(\":\") { throw IOException(\"Illegal header line $line\") }\n            append(header.trimEnd(), value.trimStart())\n        } while (true)\n    }\n}\n";
+    let pass1 = format_default(source).expect("pass 1");
+    let pass2 = format_default(&pass1).expect("pass 2");
+    assert_eq!(
+        pass1, pass2,
+        "destructuring declaration with lambda call must not oscillate"
+    );
+}

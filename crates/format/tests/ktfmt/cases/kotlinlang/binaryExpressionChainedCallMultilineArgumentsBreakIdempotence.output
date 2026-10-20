@@ -1,0 +1,9 @@
+fun foo(): String =
+    "$scheme " +
+        JWT.create()
+            .withAudience(audience)
+            .withIssuer(ISSUER)
+            .withSubject(subject)
+            .sign(
+                ALGORITHM,
+            )

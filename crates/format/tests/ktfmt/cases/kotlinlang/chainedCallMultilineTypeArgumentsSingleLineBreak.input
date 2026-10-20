@@ -1,0 +1,15 @@
+class Foo {
+    @Test
+    open fun testSerializeNested(): Unit =
+        testWithEngine(CIO) {
+            configureClient()
+
+            test { client ->
+                val result = client.get { url(path = "/users", port = serverPort) }.body<Response<List<User>>>()
+
+                assertTrue(result.ok)
+                assertNotNull(result.result)
+                assertEquals(users, result.result)
+            }
+        }
+}

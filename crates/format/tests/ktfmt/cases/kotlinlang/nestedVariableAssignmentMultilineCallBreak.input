@@ -1,0 +1,4 @@
+fun prepare() {
+    server = RawWebSocket(client2server, server2client, coroutineContext = parent + exceptionHandler)
+    client = RawWebSocket(server2client, client2server, coroutineContext = parent + exceptionHandler)
+}

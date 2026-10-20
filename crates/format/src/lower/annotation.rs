@@ -15,38 +15,13 @@ struct ModifierContext {
     annotation_count: usize,
 }
 
-fn annotation_trailing_doc<'a>(
-    child: &Node<'a>,
-    node: &Node<'a>,
-    ctx: &LowerContext<'a, '_>,
+fn resolve_annotation_style_trailing_doc<'a>(
     m_ctx: &ModifierContext,
+    has_newline: bool,
+    has_args: bool,
+    ctx: &LowerContext<'a, '_>,
 ) -> Doc<'a> {
-    let next_node = child.next_sibling().or_else(|| node.next_sibling());
-    let has_newline = next_node.is_some_and(|n| ctx.has_newline_between(child, &n));
-    let has_args = child.children(&mut child.walk()).any(|c| {
-        matches!(
-            c.kind(),
-            "value_arguments" | "type_arguments" | "[" | "constructor_invocation"
-        )
-    });
-    let has_use_site = child
-        .children(&mut child.walk())
-        .any(|c| c.kind() == "use_site_target");
-    let has_bracket = child.children(&mut child.walk()).any(|c| c.kind() == "[");
-
-    if has_bracket && node.kind() != "type_modifiers" {
-        return Doc::HardLine;
-    }
-
-    if node.kind() == "type_modifiers" {
-        if has_newline || (m_ctx.is_param && has_use_site) {
-            Doc::HardLine
-        } else if has_args {
-            Doc::Line
-        } else {
-            Doc::space()
-        }
-    } else if ctx.options.block_indent == 4 {
+    if ctx.options.block_indent == 4 {
         if !m_ctx.only_annotations_so_far {
             Doc::space()
         } else if m_ctx.should_force_break_in_kotlinlang {
@@ -85,6 +60,55 @@ fn annotation_trailing_doc<'a>(
         Doc::HardLine
     } else {
         Doc::space()
+    }
+}
+
+fn annotation_trailing_doc<'a>(
+    child: &Node<'a>,
+    node: &Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    m_ctx: &ModifierContext,
+) -> Doc<'a> {
+    if let Some(n) = child.next_sibling()
+        && matches!(n.kind(), "comment" | "line_comment" | "multiline_comment")
+        && !ctx.has_newline_between(child, &n)
+    {
+        return Doc::space();
+    }
+    if child.next_sibling().is_none()
+        && let Some(n) = node.next_sibling()
+        && matches!(n.kind(), "comment" | "line_comment" | "multiline_comment")
+        && !ctx.has_newline_between(node, &n)
+    {
+        return Doc::space();
+    }
+    let next_node = child.next_sibling().or_else(|| node.next_sibling());
+    let has_newline = next_node.is_some_and(|n| ctx.has_newline_between(child, &n));
+    let has_args = child.children(&mut child.walk()).any(|c| {
+        matches!(
+            c.kind(),
+            "value_arguments" | "type_arguments" | "[" | "constructor_invocation"
+        )
+    });
+    let has_use_site = child
+        .children(&mut child.walk())
+        .any(|c| c.kind() == "use_site_target");
+    let has_bracket = child.children(&mut child.walk()).any(|c| c.kind() == "[");
+
+    if has_bracket && node.kind() != "type_modifiers" {
+        return Doc::HardLine;
+    }
+
+    if node.kind() == "type_modifiers" {
+        if has_newline || (m_ctx.is_param && has_use_site) {
+            Doc::HardLine
+        } else if has_args {
+            Doc::Line
+        } else {
+            Doc::space()
+        }
+    } else {
+        resolve_annotation_style_trailing_doc(m_ctx, has_newline, has_args, ctx)
     }
 }
 
@@ -221,4 +245,16 @@ pub fn lower_annotated_lambda<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) ->
         prev_kind = Some(kind);
     }
     Doc::Concat(docs)
+}
+
+pub fn lower_annotated_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+    let mut docs = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if !docs.is_empty() {
+            docs.push(Doc::Line);
+        }
+        docs.push(lower_node(child, ctx));
+    }
+    Doc::Group(Box::new(Doc::Concat(docs)))
 }

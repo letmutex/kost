@@ -1,0 +1,3 @@
+private fun ASTNode.getPrecedingModifier(): ASTNode? = prevCodeSibling?.let { prevCodeSibling ->
+    prevCodeSibling.text
+}

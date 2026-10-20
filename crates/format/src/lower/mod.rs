@@ -2,6 +2,7 @@ pub mod accessors;
 pub mod annotation;
 pub mod assignment;
 pub mod binary;
+pub mod call_args;
 pub mod callable_reference;
 pub mod calls;
 pub mod chain;
@@ -44,7 +45,8 @@ use tree_sitter::Node;
 use crate::doc::Doc;
 use crate::lower::accessors::lower_getter_setter;
 use crate::lower::annotation::{
-    lower_annotated_lambda, lower_annotation, lower_file_annotation, lower_modifiers,
+    lower_annotated_expression, lower_annotated_lambda, lower_annotation, lower_file_annotation,
+    lower_modifiers,
 };
 use crate::lower::assignment::{lower_assignment, lower_directly_assignable_expression};
 use crate::lower::binary::lower_binary_expression;
@@ -150,6 +152,7 @@ fn lower_expression_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Opti
         "when_expression" => lower_when_expression(node, ctx),
         "when_entry" => lower_when_entry(node, ctx),
         "when_subject" => lower_when_subject(node, ctx),
+        "annotated_expression" => lower_annotated_expression(node, ctx),
         "annotated_lambda" => lower_annotated_lambda(node, ctx),
         "lambda_literal" => lower_lambda_literal(node, ctx),
         "lambda_parameters" => lower_lambda_parameters(node, ctx).0,

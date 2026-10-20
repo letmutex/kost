@@ -74,7 +74,7 @@ pub(crate) fn build_property_header<'a>(
     let has_args = init_child
         .and_then(crate::lower::delegates::find_opening_call)
         .is_some_and(|c| crate::lower::delegates::call_has_args(&c));
-    let allow_flat_header = flat_init && (is_scoping_or_lambda || has_args);
+    let allow_flat_header = flat_init && (is_scoping_or_lambda || has_args || op == "by");
 
     if type_docs.is_empty() {
         format_untyped_property_header(name_doc, op, init_section, flat_init, first_line_fits)

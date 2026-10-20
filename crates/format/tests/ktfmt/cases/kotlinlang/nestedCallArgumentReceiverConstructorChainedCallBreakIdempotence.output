@@ -1,0 +1,14 @@
+fun test() {
+    Identity.encode(
+        Deflate.encode(
+            GZip.encode(
+                Zstd(compressionLevel = 3)
+                    .encode(
+                        ByteReadChannel(
+                            textToCompressAsBytes,
+                        ),
+                    ),
+            ),
+        ),
+    )
+}

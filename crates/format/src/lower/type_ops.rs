@@ -205,6 +205,50 @@ fn try_lower_annotated_binary<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) ->
     None
 }
 
+fn prefix_annotation_separator<'a>(
+    node: &Node<'a>,
+    prev: &Node<'a>,
+    child: &Node<'a>,
+    has_bracket_in_chain: bool,
+    is_anno: bool,
+    ctx: &LowerContext<'a, '_>,
+) -> Doc<'a> {
+    let is_jump = child.kind() == "jump_expression";
+    let is_block_expr = matches!(child.kind(), "when_expression" | "object_literal");
+    let is_binary = is_binary_expression_kind(child.kind());
+    let in_block = is_parent_block(node);
+    let has_newline = ctx.has_newline_between(prev, child);
+    let is_next_anno = child.kind() == "annotation"
+        || (child.kind() == "prefix_expression"
+            && child.child(0).is_some_and(|c| c.kind() == "annotation"));
+
+    if matches!(
+        child.kind(),
+        "comment" | "line_comment" | "multiline_comment"
+    ) {
+        if ctx.has_newline_between(prev, child) {
+            Doc::HardLine
+        } else {
+            Doc::space()
+        }
+    } else if has_bracket_in_chain
+        || is_jump
+        || is_block_expr
+        || (is_binary && in_block && has_newline)
+        || (is_next_anno
+            && (has_newline
+                || (ctx.options.block_indent == 4 && prefix_chain_has_block_expr(node))))
+    {
+        Doc::HardLine
+    } else if is_next_anno && !has_newline {
+        Doc::space()
+    } else if is_anno {
+        Doc::Line
+    } else {
+        Doc::space()
+    }
+}
+
 pub fn lower_prefix_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     if let Some(doc) = try_lower_annotated_binary(node, ctx) {
         return doc;
@@ -230,43 +274,34 @@ pub fn lower_prefix_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -
                     .last()
                     .is_some_and(|d: &Doc<'_>| d.ends_with_newline() || d.ends_with_space())
             {
-                let is_jump = child.kind() == "jump_expression";
-                let is_block_expr = matches!(child.kind(), "when_expression" | "object_literal");
-                let is_binary = is_binary_expression_kind(child.kind());
-                let in_block = is_parent_block(&node);
-                let has_newline = ctx.has_newline_between(&prev, &child);
-                let is_next_anno = child.kind() == "annotation"
-                    || (child.kind() == "prefix_expression"
-                        && child.child(0).is_some_and(|c| c.kind() == "annotation"));
-
-                if matches!(
-                    child.kind(),
-                    "comment" | "line_comment" | "multiline_comment"
-                ) {
-                    docs.push(Doc::space());
-                } else if has_bracket_in_chain
-                    || is_jump
-                    || is_block_expr
-                    || (is_binary && in_block && has_newline)
-                    || (is_next_anno
-                        && (has_newline
-                            || (ctx.options.block_indent == 4
-                                && prefix_chain_has_block_expr(&node))))
-                {
-                    docs.push(Doc::HardLine);
-                } else if is_next_anno && !has_newline {
-                    docs.push(Doc::space());
-                } else if is_anno {
-                    docs.push(Doc::Line);
-                } else {
-                    docs.push(Doc::space());
-                }
+                docs.push(prefix_annotation_separator(
+                    &node,
+                    &prev,
+                    &child,
+                    has_bracket_in_chain,
+                    is_anno,
+                    ctx,
+                ));
             } else if needs_op_space {
                 docs.push(Doc::space());
             }
         }
         docs.push(lower_node(child, ctx));
         prev_child = Some(child);
+    }
+    let trailing_comment_len = if let Some(next) = node.next_sibling()
+        && matches!(
+            next.kind(),
+            "comment" | "line_comment" | "multiline_comment"
+        )
+        && !ctx.has_newline_between(&node, &next)
+    {
+        1 + ctx.node_text(&next).len()
+    } else {
+        0
+    };
+    if trailing_comment_len > 0 {
+        docs.push(Doc::reserve_width(trailing_comment_len));
     }
     let res = Doc::Concat(docs);
     if res.has_hardline() {

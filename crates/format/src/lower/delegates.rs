@@ -1,6 +1,10 @@
 use tree_sitter::Node;
 
 use crate::doc::Doc;
+pub(crate) use crate::lower::call_args::{
+    call_has_args, call_has_multiline_args, find_call_opening_paren_len, find_first_lambda,
+    find_innermost_call, find_opening_call,
+};
 use crate::lower::context::LowerContext;
 use crate::lower::{lower_comment, lower_node};
 
@@ -51,102 +55,9 @@ pub(crate) fn parse_property_delegate<'a>(
     }
 }
 
-pub(crate) fn call_has_args(node: &Node<'_>) -> bool {
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "call_suffix" {
-            let mut suffix_cursor = child.walk();
-            for suffix_child in child.children(&mut suffix_cursor) {
-                if suffix_child.kind() == "value_arguments" {
-                    return suffix_child
-                        .children(&mut suffix_child.walk())
-                        .any(|c| c.kind() == "value_argument");
-                }
-            }
-        }
-    }
-    false
-}
-
-pub(crate) fn call_has_multiline_args(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "call_suffix" {
-            let mut suffix_cursor = child.walk();
-            for suffix_child in child.children(&mut suffix_cursor) {
-                if suffix_child.kind() == "value_arguments" {
-                    return suffix_child.start_position().row != suffix_child.end_position().row
-                        || suffix_child.byte_range().len() > ctx.options.max_width
-                        || crate::lower::lists::has_trailing_comma(&suffix_child);
-                }
-            }
-        }
-    }
-    false
-}
-
-pub(crate) fn find_innermost_call<'a>(node: Node<'a>) -> Option<Node<'a>> {
-    let mut curr = node;
-    let mut root_call = None;
-    while matches!(
-        curr.kind(),
-        "navigation_expression" | "call_expression" | "postfix_expression" | "indexing_expression"
-    ) {
-        if curr.kind() == "call_expression" {
-            root_call = Some(curr);
-        }
-        if let Some(first) = curr.child(0)
-            && matches!(
-                first.kind(),
-                "navigation_expression"
-                    | "call_expression"
-                    | "postfix_expression"
-                    | "indexing_expression"
-            )
-        {
-            curr = first;
-            continue;
-        }
-        break;
-    }
-    root_call
-}
-
-pub(crate) fn find_opening_call<'a>(node: Node<'a>) -> Option<Node<'a>> {
-    find_innermost_call(node)
-}
-
-pub(crate) fn find_first_call_with_multiline_args<'a>(
-    node: Node<'a>,
-    ctx: &LowerContext<'_, '_>,
-) -> Option<Node<'a>> {
-    let mut calls = Vec::new();
-    let mut curr = node;
-    while matches!(
-        curr.kind(),
-        "navigation_expression" | "call_expression" | "postfix_expression" | "indexing_expression"
-    ) {
-        if curr.kind() == "call_expression" {
-            calls.push(curr);
-        }
-        if let Some(first) = curr.child(0)
-            && matches!(
-                first.kind(),
-                "navigation_expression"
-                    | "call_expression"
-                    | "postfix_expression"
-                    | "indexing_expression"
-            )
-        {
-            curr = first;
-            continue;
-        }
-        break;
-    }
-    calls.reverse();
-    calls
-        .into_iter()
-        .find(|call| call_has_multiline_args(call, ctx))
+fn call_has_receiver(call: &Node<'_>) -> bool {
+    call.child(0)
+        .is_some_and(|callee| callee.kind() == "navigation_expression")
 }
 
 pub(crate) fn build_property_init_section<'a>(
@@ -161,11 +72,15 @@ pub(crate) fn build_property_init_section<'a>(
     let is_kotlinlang = ctx.options.block_indent == 4;
     let flat_init = init_child.is_some_and(|r| {
         let opening = find_opening_call(r);
+        let opening_has_receiver = opening.is_some_and(|c| call_has_receiver(&c));
+        let is_top_level = ctx.compute_target_indent(&r) == 0;
+        let has_lambda = find_first_lambda(r).is_some();
         crate::lower::scoping::is_scoping_chain_or_lambda(&r)
-            || ((is_kotlinlang || is_destructuring)
+            || (!has_lambda
+                && ((is_kotlinlang && is_top_level) || is_destructuring)
+                && !opening_has_receiver
                 && opening.is_some_and(|c| find_call_opening_paren_len(c, r, ctx).is_some()))
     });
-
     let is_raw_string = init_child.is_some_and(|r| {
         let mut curr = r;
         while curr.kind() == "call_expression" || curr.kind() == "navigation_expression" {
@@ -239,49 +154,6 @@ pub(crate) fn build_property_init_section<'a>(
     (doc, flat_init)
 }
 
-pub(crate) fn find_first_lambda<'a>(node: Node<'a>) -> Option<Node<'a>> {
-    if matches!(node.kind(), "lambda_literal" | "annotated_lambda") {
-        return Some(node);
-    }
-    let mut cursor = node.walk();
-    for ch in node.children(&mut cursor) {
-        if ch.kind() == "value_arguments" {
-            continue;
-        }
-        if let Some(l) = find_first_lambda(ch) {
-            return Some(l);
-        }
-    }
-    None
-}
-
-pub(crate) fn find_call_opening_paren_len(
-    call: Node<'_>,
-    base: Node<'_>,
-    ctx: &LowerContext<'_, '_>,
-) -> Option<usize> {
-    let mut cursor = call.walk();
-    for ch in call.children(&mut cursor) {
-        if ch.kind() == "call_suffix" {
-            let mut sc = ch.walk();
-            for sub in ch.children(&mut sc) {
-                if sub.kind() == "value_arguments" {
-                    let has_args = sub
-                        .children(&mut sub.walk())
-                        .any(|c| c.kind() == "value_argument");
-                    if has_args {
-                        return ctx
-                            .source
-                            .get(base.start_byte()..=sub.start_byte())
-                            .map(crate::lower::expression_body::collapsed_text_len);
-                    }
-                }
-            }
-        }
-    }
-    None
-}
-
 pub(crate) fn property_init_first_line_len(
     init_child: Option<Node<'_>>,
     init_flat_len: usize,
@@ -290,19 +162,20 @@ pub(crate) fn property_init_first_line_len(
 ) -> usize {
     let Some(init) = init_child else { return 0 };
     if is_kotlinlang {
-        if let Some(call) = find_first_call_with_multiline_args(init, ctx)
-            && let Some(len) = find_call_opening_paren_len(call, init, ctx)
-        {
-            return len;
+        let is_lambda = find_first_lambda(init).is_some();
+        if !is_lambda {
+            return init_flat_len;
         }
-        let continuation_col = ctx.compute_target_indent(&init) + ctx.options.continuation_indent;
-        if continuation_col + init_flat_len <= ctx.options.max_width {
+        let is_chained_call = crate::lower::chain::has_call_in_receiver_chain(&init)
+            || matches!(init.kind(), "navigation_expression");
+        let is_scoping_or_lambda = crate::lower::scoping::is_scoping_chain_or_lambda(&init);
+        if !is_scoping_or_lambda && is_chained_call {
             return init_flat_len;
         }
         return crate::lower::expression_body::expression_first_line_len(&init, 0, ctx);
     }
     if let Some(call) = find_opening_call(init)
-        && (is_kotlinlang || call_has_args(&call))
+        && call_has_multiline_args(&call, ctx)
     {
         if let Some(len) = find_call_opening_paren_len(call, init, ctx) {
             return len;
@@ -329,7 +202,7 @@ pub(crate) fn property_first_line_fits(
     ctx: &LowerContext<'_, '_>,
 ) -> bool {
     let indent = ctx.compute_target_indent(node);
-    let op_len = op.len() + 2;
+    let op_len = op.len() + 1;
     let is_kotlinlang = ctx.options.block_indent == 4;
     let init_len = property_init_first_line_len(init_child, init_flat_len, is_kotlinlang, ctx);
     indent + modifier_len + name_len + type_len + op_len + init_len <= ctx.options.max_width

@@ -4,8 +4,7 @@ class DnsQueryTest {
             call =
                 client.newCall(
                     request =
-                        Request
-                            .Builder()
+                        Request.Builder()
                             .header("Accept", DNS_MESSAGE.toString())
                             .apply {
                                 if (post) {

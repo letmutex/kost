@@ -1,0 +1,3 @@
+public actual class SelectorManager {
+    public actual companion object
+}

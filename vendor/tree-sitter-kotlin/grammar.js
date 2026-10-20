@@ -130,7 +130,6 @@ module.exports = grammar({
     [$._name_based_destructuring_entry, $.prefix_expression, $._type_modifier],
     [$._explicit_name_based_destructuring_entry, $.prefix_expression, $._type_modifier],
     [$._name_based_destructuring_entry, $._explicit_name_based_destructuring_entry, $.prefix_expression, $._type_modifier],
-    [$.companion_object, $.member_modifier],
     [$.companion_object, $._modifier],
     [$.multi_variable_declaration, $.parenthesized_expression],
     [$.prefix_expression, $._type_modifier],
@@ -190,8 +189,7 @@ module.exports = grammar({
 
     // ambiguity between call_suffix and _generic_call_suffix (both can match type_arguments + args)
     [$.call_suffix, $._generic_call_suffix],
-
-    [$.companion_modifiers, $.modifiers],
+    [$.companion_object, $.member_modifier],
   ],
 
   externals: $ => [
@@ -472,7 +470,7 @@ module.exports = grammar({
     _class_member_declarations: $ => repeat1(seq($._class_member_declaration, $._semi)),
 
     _class_member_declaration: $ => choice(
-      prec(2, $.companion_object),
+      $.companion_object,
       $._declaration,
       $.anonymous_initializer,
       $.secondary_constructor,
@@ -481,21 +479,25 @@ module.exports = grammar({
 
     anonymous_initializer: $ => seq("init", $._block),
 
-    companion_modifiers: $ => prec.right(
-      repeat1(prec.right(PREC.MODIFIERS, choice($.annotation, $.visibility_modifier)))
-    ),
-
-    companion_object: $ => prec.dynamic(2, seq(
-      optional(alias($.companion_modifiers, $.modifiers)),
-      "companion",
-      choice(
-        seq(
-          "object",
-          optional(alias($.simple_identifier, $.type_identifier)),
-          optional(seq(":", $._delegation_specifiers)),
-          optional($.class_body)
-        ),
-        $.class_body
+    companion_object: $ => prec.dynamic(3, choice(
+      seq(
+        optional($.modifiers),
+        "companion",
+        choice(
+          seq(
+            "object",
+            optional(alias($.simple_identifier, $.type_identifier)),
+            optional(seq(":", $._delegation_specifiers)),
+            optional($.class_body)
+          ),
+          $.class_body
+        )
+      ),
+      seq(
+        $.modifiers,
+        "object",
+        optional(seq(":", $._delegation_specifiers)),
+        optional($.class_body)
       )
     )),
 
@@ -1086,8 +1088,8 @@ module.exports = grammar({
     lambda_literal: $ => prec(PREC.LAMBDA_LITERAL, seq(
       "{",
       choice(
-        seq($.lambda_parameters, "->", optional($.statements)),
-        seq("->", optional($.statements)),
+        prec.dynamic(3, seq($.lambda_parameters, "->", optional($.statements))),
+        prec.dynamic(2, seq("->", optional($.statements))),
         optional($.statements)
       ),
       "}"
@@ -1112,7 +1114,13 @@ module.exports = grammar({
 
     _lambda_parameter: $ => choice(
       $.variable_declaration,
-      seq($.multi_variable_declaration, optional(seq(":", $._type)))
+      seq(
+        choice(
+          $.multi_variable_declaration,
+          alias($._explicit_destructuring_parameters, $.multi_variable_declaration),
+        ),
+        optional(seq(":", $._type))
+      )
     ),
 
     anonymous_function: $ => prec.right(seq(

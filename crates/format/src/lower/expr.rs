@@ -74,6 +74,35 @@ fn has_following_call_ambiguity(node: Node<'_>) -> bool {
     false
 }
 
+fn statement_annotation_fits(
+    prev: &Node<'_>,
+    child: &Node<'_>,
+    ctx: &LowerContext<'_, '_>,
+) -> bool {
+    let indent = ctx.compute_target_indent(prev);
+    let anno_len = ctx.node_text(prev).len();
+    let stmt_len = if child.kind() == "assignment" {
+        let lhs = child.child(0).map(|c| ctx.node_text(&c).len()).unwrap_or(0);
+        lhs + 3
+    } else {
+        crate::lower::expression_body::collapsed_text_len(
+            ctx.node_text(child).lines().next().unwrap_or(""),
+        )
+    };
+    let comment_len = if let Some(next) = child.next_sibling()
+        && matches!(
+            next.kind(),
+            "comment" | "line_comment" | "multiline_comment"
+        )
+        && !ctx.has_newline_between(child, &next)
+    {
+        1 + ctx.node_text(&next).len()
+    } else {
+        0
+    };
+    indent + anno_len + 1 + stmt_len + comment_len <= ctx.options.max_width
+}
+
 fn separate_statements<'a>(
     prev: Node<'a>,
     child: Node<'a>,
@@ -122,8 +151,15 @@ fn separate_statements<'a>(
     }
 
     let prev_is_kdoc = prev_is_comment && ctx.node_text(&prev).starts_with("/**");
+    let prev_is_anno = prev.kind() == "annotation" && !child_is_kdoc;
+    let anno_fits = if prev_is_anno && !ctx.has_newline_between(&prev, &child) {
+        statement_annotation_fits(&prev, &child, ctx)
+    } else {
+        true
+    };
+
     let same_line_comment = ((child_is_comment && !child_is_kdoc)
-        || (prev.kind() == "annotation" && !child_is_kdoc)
+        || (prev_is_anno && anno_fits)
         || (prev_is_comment && child.kind() == "annotation" && !prev_is_kdoc))
         && !needs_semi
         && !ctx.has_newline_between(&prev, &child);

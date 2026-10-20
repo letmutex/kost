@@ -1,8 +1,9 @@
 use tree_sitter::Node;
 
 use crate::doc::Doc;
+pub(crate) use crate::lower::call_args::calculate_chain_end;
+pub use crate::lower::call_args::{lower_call_suffix, lower_call_suffix_parts};
 use crate::lower::context::LowerContext;
-use crate::lower::lists::has_trailing_comma;
 use crate::lower::lower_node;
 use crate::lower::navigation::{
     count_chain_lambdas, is_call_receiver, is_chain_broken, is_navigation_chain_root,
@@ -46,26 +47,14 @@ fn lower_chain_root_with_call_suffix<'a>(
     last_suffix: Node<'a>,
     op_doc: Doc<'a>,
     suf_docs: Vec<Doc<'a>>,
+    is_breakable: bool,
     ctx: &LowerContext<'a, '_>,
 ) -> Doc<'a> {
     let (call_prefix, val_args, trailing_lambda) = lower_call_suffix_parts(last_suffix, ctx);
-    let chain_end = last_suffix
-        .children(&mut last_suffix.walk())
-        .find(|c| {
-            matches!(
-                c.kind(),
-                "type_arguments" | "value_arguments" | "annotated_lambda" | "lambda_literal"
-            )
-        })
-        .map(|c| {
-            if matches!(c.kind(), "annotated_lambda" | "lambda_literal") {
-                c.start_byte() + 1
-            } else {
-                c.start_byte()
-            }
-        })
-        .unwrap_or(last_suffix.end_byte());
-    let chain_len = chain_end.saturating_sub(node.start_byte());
+    let chain_end = calculate_chain_end(&node, last_suffix, trailing_lambda.is_some(), ctx);
+    let chain_len = crate::lower::expression_body::collapsed_text_len(
+        ctx.source.get(node.start_byte()..chain_end).unwrap_or(""),
+    );
 
     let is_broken = is_chain_broken(&node, ctx, chain_len) || op_doc.has_hardline();
 
@@ -73,20 +62,20 @@ fn lower_chain_root_with_call_suffix<'a>(
         op_doc,
         Doc::continuation_indent(Doc::Concat(suf_docs)),
     ]);
-    let chain_group = if is_broken {
+    let chain_group = if is_broken && is_breakable {
         chain_body
     } else {
         Doc::Group(Box::new(chain_body))
     };
     let mut chain_parts = vec![chain_group];
-    let prefix_doc = if is_broken {
+    let prefix_doc = if is_broken && is_breakable {
         Doc::continuation_indent(call_prefix)
     } else {
         call_prefix
     };
     chain_parts.push(prefix_doc);
     if let Some(va) = val_args {
-        let va_doc = if is_broken {
+        let va_doc = if is_broken && is_breakable {
             Doc::continuation_indent(va)
         } else {
             va
@@ -137,6 +126,68 @@ fn parse_callee_navigation<'a>(
     (nav_op, nav_comments, nav_suf)
 }
 
+fn is_type_call_overflow(
+    node: &Node<'_>,
+    op: &Node<'_>,
+    suf: &Node<'_>,
+    ctx: &LowerContext<'_, '_>,
+) -> bool {
+    if crate::lower::call_args::call_has_args(node) {
+        let head_len = ctx.node_text(op).len() + ctx.node_text(suf).len() + 1;
+        let start_col = crate::lower::chain::resolve_chain_start_col(node, ctx, head_len);
+        start_col + head_len > ctx.options.max_width
+    } else {
+        let full_len = crate::lower::expression_body::collapsed_text_len(ctx.node_text(node));
+        let start_col = crate::lower::chain::resolve_chain_start_col(node, ctx, full_len);
+        start_col + full_len > ctx.options.max_width
+    }
+}
+
+fn is_chained_call(
+    node: &Node<'_>,
+    op: &Node<'_>,
+    suf: &Node<'_>,
+    has_comments: bool,
+    ctx: &LowerContext<'_, '_>,
+) -> bool {
+    let is_type_name = is_type_name_receiver(op, ctx.source);
+    has_comments
+        || is_call_receiver(op)
+        || (!is_type_name
+            && op.kind() == "navigation_expression"
+            && (!is_type_name_receiver(suf, ctx.source) || is_part_of_call_chain(node)))
+        || (!is_type_name
+            && !is_super_or_this(op)
+            && ctx.node_text(op).len() >= ctx.options.continuation_indent
+            && (is_part_of_call_chain(node) || ctx.has_newline_between(op, suf)))
+        || (is_type_name
+            && op.kind() == "navigation_expression"
+            && !is_type_name_receiver(suf, ctx.source)
+            && !is_part_of_call_chain(node)
+            && is_type_call_overflow(node, op, suf, ctx))
+}
+
+fn collect_nav_comment_docs<'a>(
+    op: Node<'a>,
+    nav_comments: Vec<Node<'a>>,
+    suf_doc: Doc<'a>,
+    ctx: &LowerContext<'a, '_>,
+) -> Vec<Doc<'a>> {
+    let mut suf_docs = Vec::new();
+    let mut prev = op;
+    for c in nav_comments {
+        if ctx.has_newline_between(&prev, &c) {
+            suf_docs.push(Doc::HardLine);
+        } else {
+            suf_docs.push(Doc::space());
+        }
+        suf_docs.push(lower_node(c, ctx));
+        prev = c;
+    }
+    suf_docs.push(suf_doc);
+    suf_docs
+}
+
 fn lower_chained_call_expression<'a>(
     node: Node<'a>,
     callee_node: Node<'a>,
@@ -148,21 +199,13 @@ fn lower_chained_call_expression<'a>(
     };
     let op = ctx.resolve_leaf(raw_op);
 
-    let is_chain = !nav_comments.is_empty()
-        || is_call_receiver(&op)
-        || op.kind() == "navigation_expression"
-        || (!is_type_name_receiver(&op, ctx.source)
-            && !is_super_or_this(&op)
-            && ctx.node_text(&op).len() >= ctx.options.continuation_indent
-            && (is_part_of_call_chain(&node) || ctx.has_newline_between(&op, &suf)));
-    if !is_chain {
+    if !is_chained_call(&node, &op, &suf, !nav_comments.is_empty(), ctx) {
         return None;
     }
 
     let op_doc = lower_node(op, ctx);
     let has_multiline_args = crate::lower::delegates::call_has_multiline_args(&node, ctx);
-    let is_opening_call_on_simple_receiver =
-        !is_call_receiver(&op) && op.kind() != "navigation_expression";
+    let is_opening_call_on_simple_receiver = op.kind() == "simple_identifier";
     let is_breakable = (!nav_comments.is_empty() || !is_super_or_this(&op))
         && (!is_opening_call_on_simple_receiver
             || !has_multiline_args
@@ -174,12 +217,7 @@ fn lower_chained_call_expression<'a>(
         && (matches!(op.kind(), "multiline_string_literal")
             || (op.kind() == "string_literal" && op.start_position().row != op.end_position().row));
     let suf_doc = lower_navigation_suffix_with_break(suf, ctx, is_breakable, is_raw_string);
-    let mut suf_docs = Vec::new();
-    for c in nav_comments {
-        suf_docs.push(Doc::HardLine);
-        suf_docs.push(lower_node(c, ctx));
-    }
-    suf_docs.push(suf_doc);
+    let mut suf_docs = collect_nav_comment_docs(op, nav_comments, suf_doc, ctx);
 
     let is_root = is_navigation_chain_root(&node);
     if is_root
@@ -190,7 +228,12 @@ fn lower_chained_call_expression<'a>(
             suf_docs.push(lower_node(*s, ctx));
         }
         return Some(lower_chain_root_with_call_suffix(
-            node, *last, op_doc, suf_docs, ctx,
+            node,
+            *last,
+            op_doc,
+            suf_docs,
+            is_breakable,
+            ctx,
         ));
     }
 
@@ -215,113 +258,4 @@ fn lower_chained_call_expression<'a>(
         chain_doc
     };
     Some(result)
-}
-
-fn format_call_suffix_lambda<'a>(
-    lambda_node: Option<Node<'a>>,
-    inter_comments: Vec<Node<'a>>,
-    val_args_node: Option<Node<'a>>,
-    val_args_breaks: bool,
-    ctx: &LowerContext<'a, '_>,
-) -> Option<Doc<'a>> {
-    let Some(l_node) = lambda_node else {
-        if inter_comments.is_empty() {
-            return None;
-        }
-        let mut parts = Vec::new();
-        let mut prev = val_args_node;
-        for c in &inter_comments {
-            if prev.is_some_and(|p| ctx.has_newline_between(&p, c)) {
-                parts.push(Doc::indent(Doc::HardLine));
-            } else {
-                parts.push(Doc::space());
-            }
-            parts.push(lower_node(*c, ctx));
-            prev = Some(*c);
-        }
-        return Some(Doc::Concat(parts));
-    };
-
-    let raw_lambda = lower_node(l_node, ctx);
-    let l = if val_args_node.is_some() && val_args_breaks && ctx.options.block_indent != 4 {
-        Doc::continuation_indent(raw_lambda)
-    } else {
-        raw_lambda
-    };
-    if inter_comments.is_empty() {
-        return Some(Doc::Concat(vec![Doc::space(), l]));
-    }
-    let mut parts = Vec::new();
-    let mut prev = val_args_node;
-    for c in &inter_comments {
-        if prev.is_some_and(|p| ctx.has_newline_between(&p, c)) {
-            parts.push(Doc::indent(Doc::HardLine));
-        } else {
-            parts.push(Doc::space());
-        }
-        parts.push(lower_node(*c, ctx));
-        prev = Some(*c);
-    }
-    if prev.is_some_and(|p| ctx.has_newline_between(&p, &l_node)) {
-        parts.push(Doc::HardLine);
-    } else {
-        parts.push(Doc::space());
-    }
-    parts.push(l);
-    Some(Doc::Concat(parts))
-}
-
-pub fn lower_call_suffix_parts<'a>(
-    node: Node<'a>,
-    ctx: &LowerContext<'a, '_>,
-) -> (Doc<'a>, Option<Doc<'a>>, Option<Doc<'a>>) {
-    let mut val_args_node = None;
-    let mut val_args_breaks = false;
-    let mut val_args_doc = None;
-    let mut lambda_node = None;
-    let mut inter_comments = Vec::new();
-    let mut other_docs = Vec::new();
-
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        let kind = child.kind();
-        if kind == "value_arguments" {
-            val_args_node = Some(child);
-            let trailing = has_trailing_comma(&child);
-            val_args_breaks = !trailing
-                && (child.start_position().row != child.end_position().row
-                    || child.byte_range().len() > ctx.options.max_width);
-            val_args_doc = Some(lower_node(child, ctx));
-        } else if kind == "annotated_lambda" || kind == "lambda_literal" {
-            lambda_node = Some(child);
-        } else if matches!(kind, "comment" | "line_comment" | "multiline_comment")
-            && val_args_node.is_some()
-            && lambda_node.is_none()
-        {
-            inter_comments.push(child);
-        } else {
-            other_docs.push(lower_node(child, ctx));
-        }
-    }
-
-    let lambda = format_call_suffix_lambda(
-        lambda_node,
-        inter_comments,
-        val_args_node,
-        val_args_breaks,
-        ctx,
-    );
-    (Doc::Concat(other_docs), val_args_doc, lambda)
-}
-
-pub fn lower_call_suffix<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let (prefix, val_args, lambda) = lower_call_suffix_parts(node, ctx);
-    let mut docs = vec![prefix];
-    if let Some(va) = val_args {
-        docs.push(va);
-    }
-    if let Some(l) = lambda {
-        docs.push(l);
-    }
-    Doc::Concat(docs)
 }

@@ -6,6 +6,38 @@ use crate::lower::expr::lower_statements;
 use crate::lower::lists::lower_list_with_commas;
 use crate::lower::lower_node;
 
+fn push_secondary_constructor_comment<'a>(
+    child: Node<'a>,
+    prev_child: Option<Node<'a>>,
+    modifier_docs: &mut Vec<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+) {
+    let is_same_line =
+        prev_child.is_some_and(|p| child.start_position().row == p.end_position().row);
+    if is_same_line && !modifier_docs.is_empty() {
+        let last = modifier_docs.pop().unwrap();
+        let trimmed = match last {
+            Doc::Concat(mut items) => {
+                if items.last().is_some_and(|d| matches!(d, Doc::HardLine)) {
+                    items.pop();
+                }
+                Doc::Concat(items)
+            }
+            other => other,
+        };
+        let needs_space = !trimmed.ends_with_space();
+        modifier_docs.push(trimmed);
+        if needs_space {
+            modifier_docs.push(Doc::space());
+        }
+        modifier_docs.push(lower_node(child, ctx));
+        modifier_docs.push(Doc::HardLine);
+    } else {
+        modifier_docs.push(lower_node(child, ctx));
+        modifier_docs.push(Doc::HardLine);
+    }
+}
+
 pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     let mut modifier_docs = Vec::new();
     let mut prefix_docs = Vec::new();
@@ -29,27 +61,7 @@ pub fn lower_secondary_constructor<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
                 modifier_docs.push(lower_node(child, ctx));
             }
             "comment" | "line_comment" | "multiline_comment" => {
-                let is_same_line =
-                    prev_child.is_some_and(|p| child.start_position().row == p.end_position().row);
-                if is_same_line && !modifier_docs.is_empty() {
-                    let last = modifier_docs.pop().unwrap();
-                    let trimmed = match last {
-                        Doc::Concat(mut items) => {
-                            if items.last().is_some_and(|d| matches!(d, Doc::HardLine)) {
-                                items.pop();
-                            }
-                            Doc::Concat(items)
-                        }
-                        other => other,
-                    };
-                    modifier_docs.push(trimmed);
-                    modifier_docs.push(Doc::space());
-                    modifier_docs.push(lower_node(child, ctx));
-                    modifier_docs.push(Doc::HardLine);
-                } else {
-                    modifier_docs.push(lower_node(child, ctx));
-                    modifier_docs.push(Doc::HardLine);
-                }
+                push_secondary_constructor_comment(child, prev_child, &mut modifier_docs, ctx);
             }
             "constructor" => {
                 prefix_docs.push(Doc::text("constructor"));

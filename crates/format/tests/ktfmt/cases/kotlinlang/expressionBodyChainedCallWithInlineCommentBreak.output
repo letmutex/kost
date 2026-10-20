@@ -1,0 +1,6 @@
+class Foo {
+    private fun ASTNode.getFileName() =
+        psi.containingFile.virtualFile.name
+            .replace("\\", "/") // Ensure compatibility with Windows OS
+            .substringAfterLast("/")
+}

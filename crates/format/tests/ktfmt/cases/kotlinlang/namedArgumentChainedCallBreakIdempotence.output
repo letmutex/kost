@@ -1,0 +1,10 @@
+fun test() {
+    fun inner() {
+        lazyGridState.DecorativeScrollbar(
+            modifier =
+                Modifier.fillMaxWidth().padding(horizontal = 12.dp).align(Alignment.BottomStart),
+            state = lazyGridState.scrollbarState(itemsAvailable = onboardingUiState.topics.size),
+            orientation = Orientation.Horizontal,
+        )
+    }
+}

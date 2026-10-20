@@ -1,0 +1,8 @@
+class C {
+    fun test() {
+        every { Recipient.self() } returns
+            spyk(Recipient(id = RecipientId.from(2), isResolving = false)).also {
+                every { it.requireAci() } returns ACI.from(SELF_UUID)
+            }
+    }
+}

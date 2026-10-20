@@ -35,13 +35,13 @@ fn test_destructuring_declaration_chained_call_breaks_after_equals() {
 }
 
 #[test]
-fn test_chained_call_opening_call_with_receiver_multiline_args_preserves_inline_header() {
+fn test_chained_call_opening_call_with_receiver_multiline_args_breaks_after_equals() {
     let source = "class C {\n    val myProperty = receiver.fetch(\n        param1,\n        param2,\n    ).process()\n}\n";
     let formatted = format_default(source).expect("formatting should succeed");
-    let expected = "class C {\n    val myProperty = receiver.fetch(\n        param1,\n        param2,\n    )\n        .process()\n}\n";
+    let expected = "class C {\n    val myProperty =\n        receiver.fetch(\n            param1,\n            param2,\n        )\n            .process()\n}\n";
     assert_eq!(
         formatted, expected,
-        "property initializer with receiver-qualified opening call having multiline arguments must keep opening call on same line"
+        "property initializer with receiver-qualified opening call having multiline arguments must break after equals"
     );
     let pass2 = format_default(&formatted).expect("pass 2 should succeed");
     assert_eq!(
@@ -70,7 +70,7 @@ fn test_expression_body_in_init_block_target_indent() {
 fn test_chained_call_interspersed_comment_recognizes_broken_chain() {
     let source = "fun test() {\n    receiver // comment\n        .action()\n}\n";
     let formatted = format_default(source).expect("formatting should succeed");
-    let expected = "fun test() {\n    receiver\n        // comment\n        .action()\n}\n";
+    let expected = "fun test() {\n    receiver // comment\n        .action()\n}\n";
     assert_eq!(formatted, expected);
     let pass2 = format_default(&formatted).expect("pass 2 should succeed");
     assert_eq!(formatted, pass2);
@@ -81,6 +81,8 @@ fn test_broken_chain_with_multiline_args_and_trailing_lambda_single_continuation
     let options = format::FormattingOptions::google();
     let source = "fun test() {\n  receiver\n    .fetch(\n      param1,\n      param2,\n    ) { result ->\n      process(result)\n    }\n}\n";
     let formatted = format::format(source, &options).expect("formatting should succeed");
-    let expected = "fun test() {\n  receiver\n    .fetch(\n      param1,\n      param2,\n    ) { result ->\n    process(result)\n  }\n}\n";
+    let expected = "fun test() {\n  receiver.fetch(\n    param1,\n    param2,\n  ) { result ->\n    process(result)\n  }\n}\n";
     assert_eq!(formatted, expected);
+    let pass2 = format::format(&formatted, &options).expect("pass 2 should succeed");
+    assert_eq!(formatted, pass2);
 }

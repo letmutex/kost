@@ -1,0 +1,5 @@
+class C {
+    fun test() {
+        ktlintCliWindowsBatchScript.get().writeText(ktlintCliWindowsBatchScriptSource.asFile.get().readText())
+    }
+}

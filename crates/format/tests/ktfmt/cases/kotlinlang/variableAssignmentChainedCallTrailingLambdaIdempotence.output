@@ -1,0 +1,8 @@
+class C {
+    fun test() {
+        cache =
+            DiskLruCache(filesystem, dir, appVersion, 2, Int.MAX_VALUE.toLong(), taskRunner).also {
+                toClose.add(it)
+            }
+    }
+}

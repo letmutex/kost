@@ -38,7 +38,7 @@ pub fn is_binary_expression_kind(kind: &str) -> bool {
 }
 
 pub fn is_binary_operator(node: &Node<'_>) -> bool {
-    matches!(
+    if matches!(
         node.kind(),
         "+" | "-"
             | "*"
@@ -64,7 +64,22 @@ pub fn is_binary_operator(node: &Node<'_>) -> bool {
             | "custom_operation_symbol"
             | "in"
             | "!in"
-    )
+    ) {
+        return true;
+    }
+    if node.kind() == "simple_identifier"
+        && let Some(parent) = node.parent()
+        && parent.kind() == "infix_expression"
+    {
+        let first = parent.child(0);
+        if first.is_some_and(|f| f.id() != node.id()) {
+            let last = parent.child(parent.child_count().saturating_sub(1));
+            if last.is_some_and(|l| l.id() != node.id()) {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 #[derive(Default)]
@@ -109,19 +124,29 @@ fn push_comment_doc<'a>(
     state: &mut BinaryLowerState<'a>,
     ctx: &LowerContext<'a, '_>,
 ) {
+    if state.pending_elvis {
+        let line_doc = if state.elvis_newline {
+            Doc::HardLine
+        } else {
+            Doc::Line
+        };
+        docs.push(Doc::continuation_indent(Doc::Concat(vec![
+            line_doc,
+            Doc::text("?:"),
+        ])));
+        state.pending_elvis = false;
+        state.prev_was_operator = true;
+    }
     if state
         .prev_child
         .is_some_and(|p| !ctx.has_newline_between(&p, &child))
     {
         docs.push(Doc::space());
-        let comment_doc = if state.pending_elvis {
-            let block_indent = crate::lower::comment::compute_comment_indent(child, ctx);
-            let lhs_len = Doc::slice_last_line_len(docs);
-            let start_col = block_indent + lhs_len;
-            crate::lower::comment::lower_comment_with_col(child, ctx, Some(start_col))
-        } else {
-            lower_node(child, ctx)
-        };
+        let block_indent = crate::lower::comment::compute_comment_indent(child, ctx);
+        let lhs_len = Doc::slice_last_line_len(docs);
+        let start_col = block_indent + lhs_len;
+        let comment_doc =
+            crate::lower::comment::lower_comment_with_col(child, ctx, Some(start_col));
         docs.push(comment_doc);
         state.is_after_comment = docs.last().is_some_and(|d| d.ends_with_newline());
     } else {

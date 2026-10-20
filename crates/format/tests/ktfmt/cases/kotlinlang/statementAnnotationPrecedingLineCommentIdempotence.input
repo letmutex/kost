@@ -1,0 +1,11 @@
+class C {
+    fun test() {
+        while (true) {
+            @Suppress("BlockingMethodInNonBlockingContext")
+            // this is actually a non-blocking invocation
+            if (foo()) {
+                break
+            }
+        }
+    }
+}

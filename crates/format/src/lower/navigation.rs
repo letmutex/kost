@@ -45,7 +45,8 @@ pub fn lower_navigation_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
             || (!is_super_or_this(&op_node)
                 && (is_call_receiver(&op_node)
                     || (ctx.options.block_indent == 4 && has_call_in_receiver_chain(&op_node))
-                    || ctx.has_newline_between(&op_node, &suf_node)));
+                    || (ctx.options.block_indent != 4
+                        && ctx.has_newline_between(&op_node, &suf_node))));
         // In Google/ktfmt style (block_indent != 4), calls following a multiline raw string
         // (such as .trimIndent() or .trimMargin()) must wrap to a new line.
         // In Kotlinlang/ktlint style (block_indent == 4), they attach directly to the closing quotes.
@@ -56,18 +57,31 @@ pub fn lower_navigation_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_
         let suf_doc =
             lower_navigation_suffix_with_break(suf_node, ctx, is_breakable, is_raw_string);
         let mut parts = Vec::new();
+        let mut prev = op_node;
         for c in comments {
-            parts.push(Doc::HardLine);
+            if ctx.has_newline_between(&prev, &c) {
+                parts.push(Doc::HardLine);
+            } else {
+                parts.push(Doc::space());
+            }
             parts.push(lower_node(c, ctx));
+            prev = c;
         }
         parts.push(suf_doc);
+        let has_hardline = op_doc.has_hardline();
         let chain_doc = if is_breakable || is_raw_string {
             Doc::Concat(vec![op_doc, Doc::continuation_indent(Doc::Concat(parts))])
         } else {
             Doc::Concat(vec![op_doc, Doc::Concat(parts)])
         };
         if is_navigation_chain_root(&node) {
-            Doc::Group(Box::new(chain_doc))
+            let chain_len = crate::lower::expression_body::collapsed_text_len(ctx.node_text(&node));
+            let is_broken = is_chain_broken(&node, ctx, chain_len) || has_hardline;
+            if is_broken && is_breakable {
+                chain_doc
+            } else {
+                Doc::Group(Box::new(chain_doc))
+            }
         } else {
             chain_doc
         }

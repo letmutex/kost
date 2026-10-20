@@ -29,18 +29,10 @@ pub(crate) fn has_trailing_lambda_child(node: &Node<'_>) -> bool {
                 child
                     .children(&mut c2)
                     .any(|ch| matches!(ch.kind(), "lambda_literal" | "annotated_lambda"))
-            } else if child.kind() == "navigation_expression" {
-                has_trailing_lambda_child(&child)
             } else {
                 matches!(child.kind(), "lambda_literal" | "annotated_lambda")
             }
         });
-    }
-    if kind == "navigation_expression" {
-        let mut c = node.walk();
-        return node
-            .children(&mut c)
-            .any(|child| has_trailing_lambda_child(&child));
     }
     false
 }
@@ -106,20 +98,20 @@ fn append_post_rhs_comments<'a>(
 }
 
 fn compute_assignment_rhs_first_line_len(r_node: Node<'_>, ctx: &LowerContext<'_, '_>) -> usize {
-    if let Some(innermost) = crate::lower::delegates::find_innermost_call(r_node)
-        && let Some(len) =
-            crate::lower::delegates::find_call_opening_paren_len(innermost, r_node, ctx)
+    let is_chained_call = crate::lower::chain::has_call_in_receiver_chain(&r_node)
+        || matches!(r_node.kind(), "navigation_expression");
+    if !is_chained_call
+        && let Some(call) = crate::lower::delegates::find_opening_call(r_node)
+        && crate::lower::delegates::call_has_multiline_args(&call, ctx)
+        && let Some(len) = crate::lower::delegates::find_call_opening_paren_len(call, r_node, ctx)
     {
         len
     } else if let Some(lambda) = crate::lower::delegates::find_first_lambda(r_node) {
-        if r_node.start_position().row != lambda.start_position().row {
-            ctx.node_text(&r_node).lines().next().unwrap_or("").len()
-        } else {
-            crate::lower::expression_body::find_lambda_first_line_end_byte(lambda)
-                .saturating_sub(r_node.start_byte())
-        }
+        let end_byte = crate::lower::expression_body::find_lambda_first_line_end_byte(lambda);
+        let text = ctx.source.get(r_node.start_byte()..end_byte).unwrap_or("");
+        crate::lower::expression_body::collapsed_text_len(text)
     } else {
-        r_node.byte_range().len()
+        crate::lower::expression_body::collapsed_text_len(ctx.node_text(&r_node))
     }
 }
 
@@ -129,12 +121,19 @@ fn assignment_rhs_first_line_fits(
     op_str: &str,
     ctx: &LowerContext<'_, '_>,
 ) -> bool {
+    let is_top_level = ctx.compute_target_indent(node) == 0;
     let flat_rhs = has_trailing_lambda_child(&r_node)
+        || crate::lower::scoping::is_scoping_chain_or_lambda(&r_node)
         || (ctx.options.block_indent == 4
+            && is_top_level
             && matches!(r_node.kind(), "call_expression" | "navigation_expression")
             && crate::lower::delegates::find_innermost_call(r_node).is_some_and(|innermost| {
-                crate::lower::delegates::find_call_opening_paren_len(innermost, r_node, ctx)
-                    .is_some()
+                let opening_has_receiver = innermost
+                    .child(0)
+                    .is_some_and(|callee| callee.kind() == "navigation_expression");
+                !opening_has_receiver
+                    && crate::lower::delegates::find_call_opening_paren_len(innermost, r_node, ctx)
+                        .is_some()
             }));
     if !flat_rhs {
         return false;

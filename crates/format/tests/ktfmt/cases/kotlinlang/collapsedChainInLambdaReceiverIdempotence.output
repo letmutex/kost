@@ -1,0 +1,7 @@
+fun test() {
+    emit(node.startOffset, "Unnecessary \"Unit\" return type", true).ifAutocorrectAllowed {
+        node.parent?.findChildByType(COLON)?.let { colonNode ->
+            colonNode.remove()
+        }
+    }
+}

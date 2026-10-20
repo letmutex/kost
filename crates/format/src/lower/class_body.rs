@@ -265,7 +265,12 @@ pub fn lower_companion_object<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) ->
         if child.kind() == "class_body" {
             has_body = true;
         }
-        if !docs.is_empty() && child.kind() != ";" {
+        if !docs.is_empty()
+            && child.kind() != ";"
+            && !docs
+                .last()
+                .is_some_and(|d: &Doc<'a>| d.ends_with_space() || d.ends_with_newline())
+        {
             docs.push(Doc::space());
         }
         docs.push(lower_node(child, ctx));

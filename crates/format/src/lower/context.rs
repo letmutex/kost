@@ -115,13 +115,19 @@ impl<'a, 'o> LowerContext<'a, 'o> {
                 "class_body" | "enum_class_body" | "statements" => {
                     indent_levels += 1;
                 }
+                "function_body" if curr.kind() != "block" && curr.kind() != "statements" => {
+                    indent_levels += 1;
+                }
                 "block" => {
                     if curr.kind() != "statements" {
                         indent_levels += 1;
                     }
                 }
                 "control_structure_body" => {
-                    if curr.kind() != "block" && curr.kind() != "statements" {
+                    if curr.kind() != "block"
+                        && curr.kind() != "statements"
+                        && curr.kind() != "if_expression"
+                    {
                         indent_levels += 1;
                     }
                 }
@@ -133,7 +139,8 @@ impl<'a, 'o> LowerContext<'a, 'o> {
                     indent_levels += 1;
                 }
                 "lambda_literal"
-                    if curr.kind() != "lambda_parameters"
+                    if curr.kind() != "statements"
+                        && curr.kind() != "lambda_parameters"
                         && curr.kind() != "->"
                         && curr.kind() != "{"
                         && curr.kind() != "}" =>

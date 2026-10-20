@@ -171,14 +171,12 @@ pub fn lower_value_argument<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
     let mut expr_node = None;
     let mut has_equals = false;
 
-    let mut equals_node = None;
     let mut comments_after_eq = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         if kind == "=" {
             has_equals = true;
-            equals_node = Some(child);
         } else if !has_equals {
             name = Some(lower_node(child, ctx));
         } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
@@ -190,19 +188,14 @@ pub fn lower_value_argument<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
     }
 
     if has_equals && let (Some(n), Some(e)) = (name, expr) {
-        let has_user_newline = equals_node
-            .zip(expr_node)
-            .is_some_and(|(eq, ex)| ctx.has_newline_between(&eq, &ex));
         let is_lambda =
             expr_node.is_some_and(|en| matches!(en.kind(), "lambda_literal" | "annotated_lambda"));
-        let is_call_or_constructor = expr_node
-            .is_some_and(|en| matches!(en.kind(), "call_expression" | "constructor_invocation"));
         let mut prefix = vec![n, Doc::space(), Doc::text("=")];
         for c in comments_after_eq {
             prefix.push(Doc::space());
             prefix.push(c);
         }
-        if is_lambda || (is_call_or_constructor && !has_user_newline) {
+        if is_lambda {
             prefix.push(Doc::space());
             prefix.push(e);
             Doc::Concat(prefix)
@@ -213,7 +206,7 @@ pub fn lower_value_argument<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
                 flat_parts.push(Doc::reserve_width(reserve));
             }
             prefix.push(Doc::if_break(
-                Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, e])),
+                Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, Doc::Group(Box::new(e))])),
                 Doc::Concat(flat_parts),
             ));
             Doc::Group(Box::new(Doc::Concat(prefix)))

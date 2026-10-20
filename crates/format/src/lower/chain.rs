@@ -2,111 +2,11 @@ use tree_sitter::Node;
 
 use crate::lower::context::LowerContext;
 
-pub fn is_navigation_chain_root(node: &Node<'_>) -> bool {
-    let Some(parent) = node.parent() else {
-        return true;
-    };
-    if matches!(
-        parent.kind(),
-        "navigation_expression" | "postfix_expression"
-    ) {
-        return false;
-    }
-    if parent.kind() == "indexing_expression"
-        && parent.child(0).is_some_and(|c| c.id() == node.id())
-    {
-        return false;
-    }
-    if parent.kind() == "call_expression"
-        && let Some(grandparent) = parent.parent()
-    {
-        if matches!(
-            grandparent.kind(),
-            "navigation_expression" | "postfix_expression"
-        ) {
-            return false;
-        }
-        if grandparent.kind() == "indexing_expression"
-            && grandparent
-                .child(0)
-                .is_some_and(|child| child.id() == parent.id())
-        {
-            return false;
-        }
-    }
-    true
-}
-
-pub fn is_call_receiver(node: &Node<'_>) -> bool {
-    let mut curr = *node;
-    while curr.kind() == "postfix_expression" {
-        if let Some(first) = curr.child(0) {
-            curr = first;
-        } else {
-            break;
-        }
-    }
-    matches!(
-        curr.kind(),
-        "call_expression" | "indexing_expression" | "parenthesized_expression"
-    )
-}
-
-pub fn is_super_or_this(node: &Node<'_>) -> bool {
-    matches!(node.kind(), "super_expression" | "this_expression")
-}
-
-pub fn has_call_in_receiver_chain(node: &Node<'_>) -> bool {
-    let mut curr = *node;
-    loop {
-        while curr.kind() == "postfix_expression" {
-            if let Some(first) = curr.child(0) {
-                curr = first;
-            } else {
-                break;
-            }
-        }
-        if matches!(
-            curr.kind(),
-            "call_expression" | "indexing_expression" | "parenthesized_expression"
-        ) {
-            return true;
-        }
-        if curr.kind() == "navigation_expression"
-            && let Some(first) = curr.child(0)
-        {
-            curr = first;
-            continue;
-        }
-        break;
-    }
-    false
-}
-
-pub fn is_part_of_call_chain(node: &Node<'_>) -> bool {
-    let mut curr = *node;
-    while let Some(parent) = curr.parent() {
-        if parent.kind() == "call_expression" {
-            return true;
-        }
-        if parent.kind() == "navigation_expression" || parent.kind() == "postfix_expression" {
-            curr = parent;
-            continue;
-        }
-        break;
-    }
-    false
-}
-
-pub fn is_type_name_receiver(node: &Node<'_>, source: &str) -> bool {
-    let name = match node.kind() {
-        "simple_identifier" => source.get(node.start_byte()..node.end_byte()),
-        _ => None,
-    };
-    name.is_some_and(|n| n.chars().next().is_some_and(|c| c.is_ascii_uppercase()))
-}
-
-pub use crate::lower::chain_lambda::{count_chain_lambdas, has_multiline_trailing_lambda};
+pub use crate::lower::chain_lambda::{
+    count_chain_lambdas, has_call_in_receiver_chain, has_multiline_trailing_lambda,
+    is_call_receiver, is_call_receiver_in_chain, is_navigation_chain_root, is_part_of_call_chain,
+    is_spine_root, is_super_or_this, is_type_name_receiver,
+};
 
 fn init_start_col(
     parent: Node<'_>,
@@ -154,11 +54,91 @@ fn compute_declaration_header_len(
     (header_len, op_len)
 }
 
-pub fn resolve_chain_start_col(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> usize {
+fn resolve_value_argument_start_col(
+    parent: Node<'_>,
+    ctx: &LowerContext<'_, '_>,
+    chain_len: usize,
+) -> usize {
+    let base = ctx.compute_target_indent(&parent);
+    let mut extra = 0;
+    let mut curr_ancestor = parent.parent();
+    while let Some(p) = curr_ancestor {
+        if p.kind() == "call_expression" {
+            if let Some(callee) = p.child(0)
+                && (callee.kind() == "navigation_expression"
+                    || crate::lower::chain::is_call_receiver(&p))
+            {
+                extra = ctx.options.continuation_indent;
+            }
+            break;
+        }
+        if matches!(p.kind(), "statements" | "function_body" | "class_body") {
+            break;
+        }
+        curr_ancestor = p.parent();
+    }
+    let name_prefix_len = parent
+        .child(0)
+        .filter(|c| c.kind() == "value_argument_name")
+        .map(|c| ctx.node_text(&c).len() + 3)
+        .unwrap_or(0);
+    let col = base + extra + ctx.options.continuation_indent;
+    if name_prefix_len > 0 {
+        if col + name_prefix_len + chain_len <= ctx.options.max_width {
+            col + name_prefix_len
+        } else {
+            col
+        }
+    } else {
+        col
+    }
+}
+
+fn resolve_statements_start_col(
+    curr: Node<'_>,
+    parent: Node<'_>,
+    ctx: &LowerContext<'_, '_>,
+) -> usize {
+    let base = ctx.compute_target_indent(&curr);
+    let mut is_in_chain_lambda = false;
+    if let Some(parent_block) = parent.parent()
+        && matches!(parent_block.kind(), "lambda_literal" | "annotated_lambda")
+    {
+        let mut n = parent_block;
+        while let Some(p) = n.parent() {
+            if let Some(callee) = p.child(0)
+                && callee.kind() == "navigation_expression"
+                && let Some(receiver) = callee.child(0)
+                && receiver.kind() == "call_expression"
+                && crate::lower::chain::has_call_in_receiver_chain(&receiver)
+            {
+                is_in_chain_lambda = true;
+                break;
+            }
+            if matches!(p.kind(), "statements" | "class_body") {
+                break;
+            }
+            n = p;
+        }
+    }
+    let extra = if is_in_chain_lambda {
+        ctx.options.continuation_indent
+    } else {
+        0
+    };
+    base + extra
+}
+
+pub fn resolve_chain_start_col(
+    node: &Node<'_>,
+    ctx: &LowerContext<'_, '_>,
+    chain_len: usize,
+) -> usize {
     let mut curr = *node;
     while let Some(parent) = curr.parent() {
         match parent.kind() {
-            "property_declaration" => {
+            "value_argument" => return resolve_value_argument_start_col(parent, ctx, chain_len),
+            "property_declaration" | "destructuring_declaration" => {
                 let (header_len, op_len) = compute_declaration_header_len(&parent, curr.id(), ctx);
                 let first_col =
                     ctx.compute_target_indent(&parent) + header_len.saturating_sub(1) + op_len;
@@ -174,12 +154,6 @@ pub fn resolve_chain_start_col(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> u
                 }
                 curr = parent;
             }
-            "destructuring_declaration" => {
-                let (header_len, op_len) = compute_declaration_header_len(&parent, curr.id(), ctx);
-                let first_col =
-                    ctx.compute_target_indent(&parent) + header_len.saturating_sub(1) + op_len;
-                return init_start_col(parent, curr, first_col, ctx);
-            }
             "assignment" => {
                 let lhs_len = parent
                     .child(0)
@@ -193,6 +167,16 @@ pub fn resolve_chain_start_col(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> u
                 let first_col = ctx.compute_target_indent(&parent) + lhs_len + 2 + op_len;
                 return init_start_col(parent, curr, first_col, ctx);
             }
+            "binary_expression" => {
+                let lhs = parent.child(0);
+                let lhs_len = lhs.map(|c| ctx.node_text(&c).len()).unwrap_or(0);
+                let op_len = parent
+                    .child(1)
+                    .map(|c| ctx.node_text(&c).len())
+                    .unwrap_or(1);
+                let first_col = ctx.compute_target_indent(&parent) + lhs_len + 2 + op_len;
+                return init_start_col(parent, curr, first_col, ctx);
+            }
             "jump_expression" => {
                 let op_len = parent
                     .child(0)
@@ -201,17 +185,115 @@ pub fn resolve_chain_start_col(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> u
                 let first_col = ctx.compute_target_indent(&parent) + op_len;
                 return init_start_col(parent, curr, first_col, ctx);
             }
-
-            "statements" | "block" => return ctx.compute_target_indent(&curr),
+            "function_body" => {
+                let func = parent.parent().unwrap_or(parent);
+                let eq_col = ctx.compute_target_indent(&func);
+                let extra = if matches!(func.kind(), "getter" | "setter") {
+                    ctx.options.block_indent
+                } else {
+                    0
+                };
+                return eq_col + extra + ctx.options.continuation_indent;
+            }
+            "function_declaration" => {
+                let eq_col = ctx.compute_target_indent(&parent);
+                return eq_col + ctx.options.continuation_indent;
+            }
+            "for_statement" => {
+                return ctx.compute_target_indent(&parent) + ctx.options.continuation_indent;
+            }
+            "statements" | "block" => return resolve_statements_start_col(curr, parent, ctx),
             _ => curr = parent,
         }
     }
     ctx.compute_target_indent(node)
 }
 
+pub fn call_has_multiline_type_args(call: &Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
+    let mut cursor = call.walk();
+    for child in call.children(&mut cursor) {
+        if child.kind() == "call_suffix" {
+            let mut sc = child.walk();
+            for suffix_child in child.children(&mut sc) {
+                if suffix_child.kind() == "type_arguments" {
+                    if suffix_child.start_position().row != suffix_child.end_position().row
+                        || crate::lower::lists::has_trailing_comma(&suffix_child)
+                    {
+                        return true;
+                    }
+                    let start_col =
+                        crate::lower::call_args::compute_call_continuation_indent(call, ctx);
+                    let text = ctx
+                        .source
+                        .get(call.start_byte()..suffix_child.end_byte())
+                        .unwrap_or("");
+                    let total_len =
+                        start_col + crate::lower::expression_body::collapsed_text_len(text);
+                    return total_len > ctx.options.max_width;
+                }
+            }
+        }
+    }
+    false
+}
+
+fn call_has_trailing_lambda(call: &Node<'_>) -> bool {
+    let mut cursor = call.walk();
+    for child in call.children(&mut cursor) {
+        if child.kind() == "call_suffix" {
+            let mut sc = child.walk();
+            for sub in child.children(&mut sc) {
+                if matches!(sub.kind(), "lambda_literal" | "annotated_lambda") {
+                    return true;
+                }
+            }
+        }
+    }
+    false
+}
+
+pub fn find_node_trailing_comment_len(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> usize {
+    let mut curr = Some(*node);
+    while let Some(n) = curr {
+        if let Some(next) = n.next_sibling()
+            && matches!(
+                next.kind(),
+                "comment" | "line_comment" | "multiline_comment"
+            )
+            && !ctx.has_newline_between(&n, &next)
+        {
+            let mut total_len = 1 + ctx.node_text(&next).len();
+            let mut c_curr = next;
+            while let Some(c_next) = c_curr.next_sibling() {
+                if matches!(c_next.kind(), "comment" | "line_comment")
+                    && c_next.start_position().row == c_curr.end_position().row + 1
+                {
+                    total_len += 1 + ctx.node_text(&c_next).len();
+                    c_curr = c_next;
+                } else {
+                    break;
+                }
+            }
+            return total_len;
+        }
+        if let Some(parent) = n.parent()
+            && matches!(
+                parent.kind(),
+                "call_suffix" | "call_expression" | "function_body" | "getter" | "setter"
+            )
+        {
+            curr = Some(parent);
+            continue;
+        }
+        break;
+    }
+    0
+}
+
 pub fn is_chain_broken(node: &Node<'_>, ctx: &LowerContext<'_, '_>, chain_len: usize) -> bool {
-    let start_col = resolve_chain_start_col(node, ctx);
-    if start_col + chain_len > ctx.options.max_width {
+    let start_col = resolve_chain_start_col(node, ctx, chain_len);
+    let trailing_comment_len = find_node_trailing_comment_len(node, ctx);
+    if start_col + chain_len + trailing_comment_len > ctx.options.max_width {
         return true;
     }
     if count_chain_lambdas(node) > 1 {
@@ -220,21 +302,23 @@ pub fn is_chain_broken(node: &Node<'_>, ctx: &LowerContext<'_, '_>, chain_len: u
     let mut curr = Some(*node);
     while let Some(n) = curr {
         if n.kind() == "call_expression" {
+            let multiline_break = !call_has_trailing_lambda(&n)
+                && (crate::lower::delegates::call_has_multiline_args(&n, ctx)
+                    || call_has_multiline_type_args(&n, ctx));
+            if multiline_break && (n.id() != node.id() || has_call_in_receiver_chain(&n)) {
+                return true;
+            }
             curr = n.child(0);
         } else if n.kind() == "navigation_expression" {
             let mut cursor = n.walk();
             let mut prev_child: Option<Node<'_>> = None;
             for child in n.children(&mut cursor) {
-                if let Some(prev) = prev_child {
-                    if ctx.has_newline_between(&prev, &child)
-                        || matches!(
-                            prev.kind(),
-                            "comment" | "line_comment" | "multiline_comment"
-                        )
-                    {
-                        return true;
-                    }
-                } else if has_multiline_trailing_lambda(&child) {
+                if let Some(prev) = prev_child
+                    && matches!(
+                        prev.kind(),
+                        "comment" | "line_comment" | "multiline_comment"
+                    )
+                {
                     return true;
                 }
                 prev_child = Some(child);
@@ -245,74 +329,4 @@ pub fn is_chain_broken(node: &Node<'_>, ctx: &LowerContext<'_, '_>, chain_len: u
         }
     }
     false
-}
-
-pub fn is_call_receiver_in_chain(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
-    if ctx.options.block_indent == 4 {
-        return false;
-    }
-    let mut parent = node.parent();
-    while let Some(parent_node) = parent {
-        if parent_node.kind() == "call_suffix" || parent_node.kind() == "indexing_expression" {
-            break;
-        }
-        if parent_node.kind() != "annotated_lambda" {
-            return false;
-        }
-        parent = parent_node.parent();
-    }
-    let Some(suffix) = parent else {
-        return false;
-    };
-    if suffix.kind() == "indexing_expression" {
-        if suffix.child(0).is_some_and(|operand| {
-            operand.kind() == "navigation_expression" && ctx.node_text(&operand).contains('\n')
-        }) {
-            return true;
-        }
-        return suffix
-            .parent()
-            .is_some_and(|p| p.kind() == "navigation_expression");
-    }
-    if suffix.kind() != "call_suffix" {
-        return false;
-    }
-    let Some(call) = suffix.parent() else {
-        return false;
-    };
-    if call.kind() != "call_expression" {
-        return false;
-    }
-    let Some(parent) = call.parent() else {
-        return false;
-    };
-    if parent.kind() != "navigation_expression" {
-        return false;
-    }
-    if let Some(callee) = call.child(0)
-        && callee.kind() == "navigation_expression"
-    {
-        let mut cursor = callee.walk();
-        let mut children = callee.children(&mut cursor);
-        if let (Some(op), Some(suf)) = (children.next(), children.next())
-            && ctx.has_newline_between(&op, &suf)
-        {
-            return false;
-        }
-    }
-    true
-}
-
-pub fn is_spine_root(node: &Node<'_>) -> bool {
-    let Some(parent) = node.parent() else {
-        return true;
-    };
-    if matches!(
-        parent.kind(),
-        "call_expression" | "indexing_expression" | "navigation_expression" | "postfix_expression"
-    ) && parent.child(0).is_some_and(|c| c.id() == node.id())
-    {
-        return false;
-    }
-    true
 }

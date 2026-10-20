@@ -52,7 +52,7 @@ pub(crate) fn compute_comment_indent<'a>(node: Node<'a>, ctx: &LowerContext<'a, 
     indent
 }
 
-fn collapsed_statement_len<'a>(node: Node<'a>) -> Option<usize> {
+fn collapsed_statement_len<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Option<usize> {
     if node.kind() == "property_declaration" {
         let mut len = 0;
         let mut cursor = node.walk();
@@ -107,14 +107,58 @@ fn collapsed_statement_len<'a>(node: Node<'a>) -> Option<usize> {
             }
         }
         if len > 0 { Some(len) } else { None }
-    } else if node.kind() == "jump_expression" {
+    } else if matches!(
+        node.kind(),
+        "call_expression" | "navigation_expression" | "jump_expression"
+    ) {
         if node.start_position().row == node.end_position().row {
             Some(node.byte_range().len())
         } else {
-            None
+            let text = ctx.node_text(&node);
+            Some(crate::lower::expression_body::collapsed_text_len(text))
         }
+    } else if node.kind() == "prefix_expression" {
+        let child = node.child(node.child_count().saturating_sub(1))?;
+        collapsed_statement_len(child, ctx)
     } else {
         None
+    }
+}
+
+fn resolve_prev_navigation_expr<'a>(
+    prev: Node<'a>,
+    _ctx: &LowerContext<'a, '_>,
+) -> (Option<Node<'a>>, usize) {
+    if prev.kind() == "navigation_expression" {
+        (Some(prev), 0)
+    } else if prev.kind() == "call_expression"
+        && let Some(callee) = prev.child(0)
+        && callee.kind() == "navigation_expression"
+    {
+        let suffix_len = prev.end_byte().saturating_sub(callee.end_byte());
+        (Some(callee), suffix_len)
+    } else if matches!(prev.kind(), "getter" | "setter") {
+        let nav = prev
+            .children(&mut prev.walk())
+            .find(|c| c.kind() == "function_body")
+            .and_then(|b| {
+                b.children(&mut b.walk()).find_map(|c| {
+                    if c.kind() == "navigation_expression" {
+                        Some((Some(c), 0))
+                    } else if c.kind() == "call_expression"
+                        && let Some(callee) = c.child(0)
+                        && callee.kind() == "navigation_expression"
+                    {
+                        let suffix_len = c.end_byte().saturating_sub(callee.end_byte());
+                        Some((Some(callee), suffix_len))
+                    } else {
+                        None
+                    }
+                })
+            });
+        nav.unwrap_or((None, 0))
+    } else {
+        (None, 0)
     }
 }
 
@@ -137,10 +181,38 @@ fn resolve_comment_columns<'a>(
     if is_standalone {
         return (block_indent, block_indent);
     }
-    let col = if let Some(prev) = node.prev_sibling()
-        && let Some(flat_len) = collapsed_statement_len(prev)
-    {
-        block_indent + flat_len + 1
+    let col = if let Some(prev) = node.prev_sibling() {
+        let (nav_expr, call_suffix_len) = resolve_prev_navigation_expr(prev, ctx);
+        let comment_len = 1 + ctx.node_text(&node).len();
+        if let Some(nav) = nav_expr
+            && crate::lower::chain::is_chain_broken(
+                &nav,
+                ctx,
+                crate::lower::expression_body::collapsed_text_len(ctx.node_text(&nav))
+                    + comment_len,
+            )
+        {
+            let last_elem_len = nav
+                .children(&mut nav.walk())
+                .last()
+                .map(|c| ctx.node_text(&c).len())
+                .unwrap_or(0);
+            let extra = if matches!(prev.kind(), "getter" | "setter") {
+                ctx.options.block_indent + 2 * ctx.options.continuation_indent
+            } else {
+                ctx.options.continuation_indent
+            };
+            block_indent + extra + last_elem_len + call_suffix_len + 1
+        } else if let Some(flat_len) = collapsed_statement_len(prev, ctx) {
+            block_indent + flat_len + 1
+        } else {
+            let trimmed_prefix = prefix.trim();
+            if !trimmed_prefix.is_empty() {
+                block_indent + trimmed_prefix.len() + 1
+            } else {
+                block_indent
+            }
+        }
     } else {
         let trimmed_prefix = prefix.trim();
         if !trimmed_prefix.is_empty() {

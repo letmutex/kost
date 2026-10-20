@@ -1,0 +1,7 @@
+fun test() {
+    try {} finally {
+        @Suppress("BlockingMethodInNonBlockingContext")
+        input.close() // ServletInputStream is in non-blocking mode
+        ArrayPool.recycle(buffer)
+    }
+}

@@ -1,0 +1,5 @@
+interface Repository {
+    override fun getTopics(): Flow<List<Topic>> =
+        topicDao.getTopicEntities()
+            .map { it.map(TopicEntity::asExternalModel) }
+}

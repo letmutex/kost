@@ -1,0 +1,11 @@
+fun foo() {
+    fun bar() {
+        fun baz() {
+            channel
+                .pipeline()
+                .addLast(
+                    newQuicServerCodec(localConnectionIdLength, idGenerator),
+                )
+        }
+    }
+}

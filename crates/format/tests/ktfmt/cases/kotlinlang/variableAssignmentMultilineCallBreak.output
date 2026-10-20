@@ -1,0 +1,10 @@
+fun test() {
+    val result =
+        createJavaSimpleType(
+            superClass,
+            superClass.kotlin,
+            typeArguments,
+            isMarkedNullable = false,
+            extraArg = true,
+        )
+}

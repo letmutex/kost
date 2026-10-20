@@ -1,0 +1,7 @@
+class C {
+    private fun OkHttpClient.newCallWithListener(request: Request): Call =
+        newCall(request)
+            .apply {
+                addEventRecorder(eventRecorder)
+            }
+}

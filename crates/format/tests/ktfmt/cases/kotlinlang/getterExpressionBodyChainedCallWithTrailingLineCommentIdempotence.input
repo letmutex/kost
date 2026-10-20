@@ -1,0 +1,4 @@
+class C {
+    private inline val AtomicRef<out ChannelJob?>.exception: Throwable?
+        get() = value?.takeIf { it.isCancelled }?.getCancellationException()?.cause // TODO it should be completable deferred or provide its own exception
+}

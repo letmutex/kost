@@ -1,0 +1,10 @@
+class Foo {
+    val presentableName: String
+        get() =
+            name
+                .split("(?<!^)(?=[A-Z])".toRegex())
+                .joinToString(
+                    separator = " ",
+                    transform = String::lowercase,
+                )
+}

@@ -1,0 +1,4 @@
+internal fun Project.resolveVersion(): String {
+    val projectVersion = providers.gradleProperty("version")
+        .orElse(providers.fileContents(layout.settingsDirectory.file("VERSION")).asText.map { it.trim() })
+}

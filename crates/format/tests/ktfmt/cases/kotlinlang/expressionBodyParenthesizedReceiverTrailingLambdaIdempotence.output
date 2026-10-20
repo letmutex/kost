@@ -1,0 +1,4 @@
+private fun ASTNode.isFactoryMethod() =
+    (this.psi as KtFunction).let { ktFunction ->
+        ktFunction.name
+    }

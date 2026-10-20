@@ -1,0 +1,8 @@
+fun test() {
+    val result =
+        client
+            .get { url(path = "/users", port = serverPort) }
+            .body<
+                Response<List<User>>,
+            >()
+}

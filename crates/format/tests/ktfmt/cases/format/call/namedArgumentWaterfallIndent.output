@@ -1,0 +1,8 @@
+fun test() {
+  call(
+      param =
+          Target(
+              x = 1,
+          ),
+  )
+}
