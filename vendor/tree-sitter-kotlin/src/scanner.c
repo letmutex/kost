@@ -18,7 +18,6 @@ enum TokenType {
   INTERPOLATION_IDENTIFIER_START,
   BY_DELEGATION_HINT,
   FUNCTION_TYPE_ARROW_AHEAD,
-  WHERE_HINT,
 };
 
 /* Pretty much all of this code is taken from the Julia tree-sitter
@@ -399,6 +398,43 @@ static bool skip_whitespace_and_comments(TSLexer *lexer) {
   }
 }
 
+static bool check_where_type_constraint(TSLexer *lexer) {
+  if (!scan_for_word(lexer, "here", 4)) return false;
+  if (!skip_whitespace_and_comments(lexer)) return false;
+  while (lexer->lookahead == '@') {
+    skip(lexer);
+    while (is_word_char(lexer->lookahead) || lexer->lookahead == '.' || lexer->lookahead == ':') {
+      skip(lexer);
+    }
+    if (lexer->lookahead == '(') {
+      unsigned depth = 1;
+      skip(lexer);
+      while (depth > 0 && !lexer->eof(lexer)) {
+        if (lexer->lookahead == '(') depth++;
+        else if (lexer->lookahead == ')') depth--;
+        skip(lexer);
+      }
+    }
+    if (!skip_whitespace_and_comments(lexer)) return false;
+  }
+  if (lexer->lookahead == '`') {
+    skip(lexer);
+    while (lexer->lookahead != '`' && lexer->lookahead != '\n' && !lexer->eof(lexer)) {
+      skip(lexer);
+    }
+    if (lexer->lookahead != '`') return false;
+    skip(lexer);
+  } else if (is_word_char(lexer->lookahead)) {
+    while (is_word_char(lexer->lookahead)) skip(lexer);
+  } else {
+    return false;
+  }
+  if (!skip_whitespace_and_comments(lexer)) return false;
+  if (lexer->lookahead != ':') return false;
+  skip(lexer);
+  return lexer->lookahead != ':';
+}
+
 // After scan_for_word has matched "else", peek past optional whitespace
 // and comments for "->". If found, this is a when-entry's `else ->`,
 // not an if-else. Uses skip() so characters are not included in the
@@ -726,7 +762,7 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols, 
               return true;
             }
             case 'w':
-              if (valid_symbols[WHERE_HINT] && scan_for_word(lexer, "here", 4)) return false;
+              if (check_where_type_constraint(lexer)) return false;
               return true;
             case 'c':
               if (valid_symbols[PRIMARY_CONSTRUCTOR_KEYWORD] &&
@@ -907,7 +943,7 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols, 
 
       // Don't insert a semicolon before a where in type constraints context
       case 'w':
-        return !(valid_symbols[WHERE_HINT] && scan_for_word(lexer, "here", 4));
+        return !check_where_type_constraint(lexer);
 
       // Don't insert a semicolon before `instanceof`, or before `internal`
       // when followed by `constructor` in a class declaration context.
