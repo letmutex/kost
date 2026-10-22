@@ -1,0 +1,8 @@
+class ContactTest {
+    fun test() = runTest {
+        assertThat(
+                state.details.first { it.kind == SharedContactDetailsState.DetailKind.NOTE }.lines,
+            )
+            .containsExactly("Met in 2017")
+    }
+}

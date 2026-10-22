@@ -1,4 +1,0 @@
-fun test() {
-    appendElement(catch.type.mnemonic)
-    catch.immediates.forEach(this::appendImmediate)
-}

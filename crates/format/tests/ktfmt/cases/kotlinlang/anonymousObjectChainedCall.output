@@ -1,0 +1,13 @@
+class C {
+    fun test() {
+        call(
+            object : Callback {
+                override fun onResponse() {
+                    client
+                        .newCall(Request.Builder().url(server.url("/b")).build())
+                        .enqueue(callback)
+                }
+            },
+        )
+    }
+}

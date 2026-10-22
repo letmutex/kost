@@ -1,0 +1,10 @@
+object MonoTypeface {
+    fun fontFamily(): FontFamily {
+        return FontFamily(
+            cached
+                ?: Typeface.createFromAsset(context.assets, "fonts/MonoSpecial-Regular.otf").also {
+                    cached = it
+                },
+        )
+    }
+}

@@ -1,4 +1,0 @@
-class Foo {
-    @Suppress("RemoveRedundantQualifierName") // KTIJ-33595
-    constructor(x: Int)
-}

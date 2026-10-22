@@ -1,0 +1,6 @@
+private const val TRACE = "KTLINT_UNIT_TEST_TRACE" // Keep value in sync with 'logback-test.xml'
+
+// The execution of the unit tests may not be affected by the ".editorconfig" configuration of the
+// Ktlint project itself. So each unit test
+// is to be run on a KtlintTestFileSystem not having any ".editorconfig" files.
+private val FILE_SYSTEM = KtlintTestFileSystem()

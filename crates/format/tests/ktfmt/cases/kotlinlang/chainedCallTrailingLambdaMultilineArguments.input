@@ -1,0 +1,17 @@
+fun test() {
+    repeat(1) {
+        repeat(1) {
+            repeat(1) {
+                repeat(1) {
+                    repeat(1) {
+                        repeat(1) {
+                            logger<AllCandidatesResolver>().logErrorWithAttachment("Unexpected argument list ${argumentListToCopy::class.simpleName}") {
+                                withFirEntry("argumentList", argumentListToCopy)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

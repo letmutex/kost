@@ -1,0 +1,9 @@
+class Foo {
+    companion object {
+        public val DEFAULT_INDENT_CONFIG: IndentConfig =
+            IndentConfig(
+                indentStyle = INDENT_STYLE_PROPERTY.defaultValue,
+                tabWidth = INDENT_SIZE_PROPERTY.defaultValue,
+            )
+    }
+}

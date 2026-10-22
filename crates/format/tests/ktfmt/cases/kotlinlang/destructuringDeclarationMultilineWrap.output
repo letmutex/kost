@@ -1,0 +1,8 @@
+fun test() {
+    val (
+        profile: NotificationProfile,
+        recipients: List<Recipient>,
+        isOn: Boolean,
+        expanded: Boolean) =
+        state
+}

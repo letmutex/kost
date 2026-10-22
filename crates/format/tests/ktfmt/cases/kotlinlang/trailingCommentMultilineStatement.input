@@ -1,0 +1,4 @@
+fun test() {
+    val pathSeparator =
+        ";" // instead of File.pathSeparator as would have been reasonable (e.g. : on Unix)
+}

@@ -1,0 +1,8 @@
+fun test() {
+  receiver.fetch(
+    param1,
+    param2,
+  ) { result ->
+    process(result)
+  }
+}

@@ -1,0 +1,12 @@
+object MuteDialog {
+    fun show() {
+        val adapter =
+            object : BaseAdapter() {
+                fun getView() {
+                    view
+                        .findViewById<ImageView>(R.id.mute_dialog_icon)
+                        .setImageResource(option.iconRes)
+                }
+            }
+    }
+}

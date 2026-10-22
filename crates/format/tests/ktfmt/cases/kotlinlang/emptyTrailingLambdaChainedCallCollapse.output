@@ -1,0 +1,5 @@
+class DialogFragment {
+    fun setup() {
+        TabLayoutMediator(binding.tabLayout, binding.pager) { _, _ -> }.attach()
+    }
+}

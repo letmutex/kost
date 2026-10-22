@@ -1,5 +1,0 @@
-class Array<T> {
-    companion {
-        fun create(): Array<T> = TODO()
-    }
-}

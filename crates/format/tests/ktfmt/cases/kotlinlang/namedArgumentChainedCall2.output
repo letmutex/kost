@@ -1,0 +1,9 @@
+fun test() {
+    foo {
+        call(
+            modifier =
+                Modifier.defaultMinSize(minWidth = 220.dp)
+                    .padding(vertical = 20.dp, horizontal = 12.dp),
+        )
+    }
+}

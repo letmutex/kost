@@ -1,0 +1,24 @@
+class Resolver {
+    fun resolve() {
+        if (true) {
+            if (true) {
+                if (true) {
+                    call(
+                        onSuccess = {
+                            psiToResolve,
+                            resolveCalleeExpressionOfFunctionCall,
+                            resolveFragmentOfCall ->
+                            listOfNotNull(
+                                toKaResolutionAttempt(
+                                    psiToResolve,
+                                    resolveCalleeExpressionOfFunctionCall,
+                                    resolveFragmentOfCall,
+                                ),
+                            )
+                        },
+                    )
+                }
+            }
+        }
+    }
+}

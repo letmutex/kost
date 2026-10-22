@@ -1,0 +1,4 @@
+fun test() {
+    val x = compute
+        (arg1, arg2)
+}

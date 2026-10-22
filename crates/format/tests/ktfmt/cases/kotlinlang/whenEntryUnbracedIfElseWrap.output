@@ -1,0 +1,13 @@
+class C {
+    fun test(parentRoute: String, selector: Any) =
+        when (x) {
+            else ->
+                when (selector) {
+                    is TrailingSlashRouteSelector ->
+                        if (parentRoute.endsWith('/')) parentRoute else "$parentRoute/"
+                    else ->
+                        if (parentRoute.endsWith('/')) "$parentRoute$selector"
+                        else "$parentRoute/$selector"
+                }
+        }
+}

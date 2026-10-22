@@ -1,0 +1,9 @@
+// MAX_WIDTH 70
+
+class Foo {
+    val property =
+        FORCE_MULTILINE_WHEN_PARAMETER_COUNT_GREATER_OR_EQUAL_THAN_PROPERTY
+            .toPropertyWithValue(
+                "unset",
+            )
+}

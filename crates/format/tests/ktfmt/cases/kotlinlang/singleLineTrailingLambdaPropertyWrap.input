@@ -1,0 +1,3 @@
+fun test() {
+    val actual = editorConfig.map { property -> property.name.uppercase() to property.sourceValue.uppercase() }
+}

@@ -1,0 +1,8 @@
+class A {
+  class B {
+    fun test() {
+      val table =
+          Table(columns, widths, rows, align, lines.subList(start, i).map { lineContent(it) })
+    }
+  }
+}

@@ -2,163 +2,70 @@ use tree_sitter::Node;
 
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
-use crate::lower::lower_node;
 
-enum ContextEntry<'a> {
-    Param {
-        name: Option<Node<'a>>,
-        modifiers: Vec<Node<'a>>,
-        type_node: Node<'a>,
-    },
-    Comment(Node<'a>),
-}
-
-fn parse_context_entries<'a>(node: Node<'a>) -> (Vec<ContextEntry<'a>>, Option<Node<'a>>) {
-    let mut cursor = node.walk();
+pub fn lower_context_receiver<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
     let mut items = Vec::new();
-    let mut open_paren = None;
-    let mut param_name = None;
-    let mut modifiers = Vec::new();
-    let mut is_after_colon = false;
+    let mut comments_before_first = Vec::new();
+    let mut has_seen_item = false;
+    let mut in_colon = false;
+    let mut current_item = Vec::new();
 
+    let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
-        if kind == "(" {
-            open_paren = Some(child);
-            continue;
-        }
-        if kind == ")" || kind == "context" || kind == "," {
-            continue;
-        }
-        if kind == ":" {
-            is_after_colon = true;
-            continue;
-        }
-        if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-            items.push(ContextEntry::Comment(child));
-            continue;
-        }
-        if !is_after_colon
-            && child.kind() == "simple_identifier"
-            && child.next_sibling().is_some_and(|s| s.kind() == ":")
-        {
-            param_name = Some(child);
-            continue;
-        }
-        if kind == "type_modifiers" {
-            modifiers.push(child);
-            continue;
-        }
-        items.push(ContextEntry::Param {
-            name: param_name.take(),
-            modifiers: std::mem::take(&mut modifiers),
-            type_node: child,
-        });
-        is_after_colon = false;
-    }
-
-    (items, open_paren)
-}
-
-fn format_param_doc<'a>(
-    name: Option<Node<'a>>,
-    modifiers: Vec<Node<'a>>,
-    type_node: Node<'a>,
-    ctx: &LowerContext<'a, '_>,
-) -> Vec<Doc<'a>> {
-    let mut docs = Vec::new();
-    if let Some(n) = name {
-        docs.push(Doc::text(ctx.node_text(&n)));
-        docs.push(Doc::text(": "));
-    }
-    for m in modifiers {
-        docs.push(lower_node(m, ctx));
-    }
-    docs.push(lower_node(type_node, ctx));
-    docs
-}
-
-fn lower_multiline_context<'a>(
-    items: Vec<ContextEntry<'a>>,
-    ctx: &LowerContext<'a, '_>,
-) -> Doc<'a> {
-    let mut docs = vec![Doc::text("context("), Doc::HardLine];
-    let total = items.len();
-    for (idx, entry) in items.into_iter().enumerate() {
-        let is_last = idx + 1 == total;
-        match entry {
-            ContextEntry::Comment(c) => {
-                docs.push(lower_node(c, ctx));
-                docs.push(Doc::HardLine);
+        match kind {
+            "context" | "(" | ")" => {}
+            "," => {
+                if !current_item.is_empty() {
+                    items.push(Doc::concat(std::mem::take(&mut current_item)));
+                }
             }
-            ContextEntry::Param {
-                name,
-                modifiers,
-                type_node,
-            } => {
-                docs.extend(format_param_doc(name, modifiers, type_node, ctx));
-                if !is_last {
-                    docs.push(Doc::text(","));
-                    docs.push(Doc::HardLine);
+            ":" => in_colon = true,
+            "comment" | "line_comment" | "multiline_comment" => {
+                if !has_seen_item {
+                    comments_before_first.push(lower_fn(child, ctx));
+                } else {
+                    current_item.push(Doc::space());
+                    current_item.push(lower_fn(child, ctx));
+                }
+            }
+            _ => {
+                has_seen_item = true;
+                if in_colon {
+                    current_item.push(Doc::text(": "));
+                    current_item.push(lower_fn(child, ctx));
+                    in_colon = false;
+                } else {
+                    current_item.push(lower_fn(child, ctx));
                 }
             }
         }
     }
-    docs.push(Doc::text(")"));
-    Doc::Concat(docs)
-}
+    if !current_item.is_empty() {
+        items.push(Doc::concat(current_item));
+    }
 
-fn lower_single_line_context<'a>(
-    items: Vec<ContextEntry<'a>>,
-    ctx: &LowerContext<'a, '_>,
-) -> Doc<'a> {
-    let mut docs = vec![Doc::text("context(")];
-    let total = items.len();
-    for (idx, entry) in items.into_iter().enumerate() {
-        let is_last = idx + 1 == total;
-        match entry {
-            ContextEntry::Comment(c) => {
-                docs.push(lower_node(c, ctx));
-                if !is_last {
-                    docs.push(Doc::space());
-                }
-            }
-            ContextEntry::Param {
-                name,
-                modifiers,
-                type_node,
-            } => {
-                docs.extend(format_param_doc(name, modifiers, type_node, ctx));
-                if !is_last {
-                    docs.push(Doc::text(", "));
-                }
-            }
+    let has_comments = !comments_before_first.is_empty();
+    let mut inner = Vec::new();
+    for c in comments_before_first {
+        inner.push(Doc::HardLine);
+        inner.push(c);
+    }
+    for (i, item) in items.into_iter().enumerate() {
+        if i > 0 {
+            inner.push(Doc::text(","));
+            inner.push(Doc::Line);
+        } else if has_comments {
+            inner.push(Doc::HardLine);
         }
+        inner.push(item);
     }
-    docs.push(Doc::text(")"));
-    Doc::Concat(docs)
-}
+    inner.push(Doc::text(")"));
 
-pub fn lower_context_receiver<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let (items, open_paren) = parse_context_entries(node);
-    let is_multiline = open_paren.is_some_and(|p| {
-        items.first().is_some_and(|first| match first {
-            ContextEntry::Param { name: Some(n), .. } => ctx.has_newline_between(&p, n),
-            ContextEntry::Param {
-                modifiers,
-                type_node,
-                ..
-            } => {
-                let first_node = modifiers.first().unwrap_or(type_node);
-                ctx.has_newline_between(&p, first_node)
-            }
-            ContextEntry::Comment(c) => ctx.has_newline_between(&p, c),
-        })
-    });
-
-    if is_multiline {
-        lower_multiline_context(items, ctx)
-    } else {
-        lower_single_line_context(items, ctx)
-    }
+    let doc = Doc::concat(vec![Doc::text("context("), Doc::group(Doc::concat(inner))]);
+    if has_comments { Doc::group(doc) } else { doc }
 }

@@ -1,0 +1,4 @@
+fun test() {
+    outputFile =
+        layout.buildDirectory.file("generated/main/kotlin/org/jetbrains/kotlinx/ktfmt/util/Ktfmt.kt")
+}

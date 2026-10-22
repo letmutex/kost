@@ -1,0 +1,5 @@
+fun test() {
+    val text = "hello; world;"
+    // comment with; semicolons;
+    println(text)
+}

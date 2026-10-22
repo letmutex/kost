@@ -1,0 +1,7 @@
+class C {
+    companion object {
+        fun test(indentationUnit: String): Output {
+            return service<KaInternalsRendererProvider>().createStringRenderingOutput(indentationUnit)
+        }
+    }
+}

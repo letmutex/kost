@@ -1,0 +1,7 @@
+fun test() {
+    try {} catch (
+        // e itself (the internal-only RuleExecutionException wrapper) is intentionally not chained;
+        // e.cause below is
+        // the real original exception, and chaining e instead would only add a meaningless
+        e: Exception,) {}
+}

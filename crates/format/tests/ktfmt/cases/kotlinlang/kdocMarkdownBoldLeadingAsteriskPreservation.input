@@ -1,0 +1,2 @@
+/** **Note**: the signature doesn't contain a name. This check should be done externally. */
+class Foo

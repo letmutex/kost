@@ -1,3 +1,0 @@
-fun test() {
-    foo(arg = /* comment */ 42)
-}

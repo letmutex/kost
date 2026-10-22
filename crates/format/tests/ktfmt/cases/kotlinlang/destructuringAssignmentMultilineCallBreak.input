@@ -1,0 +1,8 @@
+class BackupViewModel {
+    fun refresh() {
+        _state.update {
+            val (mediaSize, mediaRetentionDays) = getBackupSize(it.tier, (it.backupState as? BackupState.WithTypeAndRenewalTime)?.messageBackupsType)
+            it.copy(backupMediaSize = mediaSize)
+        }
+    }
+}

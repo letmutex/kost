@@ -1,0 +1,4 @@
+fun test() {
+    (val first, val secondVariableLongNameToTriggerWrap) =
+        collectSymbols(mainFile, testServices).also { it.drop() }
+}

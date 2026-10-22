@@ -1,0 +1,21 @@
+private fun createOAuthServer(server: TestingOAuthServer): Deferred<HttpClient> {
+    val environment = createTestEnvironment {}
+    val props =
+        serverConfig(environment) {
+            module {
+                routing {
+                    post("/oauth/access_token") {
+                        if (
+                            !call.request
+                                .contentType()
+                                .match(ContentType.Application.FormUrlEncoded)
+                        ) {
+                            call.fail(
+                                "content type should be ${ContentType.Application.FormUrlEncoded}",
+                            )
+                        }
+                    }
+                }
+            }
+        }
+}

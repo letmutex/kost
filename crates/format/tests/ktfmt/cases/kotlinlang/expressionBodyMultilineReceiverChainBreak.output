@@ -1,0 +1,4 @@
+class C {
+    private fun String.copyResourceToFileIn(tempDir: Path) =
+        Paths.get("$TEST_RESOURCE_PATH/$this").copyTo(tempDir, overwrite = true).pathString
+}

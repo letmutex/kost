@@ -1,0 +1,9 @@
+class C {
+    fun test() {
+        if (condition) {
+            if (anotherCondition) {
+                val (actualIndentString, actualContentString) = it.text.splitIndentAt(it.text.length)
+            }
+        }
+    }
+}

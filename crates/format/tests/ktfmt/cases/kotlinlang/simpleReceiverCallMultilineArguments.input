@@ -1,0 +1,6 @@
+public val CSRF =
+    createRouteScopedPlugin("CSRF", ::CSRFConfig) {
+        if (!checkHost && allowedOrigins.isEmpty() && headerChecks.isEmpty()) {
+            application.log.info("CSRF configuration is empty; defaulting to allow only local origins")
+        }
+    }

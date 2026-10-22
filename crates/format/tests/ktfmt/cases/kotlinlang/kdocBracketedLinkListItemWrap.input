@@ -1,0 +1,4 @@
+/**
+ * - [KaNonConstantInitializerValue][org.jetbrains.kotlin.analysis.api.KaNonConstantInitializerValue] - the property has an initializer with a non-constant value.
+ */
+class Test

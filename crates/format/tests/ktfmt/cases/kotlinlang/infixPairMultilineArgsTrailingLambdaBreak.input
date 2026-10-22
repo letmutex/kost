@@ -1,0 +1,15 @@
+class Sheet {
+    fun render() {
+        if (true) {
+            val inlineContentMap =
+                mapOf(
+                    "toggle" to InlineTextContent(Placeholder(36.sp, 22.sp, PlaceholderVerticalAlign.Center)) {
+                        Image(
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    },
+                )
+        }
+    }
+}

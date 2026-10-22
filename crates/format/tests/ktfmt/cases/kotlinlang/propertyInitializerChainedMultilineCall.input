@@ -1,0 +1,8 @@
+class C {
+    fun test() {
+        val actual =
+            ImportOrderingRule.IJ_KOTLIN_IMPORTS_LAYOUT_PROPERTY.propertyWriter(
+                listOf(PatternEntry.ALL_OTHER_IMPORTS_ENTRY, PatternEntry("java", true, false)),
+            )
+    }
+}

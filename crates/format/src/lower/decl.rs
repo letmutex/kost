@@ -1,184 +1,309 @@
 use tree_sitter::Node;
 
 use crate::doc::Doc;
+use crate::lower::class_body::lower_class_body;
 use crate::lower::constructors::primary_constructor_has_constructor_keyword;
 use crate::lower::context::LowerContext;
-use crate::lower::lower_node;
-use crate::lower::types::lower_type_constraints;
 
-fn push_class_header_child<'a>(
+#[derive(Default)]
+struct ClassDeclParts<'a> {
+    modifier_docs: Vec<Doc<'a>>,
+    header_docs: Vec<Doc<'a>>,
+    supertypes_docs: Vec<Doc<'a>>,
+    where_doc: Option<Doc<'a>>,
+    body_doc: Option<Doc<'a>>,
+}
+
+fn push_class_header_comment<'a>(
     header_docs: &mut Vec<Doc<'a>>,
     child: Node<'a>,
     prev_child_node: Option<Node<'a>>,
     has_seen_primary_constructor: bool,
     ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) {
-    let kind = child.kind();
-    if kind == "context_receiver" {
-        header_docs.push(lower_node(child, ctx));
-        header_docs.push(Doc::HardLine);
-        return;
-    }
-    if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-        let is_same_line = prev_child_node.is_some_and(|p| !ctx.has_newline_between(&p, &child));
-        if is_same_line {
-            if !header_docs.last().is_some_and(|d| d.ends_with_space()) {
-                header_docs.push(Doc::space());
-            }
-            header_docs.push(lower_node(child, ctx));
-            header_docs.push(Doc::HardLine);
-        } else if has_seen_primary_constructor {
-            header_docs.push(Doc::indent(Doc::Concat(vec![
-                Doc::HardLine,
-                lower_node(child, ctx),
-            ])));
-            header_docs.push(Doc::HardLine);
-        } else {
-            if !header_docs.last().is_some_and(|d| d.ends_with_newline()) {
-                header_docs.push(Doc::HardLine);
-            }
-            header_docs.push(lower_node(child, ctx));
-            header_docs.push(Doc::HardLine);
-        }
-        return;
-    }
-    if !header_docs.is_empty()
-        && !matches!(
-            kind,
-            "," | ":" | ";" | "(" | ")" | "<" | ">" | "type_parameters" | "primary_constructor"
-        )
-        && !matches!(
-            header_docs.last(),
-            Some(Doc::Text("(") | Doc::Text("<") | Doc::Text(" ") | Doc::Text(": "))
-        )
-        && !header_docs
-            .last()
-            .is_some_and(|d| d.ends_with_line() || d.ends_with_space())
-    {
-        header_docs.push(Doc::space());
-    }
-    if kind == "primary_constructor" && primary_constructor_has_constructor_keyword(&child, ctx) {
-        if prev_child_node.is_some_and(|p| ctx.has_newline_between(&p, &child)) {
-            header_docs.push(Doc::HardLine);
-        } else {
+    let is_same_line = prev_child_node.is_some_and(|p| !ctx.has_user_newline_between(&p, &child));
+    if is_same_line {
+        let prev_is_modifiers = prev_child_node.is_some_and(|p| p.kind() == "modifiers");
+        if !prev_is_modifiers && !header_docs.last().is_some_and(|d| d.ends_with_space()) {
             header_docs.push(Doc::space());
         }
+        let child_doc = if child.kind() == "line_comment" {
+            Doc::line_comment(
+                ctx.node_text(&child),
+                true,
+                ctx.style.align_wrapped_trailing_comments,
+            )
+        } else {
+            lower_fn(child, ctx)
+        };
+        header_docs.push(child_doc);
+        header_docs.push(Doc::HardLine);
+    } else if has_seen_primary_constructor {
+        header_docs.push(Doc::indent(Doc::concat(vec![
+            Doc::HardLine,
+            lower_fn(child, ctx),
+        ])));
+        header_docs.push(Doc::HardLine);
+    } else {
+        if !header_docs.last().is_some_and(|d| d.ends_with_newline()) {
+            header_docs.push(Doc::HardLine);
+        }
+        header_docs.push(lower_fn(child, ctx));
+        header_docs.push(Doc::HardLine);
     }
-    header_docs.push(lower_node(child, ctx));
 }
 
-fn build_supertypes_group<'a>(
-    supertypes_docs: Vec<Doc<'a>>,
-    is_empty_body: bool,
-    body_doc: &mut Option<Doc<'a>>,
-) -> Option<Doc<'a>> {
-    if supertypes_docs.is_empty() {
-        return None;
+fn handle_class_in_colon<'a>(
+    child: Node<'a>,
+    prev_child_node: Option<Node<'a>>,
+    parts: &mut ClassDeclParts<'a>,
+    in_colon: &mut bool,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) {
+    match child.kind() {
+        "type_constraints" => {
+            *in_colon = false;
+            parts.where_doc = Some(lower_fn(child, ctx));
+        }
+        "class_body" | "enum_class_body" => {
+            *in_colon = false;
+            parts.body_doc = Some(lower_class_body(child, ctx, lower_fn));
+        }
+        "comment" | "line_comment" | "multiline_comment" => {
+            let is_same_line =
+                prev_child_node.is_some_and(|p| !ctx.has_user_newline_between(&p, &child));
+            if is_same_line {
+                parts.supertypes_docs.push(Doc::space());
+            } else {
+                parts.supertypes_docs.push(Doc::HardLine);
+            }
+            parts.supertypes_docs.push(lower_fn(child, ctx));
+        }
+        "annotation" => {
+            if !parts.supertypes_docs.is_empty() {
+                parts.supertypes_docs.push(Doc::Line);
+            }
+            parts.supertypes_docs.push(lower_fn(child, ctx));
+            parts.supertypes_docs.push(Doc::space());
+        }
+        "," => {
+            parts.supertypes_docs.push(Doc::text(","));
+        }
+        _ => {
+            if !parts.supertypes_docs.is_empty() {
+                if prev_child_node.is_some_and(|p| ctx.has_blank_line_between(&p, &child)) {
+                    parts.supertypes_docs.push(Doc::EmptyLine);
+                } else if !parts
+                    .supertypes_docs
+                    .last()
+                    .is_some_and(|d| d.ends_with_newline() || d.ends_with_space())
+                {
+                    parts.supertypes_docs.push(Doc::Line);
+                }
+            }
+            parts.supertypes_docs.push(lower_fn(child, ctx));
+        }
     }
-    let mut inner = supertypes_docs;
-    if is_empty_body && let Some(body) = body_doc.take() {
-        inner.push(Doc::space());
-        inner.push(body);
-    }
-    Some(Doc::Group(Box::new(Doc::Concat(vec![
-        Doc::space(),
-        Doc::text(":"),
-        Doc::continuation_indent(Doc::Concat(vec![
-            Doc::Line,
-            Doc::Group(Box::new(Doc::Concat(inner))),
-        ])),
-    ]))))
 }
 
-fn push_supertype_child<'a>(
-    supertypes_docs: &mut Vec<Doc<'a>>,
+fn push_class_primary_constructor<'a>(
+    parts: &mut ClassDeclParts<'a>,
     child: Node<'a>,
     prev_child_node: Option<Node<'a>>,
     ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) {
-    if child.kind() == "," {
-        supertypes_docs.push(Doc::text(","));
-    } else {
-        if !supertypes_docs.is_empty() {
-            if prev_child_node.is_some_and(|p| ctx.has_blank_line_between(&p, &child)) {
-                supertypes_docs.push(Doc::EmptyLine);
-            } else if !supertypes_docs
-                .last()
-                .is_some_and(|d| d.ends_with_newline())
+    if primary_constructor_has_constructor_keyword(&child, ctx) {
+        if prev_child_node.is_some_and(|p| ctx.has_user_newline_between(&p, &child)) {
+            parts.header_docs.push(Doc::HardLine);
+        } else {
+            parts.header_docs.push(Doc::Line);
+        }
+    }
+    parts.header_docs.push(lower_fn(child, ctx));
+}
+
+fn handle_class_header_child<'a>(
+    child: Node<'a>,
+    prev_child_node: Option<Node<'a>>,
+    parts: &mut ClassDeclParts<'a>,
+    in_colon: &mut bool,
+    has_seen_primary_constructor: &mut bool,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) {
+    let kind = child.kind();
+    match kind {
+        "modifiers" | "annotation" => parts.modifier_docs.push(lower_fn(child, ctx)),
+        "context_receiver" | "context_parameters" => {
+            parts.modifier_docs.push(lower_fn(child, ctx));
+            parts.modifier_docs.push(Doc::HardLine);
+        }
+        "class" | "interface" | "object" | "enum" => {
+            if !parts.header_docs.is_empty()
+                && !parts
+                    .header_docs
+                    .last()
+                    .is_some_and(|d| d.ends_with_space() || d.ends_with_newline())
             {
-                supertypes_docs.push(Doc::Line);
+                parts.header_docs.push(Doc::space());
+            }
+            parts.header_docs.push(Doc::text(ctx.node_text(&child)));
+        }
+        "companion" => parts.header_docs.push(Doc::text("companion")),
+        ";" => {
+            if !ctx.is_redundant_semicolon(&child) {
+                parts.header_docs.push(Doc::text(";"));
             }
         }
-        supertypes_docs.push(lower_node(child, ctx));
+        ":" => *in_colon = true,
+        "type_constraints" => {
+            parts.where_doc = Some(lower_fn(child, ctx));
+        }
+        "class_body" | "enum_class_body" => {
+            parts.body_doc = Some(lower_class_body(child, ctx, lower_fn));
+        }
+        "comment" | "line_comment" | "multiline_comment" => {
+            push_class_header_comment(
+                &mut parts.header_docs,
+                child,
+                prev_child_node,
+                *has_seen_primary_constructor,
+                ctx,
+                lower_fn,
+            );
+        }
+        "primary_constructor" => {
+            push_class_primary_constructor(parts, child, prev_child_node, ctx, lower_fn);
+            *has_seen_primary_constructor = true;
+        }
+        "type_parameters" => {
+            parts.header_docs.push(lower_fn(child, ctx));
+        }
+        _ => {
+            if !parts.header_docs.is_empty()
+                && !parts
+                    .header_docs
+                    .last()
+                    .is_some_and(|d| d.ends_with_space() || d.ends_with_newline())
+            {
+                parts.header_docs.push(Doc::space());
+            }
+            parts.header_docs.push(lower_fn(child, ctx));
+        }
     }
 }
 
-pub fn lower_class_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut header_docs = Vec::new();
-    let mut supertypes_docs = Vec::new();
-    let mut where_doc = None;
-    let mut where_has_newline = false;
-    let mut body_doc = None;
-    let mut is_after_colon = false;
+fn parse_class_parts<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> ClassDeclParts<'a> {
+    let mut parts = ClassDeclParts::default();
+    let mut in_colon = false;
+    let mut prev_child_node: Option<Node<'a>> = None;
     let mut has_seen_primary_constructor = false;
 
     let mut cursor = node.walk();
-    let mut prev_child_node: Option<Node<'a>> = None;
     for child in node.children(&mut cursor) {
-        let kind = child.kind();
-        if kind == "class_body" || kind == "enum_class_body" {
-            body_doc = Some(lower_class_body(child, ctx));
-        } else if kind == "type_constraints" {
-            where_has_newline =
-                prev_child_node.is_some_and(|p| ctx.has_newline_between(&p, &child));
-            where_doc = Some(lower_type_constraints(child, ctx));
-        } else if kind == ":" {
-            is_after_colon = true;
-        } else if is_after_colon {
-            push_supertype_child(&mut supertypes_docs, child, prev_child_node, ctx);
-        } else {
-            push_class_header_child(
-                &mut header_docs,
+        if in_colon {
+            handle_class_in_colon(
                 child,
                 prev_child_node,
-                has_seen_primary_constructor,
+                &mut parts,
+                &mut in_colon,
                 ctx,
+                lower_fn,
             );
-        }
-        if kind == "primary_constructor" {
-            has_seen_primary_constructor = true;
+        } else {
+            handle_class_header_child(
+                child,
+                prev_child_node,
+                &mut parts,
+                &mut in_colon,
+                &mut has_seen_primary_constructor,
+                ctx,
+                lower_fn,
+            );
         }
         prev_child_node = Some(child);
     }
-
-    let is_empty_body = body_doc
-        .as_ref()
-        .is_some_and(|b| matches!(b, Doc::Text(s) if *s == "{}"));
-    let supertypes_group = build_supertypes_group(supertypes_docs, is_empty_body, &mut body_doc);
-
-    let mut all_header = vec![Doc::Group(Box::new(Doc::Concat(header_docs)))];
-    if let Some(st) = supertypes_group {
-        all_header.push(st);
-    }
-    let where_line = if where_has_newline {
-        Doc::HardLine
-    } else {
-        Doc::Line
-    };
-    if let Some(wh) = where_doc.map(|w| Doc::continuation_indent(Doc::Concat(vec![where_line, w])))
-    {
-        all_header.push(wh);
-    }
-    let header_group = Doc::Group(Box::new(Doc::Concat(all_header)));
-    if let Some(body) = body_doc {
-        if header_group.ends_with_newline() {
-            Doc::Concat(vec![header_group, body])
-        } else {
-            Doc::Concat(vec![header_group, Doc::space(), body])
-        }
-    } else {
-        header_group
-    }
+    parts
 }
 
-pub use crate::lower::class_body::lower_class_body;
+pub fn lower_class_declaration<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut parts = parse_class_parts(node, ctx, lower_fn);
+
+    let mut full_header = Vec::new();
+    if !parts.modifier_docs.is_empty() {
+        full_header.extend(parts.modifier_docs);
+    }
+    full_header.extend(parts.header_docs);
+
+    if node.kind() == "companion_object"
+        && parts.body_doc.is_none()
+        && parts.supertypes_docs.is_empty()
+        && node.next_named_sibling().is_some()
+    {
+        full_header.push(Doc::text(";"));
+    }
+
+    let is_empty_body = parts
+        .body_doc
+        .as_ref()
+        .is_some_and(|b| matches!(b, Doc::Text(s) if *s == "{}"));
+
+    let supertypes_group = if !parts.supertypes_docs.is_empty() {
+        let mut inner = parts.supertypes_docs;
+        if is_empty_body && let Some(body) = parts.body_doc.take() {
+            inner.push(Doc::space());
+            inner.push(body);
+        }
+        Some(Doc::group(Doc::concat(vec![
+            Doc::space(),
+            Doc::text(":"),
+            Doc::continuation_indent(Doc::concat(vec![Doc::Line, Doc::group(Doc::concat(inner))])),
+        ])))
+    } else {
+        None
+    };
+
+    if let Some(st) = supertypes_group {
+        full_header.push(st);
+    }
+
+    let has_where = parts.where_doc.is_some();
+    if let Some(wh) = parts.where_doc {
+        let last_st_is_by = node.children(&mut node.walk()).any(|c| {
+            c.kind() == "delegation_specifier"
+                && c.children(&mut c.walk())
+                    .any(|cc| cc.kind() == "explicit_delegation" || cc.kind() == "by")
+        });
+        if last_st_is_by {
+            full_header.push(Doc::continuation_indent(Doc::concat(vec![
+                Doc::HardLine,
+                wh,
+            ])));
+        } else {
+            full_header.push(Doc::continuation_indent(Doc::concat(vec![Doc::Line, wh])));
+        }
+        full_header.push(Doc::space());
+    }
+
+    let header_doc = Doc::group(Doc::concat(full_header));
+    if let Some(body) = parts.body_doc {
+        if header_doc.ends_with_newline() || has_where {
+            Doc::concat(vec![header_doc, body])
+        } else {
+            Doc::concat(vec![header_doc, Doc::space(), body])
+        }
+    } else {
+        header_doc
+    }
+}

@@ -1,0 +1,6 @@
+class Formatter {
+    fun sortedImports() {
+        // Find non-import elements; comments are moved, in order, to the top of the import list.
+        // Other
+    }
+}

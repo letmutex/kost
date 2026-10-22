@@ -1,0 +1,7 @@
+fun test(ix: Int, x: Double, y: DoubleArray): Int {
+    if (ix <= 0x3fe921fb)   /* |x| ~<= pi/4 , no need for reduction */ {
+        y[0] = x
+        return 0
+    }
+    return 1
+}

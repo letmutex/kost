@@ -1,0 +1,7 @@
+fun test(hostsWithWildcard: List<Pair<String, String>>, normalizedOrigin: String): String {
+    val (prefix, suffix) = hostsWithWildcard
+        .find { (prefix, suffix) ->
+            normalizedOrigin.startsWith(prefix) && normalizedOrigin.endsWith(suffix)
+        }!!
+    return "$prefix*$suffix"
+}

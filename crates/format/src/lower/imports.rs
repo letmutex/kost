@@ -2,10 +2,13 @@ use tree_sitter::Node;
 
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
-use crate::lower::lower_comment;
 use crate::rules::imports::{ImportEntry, clean_identifier_path, parse_import_header};
 
-pub fn lower_package_header<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+pub fn lower_package_header<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
     let mut pkg_name = String::new();
     let mut comments = Vec::new();
     let mut cursor = node.walk();
@@ -16,7 +19,7 @@ pub fn lower_package_header<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
             child.kind(),
             "comment" | "line_comment" | "multiline_comment"
         ) {
-            comments.push(lower_comment(child, ctx));
+            comments.push(lower_fn(child, ctx));
         }
     }
     if pkg_name.is_empty() {
@@ -38,7 +41,7 @@ pub fn lower_package_header<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> D
         }
         docs.push(Doc::HardLine);
     }
-    Doc::Concat(docs)
+    Doc::concat(docs)
 }
 
 fn format_import_directive(entry: &ImportEntry) -> String {
@@ -75,6 +78,7 @@ fn format_import_directive(entry: &ImportEntry) -> String {
 fn process_import_header_children<'a>(
     child: Node<'a>,
     ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
     top_comments: &mut Vec<Doc<'a>>,
     bottom_comments: &mut Vec<(bool, Doc<'a>)>,
     is_last_import: bool,
@@ -90,14 +94,16 @@ fn process_import_header_children<'a>(
                 same_line_comment = Some(ctx.node_text(&c).trim().to_string());
             } else {
                 let is_kdoc = ctx.node_text(&c).starts_with("/**");
-                separate_comments.push((is_kdoc, lower_comment(c, ctx)));
+                separate_comments.push((is_kdoc, lower_fn(c, ctx)));
             }
         } else {
             code_end_row = c.end_position().row;
         }
     }
 
-    let mut entry = parse_import_header(child, ctx.source, ctx.package_name, ctx.used_references)?;
+    let empty_set = ahash::AHashSet::new();
+    let used_refs = ctx.used_references.unwrap_or(&empty_set);
+    let mut entry = parse_import_header(child, ctx.source, ctx.package_name, used_refs)?;
     entry.trailing_comment = same_line_comment;
 
     for (is_kdoc, comment_doc) in separate_comments {
@@ -114,6 +120,7 @@ fn process_import_header_children<'a>(
 fn collect_import_list_children<'a>(
     node: Node<'a>,
     ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> (Vec<ImportEntry>, Vec<Doc<'a>>, Vec<(bool, Doc<'a>)>) {
     let mut entries = Vec::new();
     let mut top_comments = Vec::new();
@@ -138,6 +145,7 @@ fn collect_import_list_children<'a>(
             if let Some(entry) = process_import_header_children(
                 child,
                 ctx,
+                lower_fn,
                 &mut top_comments,
                 &mut bottom_comments,
                 is_last_import,
@@ -150,9 +158,9 @@ fn collect_import_list_children<'a>(
         ) {
             let is_kdoc = ctx.node_text(&child).starts_with("/**");
             if !reached_last_import {
-                top_comments.push(lower_comment(child, ctx));
+                top_comments.push(lower_fn(child, ctx));
             } else {
-                bottom_comments.push((is_kdoc, lower_comment(child, ctx)));
+                bottom_comments.push((is_kdoc, lower_fn(child, ctx)));
             }
         }
     }
@@ -188,8 +196,13 @@ fn filter_and_sort_imports(
     filtered_entries
 }
 
-pub fn lower_import_list<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let (entries, top_comments, bottom_comments) = collect_import_list_children(node, ctx);
+pub fn lower_import_list<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let (entries, top_comments, bottom_comments) =
+        collect_import_list_children(node, ctx, lower_fn);
     if entries.is_empty() && top_comments.is_empty() && bottom_comments.is_empty() {
         return Doc::empty();
     }
@@ -225,5 +238,5 @@ pub fn lower_import_list<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<
         }
     }
 
-    Doc::Concat(docs)
+    Doc::concat(docs)
 }

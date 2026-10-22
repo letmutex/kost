@@ -1,0 +1,4 @@
+fun transform(data: String): Result = processData(
+    param1,
+    param2,
+)

@@ -1,94 +1,69 @@
 use tree_sitter::Node;
 
-use crate::doc::Doc;
+use crate::doc::{Doc, GroupId};
+use crate::lower::builders::{ListItem, format_delimited_list};
 use crate::lower::context::LowerContext;
-use crate::lower::delegates::parse_comment_before_init;
-use crate::lower::lower_node;
-use crate::lower::property::build_property_header;
 
-pub fn lower_destructuring_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut docs = Vec::new();
+pub fn lower_multi_variable_declaration_with_gid<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> (Doc<'a>, Option<GroupId>) {
+    let mut items = Vec::new();
+    let mut open_delim = "(";
+    let mut close_delim = ")";
+    let mut has_trailing_comma = false;
+
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         match child.kind() {
-            "=" => {
-                docs.push(Doc::space());
-                docs.push(Doc::text("="));
-                docs.push(Doc::space());
-            }
-            ";" => {
-                if !ctx.is_redundant_semicolon(&child) {
-                    docs.push(Doc::text(";"));
-                }
-            }
+            "[" => (open_delim, close_delim) = ("[", "]"),
+            "(" | ")" | "]" => {}
+            "," => has_trailing_comma = true,
             _ => {
-                docs.push(lower_node(child, ctx));
+                has_trailing_comma = false;
+                items.push(ListItem::new(lower_fn(child, ctx)));
             }
         }
     }
-    Doc::Group(Box::new(Doc::Concat(docs)))
+
+    let (strategy, omit_closing) = if ctx.style.preset == crate::options::StylePreset::Kotlinlang
+        && !ctx.options.use_experimental_engine
+    {
+        (crate::options::TrailingCommaStrategy::None, true)
+    } else {
+        (ctx.options.trailing_comma_strategy, false)
+    };
+
+    let list_doc = format_delimited_list(
+        open_delim,
+        close_delim,
+        items,
+        Vec::new(),
+        has_trailing_comma,
+        strategy,
+        true,
+        omit_closing,
+        false,
+    );
+
+    let gid = if omit_closing {
+        Some(ctx.next_group_id())
+    } else {
+        None
+    };
+    let doc = if let Some(id) = gid {
+        Doc::group_with_id(id, list_doc)
+    } else {
+        Doc::group(list_doc)
+    };
+    (doc, gid)
 }
 
-pub fn lower_backing_field<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut name_docs = Vec::new();
-    let mut type_docs = Vec::new();
-    let mut init_docs = Vec::new();
-    let mut init_child = None;
-    let mut trailing_comments = Vec::new();
-    let mut in_type = false;
-    let mut in_init = false;
-    let mut eq_node = None;
-
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        let kind = child.kind();
-        if kind == ":" {
-            in_type = true;
-            in_init = false;
-            continue;
-        }
-        if kind == "=" {
-            eq_node = Some(child);
-            in_type = false;
-            in_init = true;
-            continue;
-        }
-        if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-            if in_init && init_child.is_none() {
-                let prev_op = if trailing_comments.is_empty() {
-                    eq_node
-                } else {
-                    None
-                };
-                trailing_comments.push(parse_comment_before_init(child, prev_op, ctx));
-            }
-            continue;
-        }
-        if in_init {
-            if init_child.is_none() {
-                init_child = Some(child);
-            }
-            init_docs.push(lower_node(child, ctx));
-        } else if in_type {
-            type_docs.push(lower_node(child, ctx));
-        } else if kind == "modifiers" {
-            name_docs.push(lower_node(child, ctx));
-            name_docs.push(Doc::space());
-        } else if kind == "field" {
-            name_docs.push(Doc::text("field"));
-        }
-    }
-
-    let op_str = if eq_node.is_some() { Some("=") } else { None };
-    build_property_header(
-        name_docs,
-        type_docs,
-        init_docs,
-        init_child,
-        op_str,
-        trailing_comments,
-        0,
-        &node,
-        ctx,
-    )
+pub fn lower_multi_variable_declaration<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    lower_multi_variable_declaration_with_gid(node, ctx, lower_fn).0
 }

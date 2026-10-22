@@ -1,304 +1,320 @@
 use tree_sitter::Node;
 
 use crate::doc::Doc;
+use crate::lower::builders::{DelimitedListBuilder, format_assign_like, format_delimited_list_ext};
 use crate::lower::context::LowerContext;
-use crate::lower::expr::lower_block;
-use crate::lower::expression_body::format_expression_body;
-use crate::lower::lower_node;
-use crate::lower::types::lower_type_constraints;
 
-pub fn lower_function_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut context_doc = None;
-    let mut modifier_docs = Vec::new();
-    let mut prefix_docs = Vec::new();
-    let mut name_docs = Vec::new();
-    let mut suffix_docs = Vec::new();
-    let mut where_doc = None;
-    let mut where_has_newline = false;
-    let mut has_dot = false;
-    let mut after_name = false;
-    let mut is_after_colon = false;
-    let mut body_child = None;
+#[derive(Default)]
+struct FuncDeclParts<'a> {
+    modifier_docs: Vec<Doc<'a>>,
+    prefix_docs: Vec<Doc<'a>>,
+    params_doc: Option<Doc<'a>>,
+    return_type_docs: Vec<Doc<'a>>,
+    where_doc: Option<Doc<'a>>,
+    body_node: Option<Node<'a>>,
+    is_expression_body: bool,
+}
+
+fn parse_func_parts<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> FuncDeclParts<'a> {
+    let mut parts = FuncDeclParts::default();
+    let mut in_return_type = false;
 
     let mut cursor = node.walk();
-    let mut prev_child_node: Option<Node<'a>> = None;
     for child in node.children(&mut cursor) {
         let kind = child.kind();
-        if kind == "context_receiver" {
-            context_doc = Some(lower_node(child, ctx));
-        } else if kind == "modifiers" {
-            modifier_docs.push(lower_node(child, ctx));
-        } else if kind == "member_modifier" {
-            modifier_docs.push(Doc::Concat(vec![lower_node(child, ctx), Doc::space()]));
-        } else if kind == "function_body" || kind == "block" {
-            body_child = Some(child);
-        } else if kind == "type_constraints" {
-            where_has_newline =
-                prev_child_node.is_some_and(|p| ctx.has_newline_between(&p, &child));
-            where_doc = Some(lower_type_constraints(child, ctx));
-        } else if kind == "." {
-            has_dot = true;
-        } else {
-            if kind == "function_value_parameters" {
-                after_name = true;
+        match kind {
+            "modifiers" | "annotation" => parts.modifier_docs.push(lower_fn(child, ctx)),
+            "context_receiver" | "context_parameters" => {
+                parts.modifier_docs.push(lower_fn(child, ctx));
+                parts.modifier_docs.push(Doc::HardLine);
             }
-            let target = if after_name {
-                &mut suffix_docs
-            } else if has_dot {
-                &mut name_docs
-            } else {
-                &mut prefix_docs
-            };
-
-            push_func_token(target, child, &mut is_after_colon, ctx);
+            "fun" => {
+                if !parts.prefix_docs.is_empty()
+                    && !parts
+                        .prefix_docs
+                        .last()
+                        .is_some_and(|d| d.ends_with_newline())
+                {
+                    parts.prefix_docs.push(Doc::space());
+                }
+                let is_direct_params = child
+                    .next_sibling()
+                    .is_some_and(|next| next.kind() == "function_value_parameters");
+                if is_direct_params {
+                    parts.prefix_docs.push(Doc::text("fun"));
+                } else {
+                    parts.prefix_docs.push(Doc::text("fun "));
+                }
+            }
+            "type_parameters" => {
+                parts.prefix_docs.push(lower_fn(child, ctx));
+                parts.prefix_docs.push(Doc::space());
+            }
+            "receiver_type" => {
+                parts.prefix_docs.push(lower_fn(child, ctx));
+            }
+            "." => {
+                parts
+                    .prefix_docs
+                    .push(Doc::continuation_indent(Doc::concat(vec![
+                        Doc::SoftLine,
+                        Doc::text("."),
+                    ])));
+            }
+            "simple_identifier" => parts.prefix_docs.push(Doc::text(ctx.node_text(&child))),
+            "function_value_parameters" => {
+                parts.params_doc = Some(lower_fn(child, ctx));
+            }
+            ":" => in_return_type = true,
+            "=" => {
+                in_return_type = false;
+                parts.is_expression_body = true;
+            }
+            "type_constraints" => {
+                in_return_type = false;
+                parts.where_doc = Some(lower_fn(child, ctx));
+            }
+            "function_body" | "block" => {
+                in_return_type = false;
+                parts.body_node = Some(child);
+            }
+            _ => {
+                if in_return_type {
+                    parts.return_type_docs.push(lower_fn(child, ctx));
+                } else if parts.is_expression_body && parts.body_node.is_none() {
+                    parts.body_node = Some(child);
+                } else {
+                    parts.prefix_docs.push(lower_fn(child, ctx));
+                }
+            }
         }
-        prev_child_node = Some(child);
     }
-
-    let after_params_len = if suffix_docs.len() > 1 {
-        Some(suffix_docs[1..].iter().map(|d| d.flat_len()).sum::<usize>())
-    } else if !suffix_docs.is_empty() {
-        Some(0)
-    } else {
-        None
-    };
-    let has_where = where_doc.is_some();
-    let name_group = build_func_name_group(prefix_docs, name_docs, has_dot);
-    let header_doc = assemble_func_header(name_group, suffix_docs, where_doc, where_has_newline);
-
-    let (header_col, is_multiline_header) = compute_func_header_col(
-        &node,
-        &modifier_docs,
-        &header_doc,
-        after_params_len,
-        has_where,
-        ctx,
-    );
-
-    let body_doc = body_child.map(|b| {
-        if b.kind() == "function_body" {
-            lower_function_body_with_header(b, ctx, Some(header_col), is_multiline_header)
-        } else {
-            lower_node(b, ctx)
-        }
-    });
-
-    let func_doc = attach_func_body(header_doc, body_doc, body_child, ctx);
-    wrap_func_modifiers_and_context(func_doc, modifier_docs, context_doc)
+    parts
 }
 
-fn assemble_func_header<'a>(
-    name_group: Doc<'a>,
-    suffix_docs: Vec<Doc<'a>>,
-    where_doc: Option<Doc<'a>>,
-    where_has_newline: bool,
+pub fn lower_function_declaration<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> Doc<'a> {
-    let func_header_inner = Doc::Concat(vec![name_group, Doc::Concat(suffix_docs)]);
-    let func_header = if where_doc.is_some() {
-        Doc::Group(Box::new(func_header_inner))
-    } else {
-        func_header_inner
-    };
+    let parts = parse_func_parts(node, ctx, lower_fn);
 
-    let mut header_parts = vec![func_header];
-    let where_line = if where_has_newline {
-        Doc::HardLine
-    } else {
-        Doc::Line
-    };
-    if let Some(wh) = where_doc.map(|w| Doc::continuation_indent(Doc::Concat(vec![where_line, w])))
-    {
-        header_parts.push(wh);
+    let mut param_and_return = Vec::new();
+    if let Some(p) = parts.params_doc {
+        param_and_return.push(p);
     }
-    Doc::Concat(header_parts)
-}
-
-fn wrap_func_modifiers_and_context<'a>(
-    func_doc: Doc<'a>,
-    modifier_docs: Vec<Doc<'a>>,
-    context_doc: Option<Doc<'a>>,
-) -> Doc<'a> {
-    let final_doc = if modifier_docs.is_empty() {
-        func_doc
-    } else if modifier_docs.iter().any(|d| d.has_hardline()) {
-        Doc::Concat(vec![Doc::Concat(modifier_docs), func_doc])
-    } else {
-        Doc::Group(Box::new(Doc::Concat(vec![
-            Doc::Concat(modifier_docs),
-            func_doc,
-        ])))
-    };
-
-    if let Some(ctx_doc) = context_doc {
-        Doc::Concat(vec![ctx_doc, Doc::HardLine, final_doc])
-    } else {
-        final_doc
-    }
-}
-
-fn build_func_name_group<'a>(
-    prefix_docs: Vec<Doc<'a>>,
-    name_docs: Vec<Doc<'a>>,
-    has_dot: bool,
-) -> Doc<'a> {
-    if has_dot {
-        Doc::Group(Box::new(Doc::Concat(vec![
-            Doc::Concat(prefix_docs),
-            Doc::continuation_indent(Doc::Concat(vec![
-                Doc::SoftLine,
-                Doc::text("."),
-                Doc::Concat(name_docs),
+    if !parts.return_type_docs.is_empty() {
+        param_and_return.push(Doc::group(Doc::concat(vec![
+            Doc::text(":"),
+            Doc::continuation_indent(Doc::concat(vec![
+                Doc::Line,
+                Doc::concat(parts.return_type_docs),
             ])),
-        ])))
+        ])));
+    }
+    let param_and_return_doc = Doc::group(Doc::concat(param_and_return));
+
+    let mut header = Vec::new();
+    header.push(Doc::group(Doc::concat(parts.prefix_docs)));
+    header.push(param_and_return_doc);
+
+    if let Some(wh) = parts.where_doc {
+        header.push(Doc::continuation_indent(Doc::concat(vec![Doc::Line, wh])));
+    }
+
+    let header_doc = Doc::group(Doc::concat(header));
+    let func_doc = if let Some(body) = parts.body_node {
+        attach_func_body(header_doc, body, ctx, lower_fn)
     } else {
-        Doc::Concat(prefix_docs)
+        header_doc
+    };
+
+    if !parts.modifier_docs.is_empty() {
+        let last_mod_ends_with_line = parts
+            .modifier_docs
+            .last()
+            .is_some_and(|d| d.ends_with_newline() || matches!(d, Doc::HardLine | Doc::EmptyLine));
+        if last_mod_ends_with_line {
+            Doc::concat(vec![Doc::concat(parts.modifier_docs), func_doc])
+        } else {
+            Doc::group(Doc::concat(vec![
+                Doc::concat(parts.modifier_docs),
+                func_doc,
+            ]))
+        }
+    } else {
+        func_doc
     }
 }
 
 fn attach_func_body<'a>(
     header_doc: Doc<'a>,
-    body_doc: Option<Doc<'a>>,
-    body_child: Option<Node<'a>>,
-    _ctx: &LowerContext<'a, '_>,
+    body: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> Doc<'a> {
-    let Some(body) = body_doc else {
-        return Doc::Group(Box::new(header_doc));
-    };
+    if body.kind() == "function_body" {
+        let mut is_expression = false;
+        let mut expr_child = None;
+        let mut pending_comments = Vec::new();
+        let mut cursor = body.walk();
+        for child in body.children(&mut cursor) {
+            let kind = child.kind();
+            if kind == "=" {
+                is_expression = true;
+            } else if is_expression && expr_child.is_none() {
+                if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+                    pending_comments.push(lower_fn(child, ctx));
+                } else {
+                    expr_child = Some(child);
+                }
+            }
+        }
+        if is_expression && let Some(e) = expr_child {
+            let rhs_doc = lower_fn(e, ctx);
+            let final_rhs = if pending_comments.is_empty() {
+                rhs_doc
+            } else {
+                let mut parts = Vec::new();
+                for c in pending_comments {
+                    parts.push(c);
+                    parts.push(Doc::HardLine);
+                }
+                parts.push(rhs_doc);
+                Doc::concat(parts)
+            };
+            return format_assign_like(header_doc, "=", e, final_rhs, ctx);
+        }
+        return Doc::concat(vec![header_doc, Doc::space(), lower_fn(body, ctx)]);
+    }
 
-    let has_expr_body = body_child.is_some_and(|b| {
-        let mut c = b.walk();
-        b.children(&mut c).any(|ch| ch.kind() == "=")
-    });
-
-    let is_empty_block = body_child.is_some_and(|b| {
-        b.named_child_count() == 0
-            && !b
-                .children(&mut b.walk())
-                .any(|ch| matches!(ch.kind(), "comment" | "line_comment" | "multiline_comment"))
-    });
-
-    if is_empty_block {
-        Doc::Group(Box::new(Doc::Concat(vec![header_doc, Doc::space(), body])))
+    if body.kind() == "block" {
+        Doc::concat(vec![header_doc, Doc::space(), lower_fn(body, ctx)])
     } else {
-        let header = Doc::Group(Box::new(header_doc));
-        let body_doc = if has_expr_body {
-            Doc::Group(Box::new(body))
-        } else {
-            body
-        };
-        Doc::Concat(vec![header, Doc::space(), body_doc])
+        let rhs_doc = lower_fn(body, ctx);
+        format_assign_like(header_doc, "=", body, rhs_doc, ctx)
     }
 }
 
-pub fn lower_function_body<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    lower_function_body_with_header(node, ctx, None, false)
+fn format_accessor_parens<'a>(
+    paren_children: Vec<Node<'a>>,
+    has_trailing_comma: bool,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let last_element_idx = paren_children.iter().rposition(|c| {
+        !matches!(
+            c.kind(),
+            "(" | ")"
+                | "["
+                | "]"
+                | "<"
+                | ">"
+                | ","
+                | "comment"
+                | "line_comment"
+                | "multiline_comment"
+        )
+    });
+    let mut builder = DelimitedListBuilder::new();
+    for (i, p_child) in paren_children.into_iter().enumerate() {
+        builder.handle_child(p_child, i, last_element_idx, ctx, lower_fn);
+    }
+    builder.flush(ctx, lower_fn);
+    format_delimited_list_ext(
+        "(",
+        ")",
+        builder.items,
+        builder.dangling_comments,
+        has_trailing_comma,
+        false,
+        true,
+        ctx.options.trailing_comma_strategy,
+        true,
+        false,
+        false,
+    )
 }
 
-pub fn lower_function_body_with_header<'a>(
+pub fn lower_accessor<'a>(
     node: Node<'a>,
     ctx: &LowerContext<'a, '_>,
-    header_col: Option<usize>,
-    is_multiline_header: bool,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> Doc<'a> {
-    let mut cursor = node.walk();
-    let mut is_expression_body = false;
-    let mut expr_child = None;
-    let mut block_child = None;
+    let mut modifier_docs = Vec::new();
+    let mut head_docs = Vec::new();
+    let mut in_parens = false;
+    let mut paren_children: Vec<Node<'a>> = Vec::new();
+    let mut has_trailing_comma = false;
+    let mut body_node = None;
+    let mut is_after_colon = false;
 
-    let mut comments_before_expr = Vec::new();
-    let mut comments_after_expr = Vec::new();
+    let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
-        if kind == "=" {
-            is_expression_body = true;
-        } else if is_expression_body {
-            if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-                if expr_child.is_none() {
-                    comments_before_expr.push(child);
-                } else {
-                    comments_after_expr.push(child);
-                }
-            } else if expr_child.is_none() {
-                expr_child = Some(child);
-            }
-        } else if kind == "block" {
-            block_child = Some(child);
+        if kind == "modifiers" {
+            modifier_docs.push(lower_fn(child, ctx));
+            continue;
         }
+        if kind == "(" {
+            in_parens = true;
+            continue;
+        }
+        if kind == ")" {
+            in_parens = false;
+            head_docs.push(format_accessor_parens(
+                std::mem::take(&mut paren_children),
+                has_trailing_comma,
+                ctx,
+                lower_fn,
+            ));
+            continue;
+        }
+        if in_parens {
+            if kind == "," {
+                has_trailing_comma = true;
+            }
+            paren_children.push(child);
+            continue;
+        }
+        if kind == "function_body" || kind == "block" {
+            body_node = Some(child);
+            continue;
+        }
+        if kind == ":" {
+            is_after_colon = true;
+            continue;
+        }
+        if is_after_colon {
+            head_docs.push(Doc::text(": "));
+            head_docs.push(lower_fn(child, ctx));
+            is_after_colon = false;
+            continue;
+        }
+        if !head_docs.is_empty()
+            && !head_docs
+                .last()
+                .is_some_and(|d| d.ends_with_space() || d.ends_with_newline())
+        {
+            head_docs.push(Doc::space());
+        }
+        head_docs.push(lower_fn(child, ctx));
     }
 
-    if is_expression_body {
-        return format_expression_body(
-            node,
-            expr_child,
-            comments_before_expr,
-            comments_after_expr,
-            ctx,
-            header_col,
-            is_multiline_header,
-        );
-    }
-
-    if let Some(b) = block_child {
-        return lower_node(b, ctx);
-    }
-
-    lower_block(node, ctx)
-}
-
-fn push_func_token<'a>(
-    target: &mut Vec<Doc<'a>>,
-    child: Node<'a>,
-    is_after_colon: &mut bool,
-    ctx: &LowerContext<'a, '_>,
-) {
-    let kind = child.kind();
-    if !*is_after_colon
-        && !target.is_empty()
-        && !matches!(
-            kind,
-            ":" | ";" | "(" | ")" | "<" | ">" | "function_value_parameters"
-        )
-        && !matches!(target.last(), Some(Doc::Text("(" | "<" | " " | ":" | ": ")))
-        && !target
-            .last()
-            .is_some_and(|d| d.ends_with_line() || d.ends_with_space())
-    {
-        target.push(Doc::space());
-    }
-
-    if kind == ":" {
-        *is_after_colon = true;
-    } else if *is_after_colon {
-        let return_type_doc = lower_node(child, ctx);
-        target.push(Doc::Group(Box::new(Doc::Concat(vec![
-            Doc::text(":"),
-            Doc::continuation_indent(Doc::Concat(vec![Doc::Line, return_type_doc])),
-        ]))));
-        *is_after_colon = false;
+    let sig_doc = Doc::group(Doc::concat(head_docs));
+    let header_doc = if modifier_docs.is_empty() {
+        sig_doc
     } else {
-        target.push(lower_node(child, ctx));
-    }
-}
-
-fn compute_func_header_col<'a>(
-    node: &Node<'a>,
-    modifier_docs: &[Doc<'a>],
-    header_doc: &Doc<'a>,
-    after_params_len: Option<usize>,
-    has_where: bool,
-    ctx: &LowerContext<'a, '_>,
-) -> (usize, bool) {
-    let indent = ctx.compute_target_indent(node);
-    let mod_len = Doc::slice_last_line_len(modifier_docs);
-    let flat_header_len = indent + mod_len + header_doc.flat_len();
-    let is_multiline_header = header_doc.has_hardline() || flat_header_len > ctx.options.max_width;
-    let col = if is_multiline_header
-        && !has_where
-        && let Some(after_params) = after_params_len
-    {
-        indent + 1 + after_params
-    } else {
-        indent + mod_len + header_doc.last_line_len()
+        Doc::concat(vec![Doc::concat(modifier_docs), sig_doc])
     };
-    (col, is_multiline_header)
+
+    let Some(body) = body_node else {
+        return header_doc;
+    };
+
+    attach_func_body(header_doc, body, ctx, lower_fn)
 }

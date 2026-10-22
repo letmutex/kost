@@ -1,0 +1,4 @@
+val archive =
+    tasks.register("nativeImageArchive", if (currentOs == Os.WINDOWS) Zip::class else Tar::class) {
+        description = "Packs the native image distribution..."
+    }

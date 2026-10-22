@@ -1,0 +1,9 @@
+fun test() {
+    val map =
+        mapOf(
+            KEY to
+                call(
+                    arg,
+                ),
+        )
+}

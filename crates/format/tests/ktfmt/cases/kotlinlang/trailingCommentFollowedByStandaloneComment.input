@@ -1,0 +1,5 @@
+fun test() {
+    conn.responseCode // Force connection
+    // Make sure dispatcher got request
+    assertThat(x).isEqualTo(1)
+}

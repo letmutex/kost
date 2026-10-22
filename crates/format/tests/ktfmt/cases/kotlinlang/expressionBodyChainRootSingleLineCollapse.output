@@ -1,0 +1,4 @@
+class Service {
+    fun getUserStream(id: String): Flow<User> =
+        repo.getUser(id).map { it.toModel() }.filter { it.isValid() }
+}

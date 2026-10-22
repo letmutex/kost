@@ -1,0 +1,8 @@
+fun test() {
+    val result =
+        list
+            .plus(
+                projectPath.get(),
+            ) // Special case when this specific module has no other dependency
+            .groupBy { it.substringBeforeLast(":") }
+}

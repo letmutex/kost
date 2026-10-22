@@ -1,0 +1,9 @@
+fun test() {
+    ServiceLoader
+        .load(
+            RuleSetV2Provider::class.java,
+            URLClassLoader(emptyArray<URL?>()),
+        )
+        .flatMap { it.getRuleProviders() }
+        .toSet()
+}

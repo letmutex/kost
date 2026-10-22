@@ -1,0 +1,7 @@
+fun test() {
+    append(
+        targetPackageDescriptor.enclosingDeclaration
+            .asFqNameString()
+            .replace("Mutable", "(Mutable)"),
+    )
+}

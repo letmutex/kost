@@ -1,332 +1,304 @@
 use tree_sitter::Node;
 
-use crate::doc::Doc;
+pub use super::destructuring::{
+    lower_multi_variable_declaration, lower_multi_variable_declaration_with_gid,
+};
+use crate::doc::{Doc, GroupId, IndentKind};
+use crate::lower::builders::{format_assign_with_comments_ext, is_block_like_rhs, is_scoping_call};
 use crate::lower::context::LowerContext;
-use crate::lower::delegates::{
-    PropertyComment, build_property_init_section, parse_comment_before_init,
-    parse_property_delegate, property_first_line_fits,
-};
-use crate::lower::lower_node;
-use crate::lower::property_header::{
-    format_flat_property_header, format_property_where_header, format_property_without_init,
-    format_untyped_property_header,
-};
-use crate::lower::types::lower_type_constraints;
-
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn build_property_header<'a>(
-    name_docs: Vec<Doc<'a>>,
-    type_docs: Vec<Doc<'a>>,
-    init_docs: Vec<Doc<'a>>,
-    init_child: Option<Node<'a>>,
-    op_str: Option<&'static str>,
-    trailing_comments: Vec<PropertyComment<'a>>,
-    modifier_len: usize,
-    node: &Node<'a>,
-    ctx: &LowerContext<'a, '_>,
-) -> Doc<'a> {
-    let name_doc = Doc::Concat(name_docs);
-    let Some(op) = op_str else {
-        return format_property_without_init(name_doc, type_docs);
-    };
-
-    let is_destructuring = node
-        .children(&mut node.walk())
-        .any(|ch| ch.kind() == "multi_variable_declaration");
-
-    let (init_section, flat_init) = build_property_init_section(
-        init_docs,
-        init_child,
-        trailing_comments,
-        is_destructuring,
-        type_docs.is_empty(),
-        ctx,
-    );
-
-    let name_len = name_doc.last_line_len();
-    let modifier_len = if name_doc.has_hardline() {
-        0
-    } else {
-        modifier_len
-    };
-    let type_len = if type_docs.is_empty() {
-        0
-    } else {
-        2 + type_docs.iter().map(|d| d.flat_len()).sum::<usize>()
-    };
-    let init_flat_len = match &init_section {
-        Doc::Concat(items) => items.iter().map(|d| d.flat_len()).sum::<usize>(),
-        other => other.flat_len(),
-    };
-    let first_line_fits = property_first_line_fits(
-        node,
-        modifier_len,
-        name_len,
-        type_len,
-        op,
-        init_child,
-        init_flat_len,
-        ctx,
-    );
-
-    let is_scoping_or_lambda =
-        init_child.is_some_and(|r| crate::lower::scoping::is_scoping_chain_or_lambda(&r));
-    let has_args = init_child
-        .and_then(crate::lower::delegates::find_opening_call)
-        .is_some_and(|c| crate::lower::delegates::call_has_args(&c));
-    let allow_flat_header = flat_init && (is_scoping_or_lambda || has_args || op == "by");
-
-    if type_docs.is_empty() {
-        format_untyped_property_header(name_doc, op, init_section, flat_init, first_line_fits)
-    } else if allow_flat_header {
-        format_flat_property_header(name_doc, type_docs, op, init_section, first_line_fits)
-    } else {
-        let type_and_op = Doc::Group(Box::new(Doc::Concat(vec![
-            name_doc,
-            Doc::text(":"),
-            Doc::continuation_indent(Doc::Concat(vec![Doc::Line, Doc::Concat(type_docs)])),
-            Doc::space(),
-            Doc::text(op),
-        ])));
-        Doc::Group(Box::new(Doc::Concat(vec![type_and_op, init_section])))
-    }
-}
 
 #[derive(Default)]
-struct PropertyParts<'a> {
+struct PropertyDeclParts<'a> {
     modifier_docs: Vec<Doc<'a>>,
-    name_docs: Vec<Doc<'a>>,
-    type_docs: Vec<Doc<'a>>,
-    init_docs: Vec<Doc<'a>>,
-    init_child: Option<Node<'a>>,
-    accessors: Vec<Doc<'a>>,
+    header_docs: Vec<Doc<'a>>,
     where_doc: Option<Doc<'a>>,
-    where_has_newline: bool,
-    backing_field_doc: Option<Doc<'a>>,
-    backing_field_has_newline: bool,
-    is_after_equals: bool,
+    type_gid: Option<GroupId>,
+    init_node: Option<Node<'a>>,
+    comments_before_init: Vec<Node<'a>>,
+    op_node: Option<Node<'a>>,
     is_after_by: bool,
-    trailing_comments: Vec<PropertyComment<'a>>,
+    is_destructuring: bool,
+    accessors: Vec<Doc<'a>>,
 }
 
-fn push_property_init_child<'a>(
-    child: Node<'a>,
-    eq_node: Option<Node<'a>>,
+fn handle_property_delegate<'a>(child: Node<'a>, parts: &mut PropertyDeclParts<'a>) {
+    parts.is_after_by = true;
+    let mut dc = child.walk();
+    for d in child.children(&mut dc) {
+        match d.kind() {
+            "by" => parts.op_node = Some(d),
+            "comment" | "line_comment" | "multiline_comment" => {
+                if parts.init_node.is_none() {
+                    parts.comments_before_init.push(d);
+                }
+            }
+            _ => {
+                if parts.init_node.is_none() {
+                    parts.init_node = Some(d);
+                }
+            }
+        }
+    }
+}
+
+fn parse_property_decl_parts<'a>(
+    node: Node<'a>,
     ctx: &LowerContext<'a, '_>,
-    parts: &mut PropertyParts<'a>,
-) {
-    let kind = child.kind();
-    let is_comment = matches!(kind, "comment" | "line_comment" | "multiline_comment");
-    if is_comment && parts.init_child.is_none() {
-        let prev_op = if parts.trailing_comments.is_empty() {
-            eq_node
-        } else {
-            None
-        };
-        parts
-            .trailing_comments
-            .push(parse_comment_before_init(child, prev_op, ctx));
-        return;
-    }
-    if parts.init_child.is_none() && !is_comment {
-        parts.init_child = Some(child);
-    }
-    if !parts.init_docs.is_empty() {
-        parts.init_docs.push(Doc::space());
-    }
-    parts.init_docs.push(lower_node(child, ctx));
-}
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> PropertyDeclParts<'a> {
+    let mut parts = PropertyDeclParts::default();
+    let mut is_after_equals = false;
 
-fn parse_property_parts<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> PropertyParts<'a> {
-    let mut parts = PropertyParts::default();
-    let mut is_after_colon = false;
-    let mut eq_node = None;
     let mut cursor = node.walk();
-    let mut prev_child: Option<Node<'a>> = None;
-
     for child in node.children(&mut cursor) {
         let kind = child.kind();
-        if kind == "modifiers" {
-            parts.modifier_docs.push(lower_node(child, ctx));
-        } else if kind == "member_modifier" {
-            parts
-                .modifier_docs
-                .push(Doc::Concat(vec![lower_node(child, ctx), Doc::space()]));
-        } else if kind == "=" {
-            parts.is_after_equals = true;
-            eq_node = Some(child);
-        } else if kind == ":" {
-            is_after_colon = true;
-        } else if kind == "type_constraints" {
-            parts.where_has_newline =
-                prev_child.is_some_and(|p| ctx.has_newline_between(&p, &child));
-            parts.where_doc = Some(lower_type_constraints(child, ctx));
-        } else if kind == "property_delegate" {
-            parse_property_delegate(
-                child,
-                ctx,
-                &mut parts.init_child,
-                &mut parts.init_docs,
-                &mut parts.trailing_comments,
-            );
-            parts.is_after_by = true;
-        } else if parts.is_after_equals {
-            push_property_init_child(child, eq_node, ctx, &mut parts);
-        } else if kind == "getter" || kind == "setter" {
-            parts.accessors.push(Doc::indent(Doc::Concat(vec![
-                Doc::HardLine,
-                Doc::Group(Box::new(lower_node(child, ctx))),
-            ])));
-        } else if kind == "variable_declaration" {
-            parse_variable_declaration(child, ctx, &mut parts);
-        } else if kind == "backing_field" {
-            parts.backing_field_has_newline =
-                prev_child.is_some_and(|p| ctx.has_newline_between(&p, &child));
-            parts.backing_field_doc = Some(lower_node(child, ctx));
-        } else if is_after_colon {
-            push_spaced_doc(&mut parts.type_docs, lower_node(child, ctx));
-        } else if kind == "." {
-            parts.name_docs.push(Doc::text("."));
-        } else {
-            push_name_doc(&mut parts.name_docs, child, ctx);
+        match kind {
+            "modifiers" | "annotation" => parts.modifier_docs.push(lower_fn(child, ctx)),
+            "val" | "var" | "binding_pattern_kind" => {
+                parts.header_docs.push(Doc::smol(crate::concat_smol_str!(
+                    ctx.node_text(&child),
+                    " "
+                )));
+            }
+            "multi_variable_declaration" => {
+                parts.is_destructuring = true;
+                let (mv_doc, gid) = lower_multi_variable_declaration_with_gid(child, ctx, lower_fn);
+                parts.header_docs.push(mv_doc);
+                if gid.is_some() {
+                    parts.type_gid = gid;
+                }
+            }
+            "variable_declaration" => {
+                let (var_doc, gid) = lower_variable_declaration_with_gid(child, ctx, lower_fn);
+                parts.header_docs.push(var_doc);
+                if gid.is_some() {
+                    parts.type_gid = gid;
+                }
+            }
+            "type_parameters" => {
+                parts.header_docs.push(lower_fn(child, ctx));
+                parts.header_docs.push(Doc::space());
+            }
+            "=" => (is_after_equals, parts.op_node) = (true, Some(child)),
+            "by" => (parts.is_after_by, parts.op_node) = (true, Some(child)),
+            "type_constraints" => parts.where_doc = Some(lower_fn(child, ctx)),
+            "getter" | "setter" | "backing_field" => parts.accessors.push(lower_fn(child, ctx)),
+            "property_delegate" => handle_property_delegate(child, &mut parts),
+            "comment" | "line_comment" | "multiline_comment" => {
+                if (is_after_equals || parts.is_after_by) && parts.init_node.is_none() {
+                    parts.comments_before_init.push(child);
+                } else {
+                    parts.header_docs.push(lower_fn(child, ctx));
+                }
+            }
+            _ => {
+                if (is_after_equals || parts.is_after_by) && parts.init_node.is_none() {
+                    parts.init_node = Some(child);
+                } else {
+                    parts.header_docs.push(lower_fn(child, ctx));
+                }
+            }
         }
-        prev_child = Some(child);
     }
     parts
 }
 
-fn push_spaced_doc<'a>(docs: &mut Vec<Doc<'a>>, doc: Doc<'a>) {
-    if !docs.is_empty()
-        && !docs
-            .last()
-            .is_some_and(|d| d.ends_with_space() || d.ends_with_line())
-    {
-        docs.push(Doc::space());
-    }
-    docs.push(doc);
-}
-
-fn push_name_doc<'a>(docs: &mut Vec<Doc<'a>>, child: Node<'a>, ctx: &LowerContext<'a, '_>) {
-    let kind = child.kind();
-    if matches!(kind, ";" | "(" | ")" | "[" | "]" | ".")
-        || matches!(docs.last(), Some(Doc::Text(".")))
-    {
-        docs.push(lower_node(child, ctx));
-    } else {
-        push_spaced_doc(docs, lower_node(child, ctx));
-    }
-}
-
-fn parse_variable_declaration<'a>(
-    node: Node<'a>,
+fn format_property_with_where<'a>(
+    parts: PropertyDeclParts<'a>,
+    where_doc: Doc<'a>,
     ctx: &LowerContext<'a, '_>,
-    parts: &mut PropertyParts<'a>,
-) {
-    let mut cursor = node.walk();
-    let mut is_after_colon = false;
-    for child in node.children(&mut cursor) {
-        if child.kind() == ":" {
-            is_after_colon = true;
-        } else if is_after_colon {
-            push_spaced_doc(&mut parts.type_docs, lower_node(child, ctx));
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let prop_header = Doc::concat(parts.header_docs);
+    let where_part = Doc::continuation_indent(Doc::concat(vec![Doc::Line, where_doc]));
+    let full = if let Some(init) = parts.init_node {
+        let op = if parts.is_after_by { "by" } else { "=" };
+        let init_part = Doc::concat(vec![
+            Doc::text("  "),
+            Doc::text(op),
+            Doc::space(),
+            lower_fn(init, ctx),
+        ]);
+        Doc::concat(vec![prop_header, where_part, init_part])
+    } else {
+        Doc::concat(vec![prop_header, where_part])
+    };
+    let mut final_docs = vec![Doc::group(full)];
+    for acc in parts.accessors {
+        final_docs.push(Doc::indent(Doc::concat(vec![Doc::HardLine, acc])));
+    }
+    Doc::concat(final_docs)
+}
+
+fn format_property_init_rhs<'a>(
+    prop_header: Doc<'a>,
+    init: Node<'a>,
+    type_gid: Option<GroupId>,
+    comments_before_init: &[Node<'a>],
+    op_node: Option<Node<'a>>,
+    is_after_by: bool,
+    is_destructuring: bool,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let rhs_doc = lower_fn(init, ctx);
+    if is_after_by && comments_before_init.is_empty() && is_scoping_call(&init) {
+        Doc::concat(vec![prop_header, Doc::space(), Doc::text("by "), rhs_doc])
+    } else {
+        let op = if is_after_by { "by" } else { "=" };
+        if let Some(tgid) = type_gid
+            && !is_block_like_rhs(&init, ctx)
+            && comments_before_init.is_empty()
+        {
+            let rhs_gid = ctx.next_group_id();
+            let brk = Doc::if_group_break(tgid, Doc::HardLine, Doc::Line);
+            Doc::concat(vec![
+                prop_header,
+                Doc::space(),
+                Doc::group_with_id(
+                    rhs_gid,
+                    Doc::concat(vec![
+                        Doc::text(op),
+                        Doc::indent_if_group_breaks(
+                            rhs_gid,
+                            IndentKind::Continuation,
+                            Doc::concat(vec![brk, rhs_doc]),
+                        ),
+                    ]),
+                ),
+            ])
         } else {
-            push_name_doc(&mut parts.name_docs, child, ctx);
+            format_assign_with_comments_ext(
+                prop_header,
+                op,
+                op_node,
+                comments_before_init,
+                init,
+                rhs_doc,
+                is_destructuring,
+                ctx,
+                lower_fn,
+            )
         }
     }
 }
 
-pub fn lower_property_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let parts = parse_property_parts(node, ctx);
-    let op_str = if parts.is_after_by {
-        Some("by")
-    } else if parts.is_after_equals {
-        Some("=")
-    } else {
-        None
-    };
-    let modifier_len = if parts.modifier_docs.iter().any(|d| d.has_hardline()) {
-        Doc::Concat(parts.modifier_docs.clone()).last_line_len()
-    } else {
-        parts
-            .modifier_docs
-            .iter()
-            .map(|d| d.flat_len())
-            .sum::<usize>()
-    };
-    let header_doc = if let Some(w) = parts.where_doc {
-        let is_untyped = parts.type_docs.is_empty();
-        let init_section = op_str.map(|_| {
-            let is_destructuring = node
-                .children(&mut node.walk())
-                .any(|ch| ch.kind() == "multi_variable_declaration");
-            build_property_init_section(
-                parts.init_docs,
-                parts.init_child,
-                parts.trailing_comments,
-                is_destructuring,
-                is_untyped,
-                ctx,
-            )
-            .0
-        });
-        format_property_where_header(
-            parts.name_docs,
-            parts.type_docs,
-            w,
-            parts.where_has_newline,
-            op_str,
-            init_section,
-        )
-    } else {
-        build_property_header(
-            parts.name_docs,
-            parts.type_docs,
-            parts.init_docs,
-            parts.init_child,
-            op_str,
-            parts.trailing_comments,
-            modifier_len,
-            &node,
+pub fn lower_property_declaration<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let parts = parse_property_decl_parts(node, ctx, lower_fn);
+
+    if let Some(wh) = parts.where_doc.clone() {
+        return format_property_with_where(parts, wh, ctx, lower_fn);
+    }
+
+    let prop_header = Doc::concat(parts.header_docs);
+
+    let base_doc = if let Some(init) = parts.init_node {
+        format_property_init_rhs(
+            prop_header,
+            init,
+            parts.type_gid,
+            &parts.comments_before_init,
+            parts.op_node,
+            parts.is_after_by,
+            parts.is_destructuring,
             ctx,
+            lower_fn,
         )
+    } else {
+        prop_header
     };
 
-    let with_bf = attach_backing_field(
-        header_doc,
-        parts.backing_field_doc,
-        parts.backing_field_has_newline,
-        !parts.accessors.is_empty(),
-    );
-    let full_doc = if parts.accessors.is_empty() {
-        with_bf
+    let doc_with_accessors = if parts.accessors.is_empty() {
+        base_doc
     } else {
-        Doc::Concat(vec![with_bf, Doc::Concat(parts.accessors)])
+        let mut full = vec![base_doc];
+        full.extend(
+            parts
+                .accessors
+                .into_iter()
+                .map(|acc| Doc::indent(Doc::concat(vec![Doc::HardLine, acc]))),
+        );
+        Doc::concat(full)
     };
 
-    let with_modifiers = if parts.modifier_docs.is_empty() {
-        full_doc
+    if !parts.modifier_docs.is_empty() {
+        let mut full = parts.modifier_docs;
+        full.push(doc_with_accessors);
+        Doc::group(Doc::concat(full))
     } else {
-        Doc::Concat(vec![Doc::Concat(parts.modifier_docs), full_doc])
-    };
-    if with_modifiers.has_hardline() {
-        with_modifiers
-    } else {
-        Doc::Group(Box::new(with_modifiers))
+        doc_with_accessors
     }
 }
 
-fn attach_backing_field<'a>(
-    header: Doc<'a>,
-    bf: Option<Doc<'a>>,
-    newline: bool,
-    has_accessors: bool,
-) -> Doc<'a> {
-    match bf {
-        Some(bf) if newline || has_accessors => Doc::Concat(vec![
-            header,
-            Doc::indent(Doc::Concat(vec![Doc::HardLine, bf])),
-        ]),
-        Some(bf) => Doc::Concat(vec![header, Doc::space(), bf]),
-        None => header,
+fn flush_variable_type_docs<'a>(
+    parts: &mut Vec<Doc<'a>>,
+    type_docs: &mut Vec<Doc<'a>>,
+    type_gid: &mut Option<GroupId>,
+    ctx: &LowerContext<'a, '_>,
+) {
+    if !type_docs.is_empty() {
+        parts.push(Doc::text(":"));
+        let gid = ctx.next_group_id();
+        let docs = std::mem::take(type_docs);
+        parts.push(Doc::group_with_id(
+            gid,
+            Doc::indent_if_group_breaks(
+                gid,
+                IndentKind::Continuation,
+                Doc::concat(vec![Doc::Line, Doc::concat(docs)]),
+            ),
+        ));
+        *type_gid = Some(gid);
     }
+}
+
+pub fn lower_variable_declaration_with_gid<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> (Doc<'a>, Option<GroupId>) {
+    let mut parts = Vec::new();
+    let mut type_docs = Vec::new();
+    let mut type_gid = None;
+    let mut after_colon = false;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let kind = child.kind();
+        if kind == ":" {
+            after_colon = true;
+        } else if kind == "=" {
+            after_colon = false;
+            flush_variable_type_docs(&mut parts, &mut type_docs, &mut type_gid, ctx);
+            parts.push(Doc::text(" = "));
+        } else if after_colon {
+            let doc = lower_fn(child, ctx);
+            type_docs.push(match doc {
+                Doc::Group {
+                    id: None,
+                    doc: inner,
+                } => *inner,
+                other => other,
+            });
+        } else {
+            parts.push(lower_fn(child, ctx));
+            if matches!(kind, "val" | "var" | "binding_pattern_kind" | "annotation") {
+                parts.push(Doc::space());
+            }
+        }
+    }
+
+    flush_variable_type_docs(&mut parts, &mut type_docs, &mut type_gid, ctx);
+    (Doc::concat(parts), type_gid)
+}
+
+pub fn lower_variable_declaration<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    lower_variable_declaration_with_gid(node, ctx, lower_fn).0
 }

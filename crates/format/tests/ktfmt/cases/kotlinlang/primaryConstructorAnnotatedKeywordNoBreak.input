@@ -1,0 +1,3 @@
+public actual class String internal @WasmPrimitiveConstructor constructor(
+    internal val internalStr: JsString,
+) : Comparable<String>, CharSequence

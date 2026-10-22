@@ -1,0 +1,16 @@
+class Foo {
+    fun test() {
+        val nestedSchema =
+            schema.copy(
+                additionalProperties =
+                    when (val ap = schema.additionalProperties) {
+                        is AdditionalProperties.PSchema ->
+                            AdditionalProperties.PSchema(
+                                ap.value.mapToSchemaReference(::mapSchemaReferences, ::mapSchemaReferences),
+                            )
+
+                        else -> ap
+                    },
+            )
+    }
+}

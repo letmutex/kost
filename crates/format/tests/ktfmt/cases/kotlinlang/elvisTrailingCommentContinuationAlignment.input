@@ -1,0 +1,9 @@
+fun test() {
+    val timeout =
+        System.getenv("WAIT_TIMEOUT_SECONDS")?.toIntOrNull()?.let {
+            it * 1000
+        }
+            ?: 10 // Default applies to local machine on which the system
+            // environment property most likely is not set
+    val y = 2
+}

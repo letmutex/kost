@@ -1,0 +1,11 @@
+class C {
+    private fun ASTNode.getFunctionBody(splitNode: ASTNode?): List<ASTNode> =
+        this
+            .collectLeavesRecursively()
+            .childrenBetween(
+                startASTNodePredicate = { it == splitNode },
+                endASTNodePredicate = {
+                    false
+                },
+            )
+}

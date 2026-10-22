@@ -1,0 +1,4 @@
+class Nav {
+    private val settings by
+        composeTestRule.stringResource(SettingsR.string.feature_settings_impl_top_app_bar_action_icon_description)
+}

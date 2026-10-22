@@ -1,4 +1,0 @@
-fun js(
-    @Suppress("UNUSED_PARAMETER") // KT-64275
-    compiler: String = "",
-) {}

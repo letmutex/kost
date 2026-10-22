@@ -1,0 +1,6 @@
+/**
+ * A case when relative position of a non-KMP module to a KMP one changes behaviour is not supported as it conflicts with the KMP logic.
+ * E.g., a hypothetical situation, when changing order from KMP1 - NOKMP - KMP2 to KMP2 - NOKMP - KMP1
+ * changes resolution (declaration clash between NOKMP and one of the modules where its relative position matters).
+ */
+class ModuleSorter

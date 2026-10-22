@@ -1,0 +1,16 @@
+class FastLint {
+    fun check() {
+        if (true) {
+            if (true) {
+                if (true) {
+                    if (true) {
+                        if (xmlElementRules.isNotEmpty()) {
+                            for (rule in xmlElementRules)
+                                rule.onStartElement(element, context, sink)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

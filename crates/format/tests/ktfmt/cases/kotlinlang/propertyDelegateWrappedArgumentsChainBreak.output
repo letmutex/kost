@@ -1,0 +1,8 @@
+class C {
+    private val ignoreAutocorrectFailures: Boolean by
+        option(
+                "--ignore-autocorrect-failures",
+                help = "Ignore all violations for which no autocorrect is available",
+            )
+            .flag(default = false)
+}

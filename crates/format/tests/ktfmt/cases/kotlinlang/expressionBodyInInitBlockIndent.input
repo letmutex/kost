@@ -1,0 +1,6 @@
+class C {
+    init {
+        fun local(): VeryLongReturnTypeNameThatForcesNewline =
+            someExpressionThatIsAlsoVeryLongAndForcesContinuationIndent()
+    }
+}

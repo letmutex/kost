@@ -1,0 +1,14 @@
+class StickerPackPreviewActivityV2 {
+    companion object {
+        fun createIntent(packId: StickerPackId, packKey: StickerPackKey): Intent {
+            return Intent(
+                    Intent.ACTION_VIEW,
+                    StickerUrl.createActionUri(packId.value, packKey.value),
+                )
+                .apply {
+                    addCategory(Intent.CATEGORY_DEFAULT)
+                    addCategory(Intent.CATEGORY_BROWSABLE)
+                }
+        }
+    }
+}

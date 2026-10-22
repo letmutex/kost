@@ -1,0 +1,7 @@
+fun test() {
+    val map =
+        mapOf(
+            "veryLongMapKeyNameExceedingLineLimitAndWrapping" to
+                listOf<KFunction0<Unit>>(::topLevelFunction).map { it.fqName },
+        )
+}

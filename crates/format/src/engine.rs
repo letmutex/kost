@@ -1,7 +1,11 @@
+use ahash::AHashSet;
 use tree_sitter::{Node, Parser, Tree};
 
 use crate::error::{FormatError, Position};
+use crate::lower::context::LowerContext;
+use crate::lower::lower_node;
 use crate::options::{FileType, FormattingOptions};
+use crate::printer::Printer;
 
 pub struct KotlinParser {
     parser: Parser,
@@ -98,21 +102,20 @@ pub fn format_source(
         }
     }
 
-    // Collect used references and redundant semicolons
-    let used_references = crate::rules::imports::collect_used_references(root, source);
+    let used_references: AHashSet<&str> =
+        crate::rules::imports::collect_used_references(root, source);
     let redundant_semicolons = crate::rules::semicolons::find_redundant_semicolons(root, source);
 
-    let ctx = crate::lower::context::LowerContext::new(
-        source,
-        options,
-        &redundant_semicolons,
-        &used_references,
-        package_name,
-    );
+    let ctx = LowerContext::new(source, options)
+        .with_redundant_semicolons(&redundant_semicolons)
+        .with_imports(package_name, &used_references);
 
-    let doc = crate::lower::lower_source_file(root, &ctx);
-    let printer = crate::printer::Printer::new(options);
-    let formatted = printer.print(&doc, source.len());
+    let doc = lower_node(root, &ctx);
+    if std::env::var("KOST_DEBUG_DOC").is_ok() && source.contains("blablablablFoobar") {
+        eprintln!("{}", crate::doc::dump::dump(&doc, 0));
+    }
+    let mut printer = Printer::new(options);
+    let formatted = printer.print(&doc);
 
     Ok(formatted)
 }

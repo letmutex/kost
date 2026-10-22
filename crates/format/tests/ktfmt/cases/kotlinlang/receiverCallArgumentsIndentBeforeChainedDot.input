@@ -1,0 +1,8 @@
+fun test() {
+    db
+        .select(
+            "${Sticker.TABLE_NAME}.${Sticker.ID}",
+            "${Sticker.TABLE_NAME}.${Sticker.FILE_PATH}",
+        )
+        .from(JOINED_TABLES)
+}

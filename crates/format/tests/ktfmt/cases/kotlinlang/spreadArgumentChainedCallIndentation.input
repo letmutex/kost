@@ -1,0 +1,7 @@
+fun test() {
+    call(
+        *veryLongReceiverNameExceedingWidthToForceBreak123456789012345678901234567890
+            .plus(item)
+            .toTypedArray(),
+    )
+}

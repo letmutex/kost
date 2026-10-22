@@ -1,0 +1,6 @@
+fun test() {
+    return if (
+        this is FirCallableSymbol<*> &&
+            !this.isTypeAliasedConstructor // typealiased constructors should not be unwrapped
+    ) {}
+}

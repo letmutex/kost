@@ -1,0 +1,13 @@
+class Transform {
+    fun transform(x: Int): Any? {
+        if (true) {
+            if (true) {
+                return when (x) {
+                    1 -> x
+                    else -> null // Respond UnsupportedMediaType? but what if someone else later would like to do it?
+                }
+            }
+        }
+        return null
+    }
+}

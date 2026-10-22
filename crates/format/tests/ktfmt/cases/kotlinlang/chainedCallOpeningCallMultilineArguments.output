@@ -1,0 +1,9 @@
+class C {
+    val myProperty =
+        receiver
+            .fetch(
+                param1,
+                param2,
+            )
+            .process()
+}

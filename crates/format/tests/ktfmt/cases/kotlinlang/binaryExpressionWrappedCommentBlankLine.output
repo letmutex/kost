@@ -1,0 +1,7 @@
+fun test() {
+    val length =
+        actualClassSignatureLength +
+            // Calculate the white space correction in case the signature would be rewritten to a
+            // single line
+            fixWhiteSpaces()
+}

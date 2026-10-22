@@ -1,0 +1,21 @@
+class Repo {
+    fun test() {
+        run {
+            run {
+                if (cond) {
+                    val addedNewsResources =
+                        newsResourceDao
+                            .getNewsResources(
+                                useFilterTopicIds = true,
+                                filterTopicIds = followedTopicIds,
+                                useFilterNewsIds = true,
+                                filterNewsIds =
+                                    changedIds.toSet() - existingNewsResourceIdsThatHaveChanged,
+                            )
+                            .first()
+                            .map(PopulatedNewsResource::asExternalModel)
+                }
+            }
+        }
+    }
+}

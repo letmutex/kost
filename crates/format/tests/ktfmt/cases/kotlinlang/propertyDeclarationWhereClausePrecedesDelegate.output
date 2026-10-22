@@ -1,3 +1,2 @@
 var <T> T.danglingTypeConstraints: List<String>?
-    where T : FirDeclaration, T : FirTypeParameterRefsOwner
-    by lazy { null }
+    where T : FirDeclaration, T : FirTypeParameterRefsOwner  by lazy { null }

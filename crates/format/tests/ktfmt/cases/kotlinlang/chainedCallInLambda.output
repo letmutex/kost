@@ -1,0 +1,11 @@
+class C {
+    fun test() {
+        call {
+            placeholder()
+        }
+            .also { expected ->
+                assertThat(expected)
+                    .hasMessage("Failed to parse GeneralizedTime 20191215190210-0800")
+            }
+    }
+}

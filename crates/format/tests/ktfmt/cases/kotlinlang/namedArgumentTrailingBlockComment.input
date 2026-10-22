@@ -1,0 +1,3 @@
+fun test() {
+    outer(inner(key = 123 /* comment */))
+}

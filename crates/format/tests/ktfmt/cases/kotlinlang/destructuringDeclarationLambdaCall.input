@@ -1,0 +1,11 @@
+class C {
+    private suspend fun ByteReadChannel.scanHeaders() = Headers.build {
+        do {
+            val line = readLineStrict()
+            if (line.isNullOrBlank()) break
+
+            val (header, value) = line.chomp(":") { throw IOException("Illegal header line $line") }
+            append(header.trimEnd(), value.trimStart())
+        } while (true)
+    }
+}

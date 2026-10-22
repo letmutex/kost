@@ -1,0 +1,8 @@
+class DozeBanner {
+    override val enabled: Boolean
+        get() =
+            !SignalStore.account.fcmEnabled &&
+                !SignalStore.uiHints.hasPromptedOptimizeDoze() &&
+                !ServiceUtil.getPowerManager(context)
+                    .isIgnoringBatteryOptimizations(context.packageName)
+}

@@ -1,0 +1,12 @@
+class Outer {
+    class Nested {
+        fun test() {
+            val mapped =
+                legacyRule(
+                    usesEditorConfigProperties = setOf(CODE_STYLE_PROPERTY_COM_PINTEREST_KTLINT),
+                )
+                    .toRuleV2()
+                    .usesEditorConfigProperties
+        }
+    }
+}

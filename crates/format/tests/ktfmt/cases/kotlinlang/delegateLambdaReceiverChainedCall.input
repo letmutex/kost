@@ -1,0 +1,11 @@
+class MentionsPickerFragmentV2 {
+    val repo by
+        viewModel(
+            create = {
+                ConversationRecipientRepository(
+                    requireArguments().getLong(THREAD_ID),
+                    requireArguments().requireParcelableCompat(RECIPIENT_ID, RecipientId::class.java),
+                )
+            },
+        )
+}

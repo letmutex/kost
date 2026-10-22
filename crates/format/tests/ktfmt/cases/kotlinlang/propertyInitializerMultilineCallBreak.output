@@ -1,0 +1,11 @@
+fun test() {
+    LaunchedEffect(Unit) {
+        snapshotFlow { offset }
+            .collect {
+                val currentTravel =
+                    track.thumbPosition(
+                        dimension = orientation.valueOf(draggedOffset),
+                    )
+            }
+    }
+}

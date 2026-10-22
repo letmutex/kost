@@ -1,4 +1,0 @@
-class C {
-    private val pathSeparator = ";" // aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-    // 12345678901
-}

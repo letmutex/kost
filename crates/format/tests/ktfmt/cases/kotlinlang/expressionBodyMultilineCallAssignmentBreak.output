@@ -1,0 +1,10 @@
+class C {
+    private fun ktLintRuleExecutionEditorConfigProperty(
+        ruleId: RuleId,
+        ruleExecution: RuleExecution,
+    ) =
+        ktLintRuleExecutionEditorConfigProperty(
+            ruleId.createRuleExecutionEditorConfigProperty().name,
+            ruleExecution,
+        )
+}

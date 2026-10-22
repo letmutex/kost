@@ -1,0 +1,7 @@
+fun test() {
+    return enumBuilder(className).apply {
+        primaryConstructor(
+            FunSpec.constructorBuilder().addParameter("stringValue", String::class).build(),
+        )
+    }
+}

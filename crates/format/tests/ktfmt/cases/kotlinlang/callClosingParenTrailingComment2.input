@@ -1,0 +1,14 @@
+class ContentNegotiationTest {
+    fun test() = testApplication {
+        client
+            .get("/") {
+                header(key, value)
+            }
+            .let { response ->
+                assertEquals(
+                    Charsets.UTF_8,
+                    response.contentType()?.charset(),
+                ) // should be default
+            }
+    }
+}

@@ -1,0 +1,6 @@
+fun test() {
+    ClassLoader.getSystemClassLoader()
+        .loadClass(
+            possibleLeakedClass,
+        ) // Ensure that the class is there. Otherwise, ClassNotFoundException will be thrown.
+}

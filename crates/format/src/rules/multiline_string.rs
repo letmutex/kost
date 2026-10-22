@@ -135,5 +135,5 @@ pub fn format_multiline_raw_string(raw_str: &str, is_trim_margin: bool) -> Optio
     docs.push(Doc::HardLine);
     docs.push(Doc::text(closing_quote));
 
-    Some(Doc::Concat(docs))
+    Some(Doc::preserve_trailing(Doc::Concat(docs)))
 }

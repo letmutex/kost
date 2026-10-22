@@ -1,0 +1,12 @@
+fun test() {
+    call(
+        bar = {
+            call(
+                modifier =
+                    Modifier.fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(end = 24.dp, bottom = 24.dp),
+            )
+        },
+    )
+}

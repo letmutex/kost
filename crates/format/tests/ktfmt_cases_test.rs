@@ -47,6 +47,11 @@ static GOOGLE_SKIPPED: &[SkippedInput] = &[
     ),
 ];
 
+static KOTLINLANG_SKIPPED: &[SkippedInput] = &[SkippedInput::new(
+    "multilineCallArgsNotSplitStatements.input",
+    "invalid syntax: newline before call arguments treated as separate statement in kotlin",
+)];
+
 static NEW_CODESTYLE_SKIPPED: &[SkippedInput] = &[];
 
 #[test]
@@ -140,7 +145,11 @@ fn test_google_format_cases() {
 
 #[test]
 fn test_kotlinlang_format_cases() {
-    assert_test_group("kotlinlang", &FormattingOptions::kotlinlang(), &[]);
+    assert_test_group(
+        "kotlinlang",
+        &FormattingOptions::kotlinlang(),
+        KOTLINLANG_SKIPPED,
+    );
 }
 
 #[test]
@@ -182,7 +191,11 @@ fn standard_groups() -> Vec<ProgressGroup> {
 fn style_preset_groups() -> Vec<ProgressGroup> {
     vec![
         ("google", FormattingOptions::google(), GOOGLE_SKIPPED),
-        ("kotlinlang", FormattingOptions::kotlinlang(), &[]),
+        (
+            "kotlinlang",
+            FormattingOptions::kotlinlang(),
+            KOTLINLANG_SKIPPED,
+        ),
         (
             "new_codestyle",
             FormattingOptions::meta(),

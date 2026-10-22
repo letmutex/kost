@@ -1,0 +1,9 @@
+class A {
+    fun test() {
+        val inspectNode =
+            node.children.lastOrNull {
+                it.elementType == ARROW
+            } // lambda w/o an arrow -> no arguments -> no commas
+            ?: return
+    }
+}

@@ -1,0 +1,1 @@
+class ArchiveFileSystem private constructor(private val context: Context, root: DocumentFile, readOnly: Boolean = false)

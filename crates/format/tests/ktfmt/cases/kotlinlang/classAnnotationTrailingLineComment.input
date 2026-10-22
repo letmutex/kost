@@ -1,0 +1,3 @@
+@OkHttpInternalApi
+@OptIn(ExperimentalTime::class) // We know Clock and Instant will be stable in Kotlin 2.3.
+class RealDnsCache

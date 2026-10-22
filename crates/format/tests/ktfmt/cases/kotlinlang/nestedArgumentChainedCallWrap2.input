@@ -1,0 +1,10 @@
+class CompilerOptions {
+    val factory =
+        ArgumentFactory(
+            valueType =
+                ArgumentValueType(
+                    type =
+                        ClassName(API_ARGUMENTS_PACKAGE, "ProfileCompilerCommand").copy(nullable = true),
+                ),
+        )
+}

@@ -1,0 +1,6 @@
+/**
+ * Note: this intentionally does *not* clean up "dead" rows (read messages where notified is
+ * still 0) that bloat the partial index. That cleanup will happen over time as an app migration to
+ * prevent long migration startups.
+ */
+class Test

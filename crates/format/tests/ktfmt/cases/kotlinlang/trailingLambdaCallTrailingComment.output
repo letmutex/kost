@@ -1,0 +1,5 @@
+fun test() {
+    upperBoundClasses.associateWithTo(isLeaf) {
+        true
+    } // implementation of keysToMap actually ends up creating 2 maps so this is better
+}

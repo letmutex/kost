@@ -1,0 +1,11 @@
+class Outer {
+    class Inner {
+        fun test() {
+            if (cond) {
+                if (semi) {
+                    return // Never add a trailing comma after there is already a terminating semicolon
+                }
+            }
+        }
+    }
+}

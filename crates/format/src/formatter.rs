@@ -130,4 +130,39 @@ mod tests {
         assert!(result.is_formatted);
         assert_eq!(result.diff, None);
     }
+
+    #[test]
+    fn test_empty_companion_object_parse() {
+        let mut kp = crate::engine::KotlinParser::new();
+        let source = "class Foo {\n  val a: String\n\n  companion object;\n\n  init {\n    a = \"Hello\"\n  }\n}\n";
+        let tree = kp.parse(source).unwrap();
+        fn print_node(node: tree_sitter::Node<'_>, src: &str, depth: usize) {
+            println!(
+                "{}{:?}: {:?}",
+                "  ".repeat(depth),
+                node.kind(),
+                &src[node.start_byte()..node.end_byte()]
+            );
+            let mut cursor = node.walk();
+            for c in node.children(&mut cursor) {
+                print_node(c, src, depth + 1);
+            }
+        }
+        print_node(tree.root_node(), source, 0);
+
+        let _formatter = Formatter::from_preset(crate::options::StylePreset::Meta);
+        let redundant =
+            crate::rules::semicolons::find_redundant_semicolons(tree.root_node(), source);
+        println!("REDUNDANT OFFSETS: {:?}", redundant);
+    }
+
+    #[test]
+    fn test_anonymous_function_in_argument_formatting() {
+        let source = "// TRAILING_COMMA_STRATEGY NONE\n\nfun f() {\n  setListener(\n      fun(number: Int) {\n        println(number)\n      })\n}\n";
+        let mut opts = crate::options::FormattingOptions::meta();
+        opts.trailing_comma_strategy = crate::options::TrailingCommaStrategy::None;
+        let formatted =
+            crate::engine::format_source(source, crate::options::FileType::Regular, &opts).unwrap();
+        assert_eq!(formatted, source);
+    }
 }

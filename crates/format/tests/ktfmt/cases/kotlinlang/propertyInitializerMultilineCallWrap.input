@@ -1,0 +1,6 @@
+class Formatter {
+    fun format(): String {
+        val javaOutput =
+            JavaOutput(lineSeparator, kotlinInput, KDocCommentsHelper(lineSeparator, options.maxWidth))
+    }
+}

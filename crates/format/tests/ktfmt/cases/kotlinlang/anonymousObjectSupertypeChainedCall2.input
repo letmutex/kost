@@ -1,0 +1,11 @@
+class Test {
+    class Nested {
+        object SocketOverride {
+            val nonDefaultValue: SSLSocketFactory =
+                object :
+                    DelegatingSSLSocketFactory(
+                        Platform.get().newSslSocketFactory(Platform.get().platformTrustManager()),
+                    ) {}
+        }
+    }
+}

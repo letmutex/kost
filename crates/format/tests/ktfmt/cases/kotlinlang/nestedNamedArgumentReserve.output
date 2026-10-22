@@ -1,0 +1,22 @@
+class ChatItemArchiveExporter {
+    fun next() {
+        for (item in items) {
+            when {
+                cond -> {
+                    builder.updateMessage =
+                        ChatUpdateMessage(
+                            groupChange =
+                                GroupChangeChatUpdate(
+                                    updates =
+                                        listOf(
+                                            GroupChangeChatUpdate.Update(
+                                                groupV2MigrationUpdate = GroupV2MigrationUpdate(),
+                                            ),
+                                        ),
+                                ),
+                        )
+                }
+            }
+        }
+    }
+}

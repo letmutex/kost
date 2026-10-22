@@ -1,3 +1,4 @@
 class Foo {
-    val declared: Set<String> field = mutableSetOf()
+    val declared: Set<String>
+        field = mutableSetOf()
 }

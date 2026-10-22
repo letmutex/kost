@@ -1,0 +1,8 @@
+class SingletonContainer {
+    fun close(state: ComponentState) {
+        when (state) {
+            ComponentState
+                .Null -> {} // it's ok to remove null component, it may have been never needed
+        }
+    }
+}

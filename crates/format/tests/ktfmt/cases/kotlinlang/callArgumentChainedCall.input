@@ -1,0 +1,14 @@
+class C {
+    fun test() {
+        map {
+            val httpConfig =
+                HttpConfiguration()
+                    .apply {
+                        if (condition) {
+                            addCustomizer(SecureRequestCustomizer().apply(configuration.secureRequestCustomizer))
+                        }
+                    }
+                    .apply(configuration.httpConfiguration)
+        }
+    }
+}

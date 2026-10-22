@@ -1,3 +1,0 @@
-class Foo {
-    public actual val x: Int = 2
-}

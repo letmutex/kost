@@ -1,44 +1,10 @@
 use tree_sitter::Node;
 
-use crate::doc::Doc;
+use crate::doc::{Doc, GroupId, IndentKind};
 use crate::lower::context::LowerContext;
-use crate::lower::lower_node;
-
-pub fn collect_binary_elements<'a>(
-    node: Node<'a>,
-    parent_kind: &str,
-    elements: &mut Vec<Node<'a>>,
-) {
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == parent_kind {
-            collect_binary_elements(child, parent_kind, elements);
-        } else {
-            elements.push(child);
-        }
-    }
-}
-
-pub fn is_binary_expression_kind(kind: &str) -> bool {
-    matches!(
-        kind,
-        "binary_expression"
-            | "additive_expression"
-            | "multiplicative_expression"
-            | "comparison_expression"
-            | "equality_expression"
-            | "conjunction_expression"
-            | "disjunction_expression"
-            | "infix_expression"
-            | "elvis_expression"
-            | "as_expression"
-            | "check_expression"
-            | "assignment"
-    )
-}
 
 pub fn is_binary_operator(node: &Node<'_>) -> bool {
-    if matches!(
+    matches!(
         node.kind(),
         "+" | "-"
             | "*"
@@ -61,258 +27,310 @@ pub fn is_binary_operator(node: &Node<'_>) -> bool {
             | "!is"
             | ".."
             | "..<"
-            | "custom_operation_symbol"
             | "in"
             | "!in"
-    ) {
-        return true;
-    }
-    if node.kind() == "simple_identifier"
-        && let Some(parent) = node.parent()
-        && parent.kind() == "infix_expression"
-    {
-        let first = parent.child(0);
-        if first.is_some_and(|f| f.id() != node.id()) {
-            let last = parent.child(parent.child_count().saturating_sub(1));
-            if last.is_some_and(|l| l.id() != node.id()) {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-#[derive(Default)]
-struct BinaryLowerState<'a> {
-    is_after_comment: bool,
-    prev_was_operator: bool,
-    pending_elvis: bool,
-    elvis_newline: bool,
-    prev_child: Option<Node<'a>>,
-}
-
-fn push_operator_doc<'a>(
-    docs: &mut Vec<Doc<'a>>,
-    child: Node<'a>,
-    state: &mut BinaryLowerState<'a>,
-    ctx: &LowerContext<'a, '_>,
-) {
-    let kind = child.kind();
-    if kind == "?:" {
-        state.pending_elvis = true;
-        state.elvis_newline = state
-            .prev_child
-            .is_some_and(|p| ctx.has_newline_between(&p, &child));
-    } else if state.is_after_comment {
-        let op_doc = if docs.last().is_some_and(|d| d.ends_with_newline()) {
-            Doc::text(ctx.node_text(&child))
-        } else {
-            Doc::Concat(vec![Doc::Line, Doc::text(ctx.node_text(&child))])
-        };
-        docs.push(Doc::continuation_indent(op_doc));
-        state.prev_was_operator = true;
-    } else {
-        docs.push(Doc::space());
-        docs.push(Doc::text(ctx.node_text(&child)));
-        state.prev_was_operator = true;
-    }
-}
-
-fn push_comment_doc<'a>(
-    docs: &mut Vec<Doc<'a>>,
-    child: Node<'a>,
-    state: &mut BinaryLowerState<'a>,
-    ctx: &LowerContext<'a, '_>,
-) {
-    if state.pending_elvis {
-        let line_doc = if state.elvis_newline {
-            Doc::HardLine
-        } else {
-            Doc::Line
-        };
-        docs.push(Doc::continuation_indent(Doc::Concat(vec![
-            line_doc,
-            Doc::text("?:"),
-        ])));
-        state.pending_elvis = false;
-        state.prev_was_operator = true;
-    }
-    if state
-        .prev_child
-        .is_some_and(|p| !ctx.has_newline_between(&p, &child))
-    {
-        docs.push(Doc::space());
-        let block_indent = crate::lower::comment::compute_comment_indent(child, ctx);
-        let lhs_len = Doc::slice_last_line_len(docs);
-        let start_col = block_indent + lhs_len;
-        let comment_doc =
-            crate::lower::comment::lower_comment_with_col(child, ctx, Some(start_col));
-        docs.push(comment_doc);
-        state.is_after_comment = docs.last().is_some_and(|d| d.ends_with_newline());
-    } else {
-        let line_doc = if docs.last().is_some_and(|d| d.ends_with_newline()) {
-            if state
-                .prev_child
-                .is_some_and(|p| ctx.has_blank_line_between(&p, &child))
-            {
-                Some(Doc::EmptyLine)
-            } else {
-                None
-            }
-        } else {
-            Some(Doc::Line)
-        };
-        let comment_doc = match line_doc {
-            Some(l) => Doc::Concat(vec![l, lower_node(child, ctx)]),
-            None => lower_node(child, ctx),
-        };
-        docs.push(Doc::continuation_indent(comment_doc));
-        state.is_after_comment = true;
-        state.prev_was_operator = false;
-    }
-}
-
-fn push_post_comment_child<'a>(
-    docs: &mut Vec<Doc<'a>>,
-    child: Node<'a>,
-    state: &mut BinaryLowerState<'a>,
-    ctx: &LowerContext<'a, '_>,
-) {
-    if docs.last().is_some_and(|d| d.ends_with_newline()) {
-        if state.prev_was_operator {
-            let stripped_newline = match docs.last_mut() {
-                Some(Doc::Concat(items)) => {
-                    if items.last().is_some_and(|d| matches!(d, Doc::HardLine)) {
-                        items.pop();
-                        true
-                    } else {
-                        false
-                    }
-                }
-                Some(Doc::HardLine) => {
-                    docs.pop();
-                    true
-                }
-                _ => false,
-            };
-            if stripped_newline {
-                docs.push(Doc::continuation_indent(Doc::Concat(vec![
-                    Doc::HardLine,
-                    lower_node(child, ctx),
-                ])));
-            } else {
-                docs.push(Doc::continuation_indent(lower_node(child, ctx)));
-            }
-            state.prev_was_operator = false;
-        } else {
-            docs.push(lower_node(child, ctx));
-        }
-    } else {
-        docs.push(Doc::space());
-        docs.push(lower_node(child, ctx));
-        state.prev_was_operator = false;
-    }
-    state.is_after_comment = false;
-}
-
-fn push_binary_child_doc<'a>(
-    docs: &mut Vec<Doc<'a>>,
-    child: Node<'a>,
-    prefix_doc: Option<Doc<'a>>,
-    state: &mut BinaryLowerState<'a>,
-    ctx: &LowerContext<'a, '_>,
-) {
-    let is_comment = matches!(
-        child.kind(),
-        "comment" | "line_comment" | "multiline_comment"
-    );
-    let is_operator = is_binary_operator(&child);
-
-    if docs.is_empty() {
-        let child_doc = lower_node(child, ctx);
-        if let Some(prefix) = prefix_doc {
-            docs.push(Doc::Group(Box::new(Doc::Concat(vec![
-                prefix,
-                Doc::Line,
-                child_doc,
-            ]))));
-        } else {
-            docs.push(child_doc);
-        }
-    } else if is_comment {
-        push_comment_doc(docs, child, state, ctx);
-    } else if is_operator {
-        push_operator_doc(docs, child, state, ctx);
-    } else if state.pending_elvis {
-        let line_doc = if state.elvis_newline {
-            Doc::HardLine
-        } else {
-            Doc::Line
-        };
-        docs.push(Doc::continuation_indent(Doc::Concat(vec![
-            line_doc,
-            Doc::text("?: "),
-            lower_node(child, ctx),
-        ])));
-        state.pending_elvis = false;
-        state.prev_was_operator = false;
-    } else if state.is_after_comment {
-        push_post_comment_child(docs, child, state, ctx);
-    } else if state.prev_was_operator {
-        docs.push(Doc::continuation_indent(Doc::Concat(vec![
-            Doc::Line,
-            lower_node(child, ctx),
-        ])));
-        state.prev_was_operator = false;
-    } else {
-        docs.push(Doc::space());
-        docs.push(lower_node(child, ctx));
-    }
-    state.prev_child = Some(child);
-}
-
-pub fn lower_binary_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    lower_binary_expression_with_prefix(node, None, ctx)
+            | "custom_operation_symbol"
+    )
 }
 
 pub fn lower_binary_expression_with_prefix<'a>(
     node: Node<'a>,
     prefix_doc: Option<Doc<'a>>,
     ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> Doc<'a> {
-    let mut elements = Vec::new();
-    collect_binary_elements(node, node.kind(), &mut elements);
-
-    if elements.is_empty() {
-        return Doc::empty();
+    let kind = node.kind();
+    if super::binary_chain::is_chainable_binary(kind) {
+        return super::binary_chain::format_chainable_binary(node, kind, prefix_doc, ctx, lower_fn);
     }
-
-    let mut docs = Vec::new();
-    let mut state = BinaryLowerState::default();
-
-    for (idx, child) in elements.into_iter().enumerate() {
-        let prefix = if idx == 0 { prefix_doc.clone() } else { None };
-        push_binary_child_doc(&mut docs, child, prefix, &mut state, ctx);
-    }
-
-    Doc::Group(Box::new(Doc::Concat(docs)))
+    lower_binary_expression_internal(node, prefix_doc, ctx, lower_fn)
 }
 
-pub fn lower_annotated_statement_infix<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut docs = Vec::new();
-    let mut cursor = node.walk();
-    let mut children = node.children(&mut cursor);
-    if let Some(arg) = children.next() {
-        docs.push(lower_node(arg, ctx));
-        docs.push(Doc::space());
-    }
-    let mut prev_c: Option<Node<'a>> = None;
-    for c in children {
-        if prev_c.is_some_and(|p| p.end_byte() < c.start_byte()) {
-            docs.push(Doc::space());
+pub fn lower_binary_expression<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let kind = node.kind();
+    if super::binary_chain::is_chainable_binary(kind) {
+        let parent_is_same = node.parent().is_some_and(|p| p.kind() == kind);
+        if !parent_is_same {
+            return super::binary_chain::format_chainable_binary(node, kind, None, ctx, lower_fn);
         }
-        docs.push(lower_node(c, ctx));
-        prev_c = Some(c);
     }
-    Doc::Concat(docs)
+    lower_binary_expression_internal(node, None, ctx, lower_fn)
+}
+
+fn lower_binary_expression_internal<'a>(
+    node: Node<'a>,
+    prefix_doc: Option<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut left = None;
+    let mut op_node = None;
+    let mut right = None;
+    let mut comments_after_left = Vec::new();
+    let mut comments_after_op = Vec::new();
+    let mut comments_after_right = Vec::new();
+
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if matches!(
+            child.kind(),
+            "comment" | "line_comment" | "multiline_comment"
+        ) {
+            if right.is_some() {
+                comments_after_right.push(child);
+            } else if op_node.is_some() {
+                comments_after_op.push(child);
+            } else if left.is_some() {
+                comments_after_left.push(child);
+            }
+            continue;
+        }
+        if left.is_none() {
+            left = Some(child);
+        } else if op_node.is_none()
+            && (is_binary_operator(&child) || node.kind() == "infix_expression")
+        {
+            op_node = Some(child);
+        } else if right.is_none() {
+            right = Some(child);
+        }
+    }
+
+    let (Some(l), Some(op), Some(r)) = (left, op_node, right) else {
+        return Doc::text(ctx.node_text(&node));
+    };
+
+    format_simple_binary(
+        l,
+        op,
+        r,
+        comments_after_left,
+        comments_after_op,
+        comments_after_right,
+        prefix_doc,
+        ctx,
+        lower_fn,
+    )
+}
+
+fn assemble_binary_operand_with_comments<'a>(
+    node: Node<'a>,
+    comments: Vec<Node<'a>>,
+    prefix_doc: Option<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let base = lower_fn(node, ctx);
+    let mut parts = vec![base];
+    parts.extend(super::binary_chain::lower_trailing_comments(
+        &node, comments, ctx, lower_fn,
+    ));
+    if let Some(prefix) = prefix_doc {
+        Doc::group(Doc::concat(vec![prefix, Doc::Line, Doc::concat(parts)]))
+    } else {
+        Doc::concat(parts)
+    }
+}
+
+fn has_multiline_call_value_args(node: &Node<'_>, max_width: usize) -> bool {
+    if node.kind() != "call_expression" {
+        return false;
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "value_arguments" {
+            return child.start_position().row != child.end_position().row
+                || child.start_position().column + child.byte_range().len() > max_width;
+        }
+        if child.kind() == "call_suffix" {
+            let mut sc = child.walk();
+            for sub in child.children(&mut sc) {
+                if sub.kind() == "value_arguments" {
+                    return sub.start_position().row != sub.end_position().row
+                        || sub.start_position().column + sub.byte_range().len() > max_width;
+                }
+            }
+        }
+    }
+    false
+}
+
+fn format_simple_binary<'a>(
+    l: Node<'a>,
+    op: Node<'a>,
+    r: Node<'a>,
+    comments_after_left: Vec<Node<'a>>,
+    comments_after_op: Vec<Node<'a>>,
+    comments_after_right: Vec<Node<'a>>,
+    prefix_doc: Option<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let op_text = ctx.node_text(&op);
+
+    if op_text == ".." || op_text == "..<" {
+        return Doc::concat(vec![lower_fn(l, ctx), Doc::text(op_text), lower_fn(r, ctx)]);
+    }
+
+    let has_left_trailing = !comments_after_left.is_empty();
+    let full_left =
+        assemble_binary_operand_with_comments(l, comments_after_left, prefix_doc, ctx, lower_fn);
+    let full_right =
+        assemble_binary_operand_with_comments(r, comments_after_right, None, ctx, lower_fn);
+
+    if op_text == "?:" {
+        return super::binary_chain::format_elvis_operator_doc(
+            op,
+            comments_after_op,
+            full_left,
+            full_right,
+            has_left_trailing,
+            ctx,
+            lower_fn,
+        );
+    }
+
+    let gid = ctx.next_group_id();
+    let mut op_parts = vec![Doc::space(), Doc::text(op_text)];
+    let has_op_trailing = !comments_after_op.is_empty();
+    op_parts.extend(super::binary_chain::lower_trailing_comments(
+        &op,
+        comments_after_op,
+        ctx,
+        lower_fn,
+    ));
+
+    let rhs_for_group = if full_right.ends_with_brace()
+        && !has_multiline_call_value_args(&r, ctx.options.max_width)
+    {
+        Doc::fits_first_line(full_right)
+    } else {
+        full_right
+    };
+    let indent_right = if has_op_trailing {
+        Doc::indent_if_group_breaks(gid, IndentKind::Continuation, rhs_for_group)
+    } else {
+        Doc::indent_if_group_breaks(
+            gid,
+            IndentKind::Continuation,
+            Doc::concat(vec![Doc::Line, rhs_for_group]),
+        )
+    };
+
+    Doc::group_with_id(
+        gid,
+        Doc::concat(vec![full_left, Doc::concat(op_parts), indent_right]),
+    )
+}
+
+fn is_qualified_expr(node: &Node<'_>) -> bool {
+    node.kind() == "navigation_expression"
+        || (node.kind() == "call_expression"
+            && node
+                .child(0)
+                .is_some_and(|c| c.kind() == "navigation_expression"))
+}
+
+fn assemble_as_or_check_doc<'a>(
+    left_doc: Doc<'a>,
+    op_text: String,
+    right_part: Doc<'a>,
+    break_before: bool,
+    open_group_before_left: bool,
+    gid: GroupId,
+) -> Doc<'a> {
+    if !break_before {
+        Doc::concat(vec![
+            left_doc,
+            Doc::space(),
+            Doc::group_with_id(
+                gid,
+                Doc::concat(vec![
+                    Doc::smol(op_text),
+                    Doc::indent_if_group_breaks(gid, IndentKind::Continuation, right_part),
+                ]),
+            ),
+        ])
+    } else if open_group_before_left {
+        Doc::group_with_id(
+            gid,
+            Doc::concat(vec![
+                left_doc,
+                Doc::indent_if_group_breaks(
+                    gid,
+                    IndentKind::Continuation,
+                    Doc::concat(vec![Doc::Line, Doc::smol(op_text), right_part]),
+                ),
+            ]),
+        )
+    } else {
+        Doc::concat(vec![
+            left_doc,
+            Doc::group_with_id(
+                gid,
+                Doc::indent_if_group_breaks(
+                    gid,
+                    IndentKind::Continuation,
+                    Doc::concat(vec![Doc::Line, Doc::smol(op_text), right_part]),
+                ),
+            ),
+        ])
+    }
+}
+
+pub fn lower_as_or_check_expression<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut left = None;
+    let mut op_tokens = Vec::new();
+    let mut right_nodes = Vec::new();
+
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        let kind = child.kind();
+        if left.is_none() {
+            left = Some(child);
+        } else if matches!(kind, "as" | "as?" | "is" | "!is" | "!" | "in" | "!in") {
+            op_tokens.push(ctx.node_text(&child));
+        } else {
+            right_nodes.push(child);
+        }
+    }
+
+    let Some(l) = left else {
+        return Doc::text(ctx.node_text(&node));
+    };
+
+    let op_text = op_tokens.join("");
+    let left_doc = lower_fn(l, ctx);
+    let mut right_docs = Vec::new();
+    for r in right_nodes {
+        right_docs.push(lower_fn(r, ctx));
+    }
+    let right_doc = Doc::concat(right_docs);
+
+    let is_as = op_text.starts_with("as");
+    let parent_is_arg = node
+        .parent()
+        .is_some_and(|p| matches!(p.kind(), "value_argument" | "parenthesized_expression"));
+    let break_before = is_as || parent_is_arg;
+    let open_group_before_left = !is_qualified_expr(&l);
+
+    let gid = ctx.next_group_id();
+    let right_part = Doc::group(Doc::concat(vec![Doc::Line, right_doc]));
+
+    assemble_as_or_check_doc(
+        left_doc,
+        op_text,
+        right_part,
+        break_before,
+        open_group_before_left,
+        gid,
+    )
 }

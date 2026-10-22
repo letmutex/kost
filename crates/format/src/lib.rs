@@ -1,4 +1,5 @@
 //! Kotlin code formatting engine for kost.
+#![allow(clippy::too_many_arguments)]
 
 pub mod check;
 pub mod cli;
@@ -12,13 +13,17 @@ pub mod options;
 pub mod printer;
 pub mod rules;
 pub mod smart_diff;
+pub mod style;
+pub mod trivia;
 pub mod util;
+pub mod verbatim;
 
 pub use cli::run;
 pub use diff::create_diff;
 pub use error::{FormatError, Position};
 pub use formatter::{CheckResult, Formatter};
 pub use options::{FileType, FormattingOptions, StylePreset, TrailingCommaStrategy};
+pub use style::StyleProfile;
 
 /// Format Kotlin regular source code using given options.
 pub fn format(source: &str, options: &FormattingOptions) -> Result<String, FormatError> {
@@ -53,7 +58,7 @@ pub fn format_file(
         file_type
     };
 
-    // 4. Execute internal engine with normalized '\n'
+    // 4. Run formatting engine
     let mut formatted_normalized = engine::format_source(&normalized, resolved_file_type, options)?;
 
     if !options.insert_final_newline {

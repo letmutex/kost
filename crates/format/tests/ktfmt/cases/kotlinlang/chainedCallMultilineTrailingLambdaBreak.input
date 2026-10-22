@@ -1,0 +1,6 @@
+class Foo {
+    fun bar() {
+        val versions =
+            versionDir.listFiles().filter { it.name.first().isDigit() }.sortedByDescending { it.name }
+    }
+}

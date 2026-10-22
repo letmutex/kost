@@ -1,332 +1,238 @@
 use tree_sitter::Node;
 
+use super::chain_call::{
+    ChainAnalysis, LastCallData, accumulate_chain_step, analyze_chain, format_elvis_receiver,
+    format_last_call, is_receiver_on_rhs, should_prefix_continue,
+};
+use super::chain_format::{
+    format_string_receiver_single_step, lower_step_call, lower_step_post_ops, lower_step_selector,
+};
+use super::chain_step::{ChainStep, assemble_chain_steps};
+pub use super::chain_step::{SpineSegment, flatten_spine, is_spine_root};
+use crate::doc::Doc;
 use crate::lower::context::LowerContext;
 
-pub use crate::lower::chain_lambda::{
-    count_chain_lambdas, has_call_in_receiver_chain, has_multiline_trailing_lambda,
-    is_call_receiver, is_call_receiver_in_chain, is_navigation_chain_root, is_part_of_call_chain,
-    is_spine_root, is_super_or_this, is_type_name_receiver,
-};
+struct ChainStepState<'a> {
+    in_prefix: bool,
+    prefix_doc: Doc<'a>,
+    tail_docs: Vec<Doc<'a>>,
+    last_call: Option<LastCallData<'a>>,
+    last_call_prefix_gid: Option<crate::doc::GroupId>,
+    prev_is_call: bool,
+    prev_name: Option<&'a str>,
+    prev_is_super_or_this: bool,
+    prev_op: Option<&'a str>,
+}
 
-fn init_start_col(
-    parent: Node<'_>,
-    curr: Node<'_>,
-    first_col: usize,
-    ctx: &LowerContext<'_, '_>,
-) -> usize {
-    let is_kotlinlang = ctx.options.block_indent == 4;
-    let len = crate::lower::delegates::property_init_first_line_len(
-        Some(curr),
-        ctx.node_text(&curr).len(),
-        is_kotlinlang,
+fn lower_step_call_and_post_ops<'a>(
+    step: &ChainStep<'a>,
+    idx: usize,
+    steps: &[ChainStep<'a>],
+    state: &mut ChainStepState<'a>,
+    analysis: &ChainAnalysis,
+    is_on_rhs: bool,
+    is_last: bool,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Vec<Doc<'a>> {
+    let mut call_docs = lower_step_call(
+        step,
+        idx,
+        steps,
+        state.in_prefix,
+        analysis.break_scoping_root,
+        is_on_rhs,
+        &mut state.last_call,
+        ctx,
+        lower_fn,
+    );
+    call_docs.extend(lower_step_post_ops(
+        step,
+        state.in_prefix,
+        is_last,
+        ctx,
+        lower_fn,
+    ));
+    call_docs
+}
+
+fn format_single_chain_step<'a>(
+    step: &ChainStep<'a>,
+    idx: usize,
+    steps: &[ChainStep<'a>],
+    analysis: &ChainAnalysis,
+    receiver: &Node<'a>,
+    is_on_rhs: bool,
+    state: &mut ChainStepState<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) {
+    let total_steps = steps.len();
+    let is_last = idx + 1 == total_steps;
+    let curr_target_name = step.lead_op.as_ref().map(|(_, _, t)| ctx.node_text(t));
+    let curr_op = step.lead_op.as_ref().map(|(o, _, _)| *o);
+    let curr_has_call = step.call.is_some();
+
+    if state.in_prefix
+        && !should_prefix_continue(
+            step,
+            idx,
+            steps,
+            receiver,
+            state.prev_name,
+            state.prev_is_call,
+            state.prev_is_super_or_this,
+            state.prev_op,
+            analysis.has_trailing_lambda,
+            analysis.has_intermediate_break,
+            ctx,
+        )
+    {
+        state.in_prefix = false;
+    }
+
+    let selector_docs = lower_step_selector(
+        step,
+        state.in_prefix,
+        analysis.has_comments,
+        analysis.has_intermediate_lambda,
+        ctx,
+        lower_fn,
+    );
+    let call_docs = lower_step_call_and_post_ops(
+        step, idx, steps, state, analysis, is_on_rhs, is_last, ctx, lower_fn,
+    );
+
+    accumulate_chain_step(
+        &mut state.prefix_doc,
+        &mut state.tail_docs,
+        &mut state.last_call_prefix_gid,
+        selector_docs,
+        call_docs,
+        state.in_prefix,
+        is_last,
+        curr_has_call,
+        idx,
+        total_steps,
+        step.lead_op.is_none(),
+        analysis.has_trailing_lambda,
+        analysis.has_intermediate_break,
+        receiver.kind(),
+        step.call.is_none(),
         ctx,
     );
-    if first_col + len <= ctx.options.max_width {
-        first_col
-    } else {
-        ctx.compute_target_indent(&parent) + ctx.options.continuation_indent
-    }
+
+    state.prev_is_call = curr_has_call;
+    state.prev_name = curr_target_name;
+    state.prev_is_super_or_this = false;
+    state.prev_op = curr_op;
 }
 
-fn compute_declaration_header_len(
-    parent: &Node<'_>,
-    curr_id: usize,
-    ctx: &LowerContext<'_, '_>,
-) -> (usize, usize) {
-    let mut header_len = 0;
-    let mut op_len = 3;
-    let mut cursor = parent.walk();
-    for child in parent.children(&mut cursor) {
-        let kind = child.kind();
-        if kind == "=" || kind == "by" {
-            op_len = kind.len() + 2;
-            break;
-        }
-        if child.id() == curr_id {
-            break;
-        }
-        if kind == "modifiers" {
-            header_len += ctx.node_text(&child).lines().last().unwrap_or("").len() + 1;
+pub(crate) fn format_chain_body<'a>(
+    receiver: Node<'a>,
+    receiver_doc: Doc<'a>,
+    steps: &[ChainStep<'a>],
+    is_on_rhs: bool,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> (
+    Doc<'a>,
+    Vec<Doc<'a>>,
+    Option<LastCallData<'a>>,
+    Option<crate::doc::GroupId>,
+) {
+    let analysis = analyze_chain(steps, &receiver, ctx);
+    let mut state = ChainStepState {
+        in_prefix: true,
+        prefix_doc: receiver_doc,
+        tail_docs: Vec::new(),
+        last_call: None,
+        last_call_prefix_gid: None,
+        prev_is_call: false,
+        prev_name: if receiver.kind() == "simple_identifier" {
+            Some(ctx.node_text(&receiver))
         } else {
-            header_len += ctx.node_text(&child).len() + 1;
-        }
-    }
-    (header_len, op_len)
-}
-
-fn resolve_value_argument_start_col(
-    parent: Node<'_>,
-    ctx: &LowerContext<'_, '_>,
-    chain_len: usize,
-) -> usize {
-    let base = ctx.compute_target_indent(&parent);
-    let mut extra = 0;
-    let mut curr_ancestor = parent.parent();
-    while let Some(p) = curr_ancestor {
-        if p.kind() == "call_expression" {
-            if let Some(callee) = p.child(0)
-                && (callee.kind() == "navigation_expression"
-                    || crate::lower::chain::is_call_receiver(&p))
-            {
-                extra = ctx.options.continuation_indent;
-            }
-            break;
-        }
-        if matches!(p.kind(), "statements" | "function_body" | "class_body") {
-            break;
-        }
-        curr_ancestor = p.parent();
-    }
-    let name_prefix_len = parent
-        .child(0)
-        .filter(|c| c.kind() == "value_argument_name")
-        .map(|c| ctx.node_text(&c).len() + 3)
-        .unwrap_or(0);
-    let col = base + extra + ctx.options.continuation_indent;
-    if name_prefix_len > 0 {
-        if col + name_prefix_len + chain_len <= ctx.options.max_width {
-            col + name_prefix_len
-        } else {
-            col
-        }
-    } else {
-        col
-    }
-}
-
-fn resolve_statements_start_col(
-    curr: Node<'_>,
-    parent: Node<'_>,
-    ctx: &LowerContext<'_, '_>,
-) -> usize {
-    let base = ctx.compute_target_indent(&curr);
-    let mut is_in_chain_lambda = false;
-    if let Some(parent_block) = parent.parent()
-        && matches!(parent_block.kind(), "lambda_literal" | "annotated_lambda")
-    {
-        let mut n = parent_block;
-        while let Some(p) = n.parent() {
-            if let Some(callee) = p.child(0)
-                && callee.kind() == "navigation_expression"
-                && let Some(receiver) = callee.child(0)
-                && receiver.kind() == "call_expression"
-                && crate::lower::chain::has_call_in_receiver_chain(&receiver)
-            {
-                is_in_chain_lambda = true;
-                break;
-            }
-            if matches!(p.kind(), "statements" | "class_body") {
-                break;
-            }
-            n = p;
-        }
-    }
-    let extra = if is_in_chain_lambda {
-        ctx.options.continuation_indent
-    } else {
-        0
+            None
+        },
+        prev_is_super_or_this: matches!(receiver.kind(), "this_expression" | "super_expression"),
+        prev_op: None,
     };
-    base + extra
+
+    for (idx, step) in steps.iter().enumerate() {
+        format_single_chain_step(
+            step, idx, steps, &analysis, &receiver, is_on_rhs, &mut state, ctx, lower_fn,
+        );
+    }
+
+    (
+        state.prefix_doc,
+        state.tail_docs,
+        state.last_call,
+        state.last_call_prefix_gid,
+    )
 }
 
-pub fn resolve_chain_start_col(
-    node: &Node<'_>,
-    ctx: &LowerContext<'_, '_>,
-    chain_len: usize,
-) -> usize {
-    let mut curr = *node;
-    while let Some(parent) = curr.parent() {
-        match parent.kind() {
-            "value_argument" => return resolve_value_argument_start_col(parent, ctx, chain_len),
-            "property_declaration" | "destructuring_declaration" => {
-                let (header_len, op_len) = compute_declaration_header_len(&parent, curr.id(), ctx);
-                let first_col =
-                    ctx.compute_target_indent(&parent) + header_len.saturating_sub(1) + op_len;
-                return init_start_col(parent, curr, first_col, ctx);
-            }
-            "property_delegate" => {
-                if let Some(prop_decl) = parent.parent() {
-                    let (header_len, _) =
-                        compute_declaration_header_len(&prop_decl, parent.id(), ctx);
-                    let first_col =
-                        ctx.compute_target_indent(&prop_decl) + header_len.saturating_sub(1) + 4;
-                    return init_start_col(prop_decl, curr, first_col, ctx);
-                }
-                curr = parent;
-            }
-            "assignment" => {
-                let lhs_len = parent
-                    .child(0)
-                    .map(|c| ctx.node_text(&c).len())
-                    .unwrap_or(0);
-                let op_len = parent
-                    .children(&mut parent.walk())
-                    .find(|c| matches!(c.kind(), "=" | "+=" | "-=" | "*=" | "/=" | "%="))
-                    .map(|c| c.kind().len())
-                    .unwrap_or(1);
-                let first_col = ctx.compute_target_indent(&parent) + lhs_len + 2 + op_len;
-                return init_start_col(parent, curr, first_col, ctx);
-            }
-            "binary_expression" => {
-                let lhs = parent.child(0);
-                let lhs_len = lhs.map(|c| ctx.node_text(&c).len()).unwrap_or(0);
-                let op_len = parent
-                    .child(1)
-                    .map(|c| ctx.node_text(&c).len())
-                    .unwrap_or(1);
-                let first_col = ctx.compute_target_indent(&parent) + lhs_len + 2 + op_len;
-                return init_start_col(parent, curr, first_col, ctx);
-            }
-            "jump_expression" => {
-                let op_len = parent
-                    .child(0)
-                    .map(|c| ctx.node_text(&c).len() + 1)
-                    .unwrap_or(7);
-                let first_col = ctx.compute_target_indent(&parent) + op_len;
-                return init_start_col(parent, curr, first_col, ctx);
-            }
-            "function_body" => {
-                let func = parent.parent().unwrap_or(parent);
-                let eq_col = ctx.compute_target_indent(&func);
-                let extra = if matches!(func.kind(), "getter" | "setter") {
-                    ctx.options.block_indent
-                } else {
-                    0
-                };
-                return eq_col + extra + ctx.options.continuation_indent;
-            }
-            "function_declaration" => {
-                let eq_col = ctx.compute_target_indent(&parent);
-                return eq_col + ctx.options.continuation_indent;
-            }
-            "for_statement" => {
-                return ctx.compute_target_indent(&parent) + ctx.options.continuation_indent;
-            }
-            "statements" | "block" => return resolve_statements_start_col(curr, parent, ctx),
-            _ => curr = parent,
-        }
+pub fn format_chain_spine<'a>(
+    receiver: Node<'a>,
+    segments: Vec<SpineSegment<'a>>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    if let Some(doc) = format_elvis_receiver(receiver, segments.clone(), ctx, lower_fn) {
+        return doc;
     }
-    ctx.compute_target_indent(node)
-}
+    let mut receiver_doc = lower_fn(receiver, ctx);
+    if segments.is_empty() {
+        return receiver_doc;
+    }
+    let is_on_rhs = is_receiver_on_rhs(receiver);
+    if is_on_rhs
+        && matches!(
+            receiver.kind(),
+            "if_expression" | "when_expression" | "try_expression"
+        )
+    {
+        receiver_doc = Doc::continuation_indent(receiver_doc);
+    }
 
-pub fn call_has_multiline_type_args(call: &Node<'_>, ctx: &LowerContext<'_, '_>) -> bool {
-    let mut cursor = call.walk();
-    for child in call.children(&mut cursor) {
-        if child.kind() == "call_suffix" {
-            let mut sc = child.walk();
-            for suffix_child in child.children(&mut sc) {
-                if suffix_child.kind() == "type_arguments" {
-                    if suffix_child.start_position().row != suffix_child.end_position().row
-                        || crate::lower::lists::has_trailing_comma(&suffix_child)
-                    {
-                        return true;
-                    }
-                    let start_col =
-                        crate::lower::call_args::compute_call_continuation_indent(call, ctx);
-                    let text = ctx
-                        .source
-                        .get(call.start_byte()..suffix_child.end_byte())
-                        .unwrap_or("");
-                    let total_len =
-                        start_col + crate::lower::expression_body::collapsed_text_len(text);
-                    return total_len > ctx.options.max_width;
-                }
-            }
-        }
+    let steps = assemble_chain_steps(segments);
+    if matches!(
+        receiver.kind(),
+        "string_literal" | "multiline_string_literal"
+    ) && steps.len() == 1
+        && let Some(doc) =
+            format_string_receiver_single_step(receiver_doc.clone(), &steps[0], ctx, lower_fn)
+    {
+        return doc;
     }
-    false
-}
+    let (prefix_doc, tail_docs, last_call, last_call_prefix_gid) =
+        format_chain_body(receiver, receiver_doc, &steps, is_on_rhs, ctx, lower_fn);
 
-fn call_has_trailing_lambda(call: &Node<'_>) -> bool {
-    let mut cursor = call.walk();
-    for child in call.children(&mut cursor) {
-        if child.kind() == "call_suffix" {
-            let mut sc = child.walk();
-            for sub in child.children(&mut sc) {
-                if matches!(sub.kind(), "lambda_literal" | "annotated_lambda") {
-                    return true;
-                }
-            }
-        }
-    }
-    false
-}
+    let gid = ctx.next_group_id();
+    let has_tail = !tail_docs.is_empty();
+    let chain_group = if !has_tail {
+        Doc::group_with_id(gid, prefix_doc)
+    } else {
+        Doc::group_with_id(
+            gid,
+            Doc::concat(vec![
+                prefix_doc,
+                Doc::continuation_indent(Doc::concat(tail_docs)),
+            ]),
+        )
+    };
 
-pub fn find_node_trailing_comment_len(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> usize {
-    let mut curr = Some(*node);
-    while let Some(n) = curr {
-        if let Some(next) = n.next_sibling()
-            && matches!(
-                next.kind(),
-                "comment" | "line_comment" | "multiline_comment"
-            )
-            && !ctx.has_newline_between(&n, &next)
-        {
-            let mut total_len = 1 + ctx.node_text(&next).len();
-            let mut c_curr = next;
-            while let Some(c_next) = c_curr.next_sibling() {
-                if matches!(c_next.kind(), "comment" | "line_comment")
-                    && c_next.start_position().row == c_curr.end_position().row + 1
-                {
-                    total_len += 1 + ctx.node_text(&c_next).len();
-                    c_curr = c_next;
-                } else {
-                    break;
-                }
-            }
-            return total_len;
-        }
-        if let Some(parent) = n.parent()
-            && matches!(
-                parent.kind(),
-                "call_suffix" | "call_expression" | "function_body" | "getter" | "setter"
-            )
-        {
-            curr = Some(parent);
-            continue;
-        }
-        break;
+    if let Some(last_call_data) = last_call {
+        format_last_call(
+            chain_group,
+            last_call_data,
+            has_tail,
+            gid,
+            last_call_prefix_gid,
+            ctx,
+            lower_fn,
+        )
+    } else {
+        chain_group
     }
-    0
-}
-
-pub fn is_chain_broken(node: &Node<'_>, ctx: &LowerContext<'_, '_>, chain_len: usize) -> bool {
-    let start_col = resolve_chain_start_col(node, ctx, chain_len);
-    let trailing_comment_len = find_node_trailing_comment_len(node, ctx);
-    if start_col + chain_len + trailing_comment_len > ctx.options.max_width {
-        return true;
-    }
-    if count_chain_lambdas(node) > 1 {
-        return true;
-    }
-    let mut curr = Some(*node);
-    while let Some(n) = curr {
-        if n.kind() == "call_expression" {
-            let multiline_break = !call_has_trailing_lambda(&n)
-                && (crate::lower::delegates::call_has_multiline_args(&n, ctx)
-                    || call_has_multiline_type_args(&n, ctx));
-            if multiline_break && (n.id() != node.id() || has_call_in_receiver_chain(&n)) {
-                return true;
-            }
-            curr = n.child(0);
-        } else if n.kind() == "navigation_expression" {
-            let mut cursor = n.walk();
-            let mut prev_child: Option<Node<'_>> = None;
-            for child in n.children(&mut cursor) {
-                if let Some(prev) = prev_child
-                    && matches!(
-                        prev.kind(),
-                        "comment" | "line_comment" | "multiline_comment"
-                    )
-                {
-                    return true;
-                }
-                prev_child = Some(child);
-            }
-            curr = n.child(0);
-        } else {
-            break;
-        }
-    }
-    false
 }

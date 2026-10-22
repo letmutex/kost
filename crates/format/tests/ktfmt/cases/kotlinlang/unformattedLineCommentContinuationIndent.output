@@ -1,0 +1,9 @@
+fun test() {
+    if (true) {
+        if (true) {
+            // writeText effective replaces the entire content if the file already exists. If
+            // appendText is used, the file keeps on growing
+            writeText()
+        }
+    }
+}

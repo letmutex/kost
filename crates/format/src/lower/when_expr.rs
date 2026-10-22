@@ -1,318 +1,346 @@
 use tree_sitter::Node;
 
 use crate::doc::Doc;
+use crate::lower::builders::{BlockItem, format_assign_like, format_braced_block};
 use crate::lower::context::LowerContext;
-use crate::lower::lower_node;
 
-pub fn lower_when_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut subject_doc = None;
-    let mut entries = Vec::new();
-    let mut prev_child: Option<Node<'a>> = None;
-
+fn is_braced_body(node: &Node<'_>) -> bool {
+    let kind = node.kind();
+    if kind == "when_expression" {
+        return false;
+    }
+    if kind == "statements" || kind == "block" || kind == "function_body" {
+        return true;
+    }
+    if kind == "control_structure_body" {
+        let mut cursor = node.walk();
+        return node
+            .children(&mut cursor)
+            .any(|c| c.kind() == "{" || is_braced_body(&c));
+    }
     let mut cursor = node.walk();
+    node.children(&mut cursor).any(|c| {
+        matches!(
+            c.kind(),
+            "{" | "block" | "lambda_literal" | "annotated_lambda"
+        )
+    })
+}
+
+pub fn lower_when_expression<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut subject = None;
+    let mut entries: Vec<BlockItem<'a>> = Vec::new();
+    let mut prev_child: Option<Node<'a>> = None;
+    let mut cursor = node.walk();
+
     for child in node.children(&mut cursor) {
         let kind = child.kind();
-        if kind == "when_subject" {
-            subject_doc = Some(lower_when_subject(child, ctx));
-        } else if kind == "when_entry" {
-            let has_blank =
-                prev_child.is_some_and(|prev| ctx.has_blank_line_between(&prev, &child));
-            entries.push((lower_when_entry(child, ctx), has_blank));
-            prev_child = Some(child);
-        } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-            let has_blank =
-                prev_child.is_some_and(|prev| ctx.has_blank_line_between(&prev, &child));
-            entries.push((lower_node(child, ctx), has_blank));
-            prev_child = Some(child);
+        match kind {
+            "when_subject" => subject = Some(child),
+            "when_entry" | "comment" | "line_comment" | "multiline_comment" => {
+                if ctx.style.preset == crate::options::StylePreset::Kotlinlang
+                    && kind == "line_comment"
+                    && let Some(prev) =
+                        prev_child.and_then(crate::rules::comments::find_trailing_line_comment)
+                    && crate::rules::comments::should_merge_wrapped_comment(&prev, &child, ctx)
+                    && let Some(last_entry) = entries.last_mut()
+                    && crate::rules::comments::try_append_to_trailing_line_comment(
+                        &mut last_entry.doc,
+                        ctx.node_text(&child),
+                    )
+                {
+                    prev_child = Some(child);
+                    continue;
+                }
+                let has_blank = prev_child.is_some_and(|p| ctx.has_blank_line_between(&p, &child));
+                entries
+                    .push(BlockItem::new(lower_fn(child, ctx)).with_blank_line_before(has_blank));
+                prev_child = Some(child);
+            }
+            _ => {}
         }
     }
 
     let mut header = vec![Doc::text("when")];
-    if let Some(subject) = subject_doc {
+    if let Some(sub) = subject {
         header.push(Doc::space());
-        header.push(subject);
-    }
-    header.push(Doc::space());
-    header.push(Doc::text("{"));
-
-    if entries.is_empty() {
-        header.push(Doc::text("}"));
-        return Doc::Concat(header);
+        header.push(lower_fn(sub, ctx));
     }
 
-    let mut inner = Vec::new();
-    for (idx, (entry_doc, has_blank)) in entries.into_iter().enumerate() {
-        if idx == 0 {
-            inner.push(Doc::HardLine);
-        } else if has_blank {
-            inner.push(Doc::EmptyLine);
-        } else {
-            inner.push(Doc::HardLine);
-        }
-        inner.push(entry_doc);
-    }
-
-    Doc::Concat(vec![
-        Doc::Concat(header),
-        Doc::indent(Doc::Concat(inner)),
-        Doc::HardLine,
-        Doc::text("}"),
-    ])
+    let body_doc = format_braced_block(entries, Vec::new());
+    Doc::concat(vec![Doc::concat(header), Doc::space(), body_doc])
 }
 
-pub fn lower_when_subject<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut inner = Vec::new();
+pub fn lower_when_subject<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut inner_docs = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
-        match kind {
-            "(" | ")" => {}
-            "val" => inner.push(Doc::text("val ")),
-            "var" => inner.push(Doc::text("var ")),
-            "=" => inner.push(Doc::text(" = ")),
-            _ => inner.push(lower_node(child, ctx)),
+        if kind == "(" || kind == ")" {
+            continue;
+        }
+        if kind == "=" {
+            inner_docs.push(Doc::text(" = "));
+        } else if kind == "val" || kind == "var" {
+            let kw = ctx.node_text(&child);
+            inner_docs.push(Doc::smol(crate::concat_smol_str!(kw, " ")));
+        } else {
+            inner_docs.push(lower_fn(child, ctx));
         }
     }
-    if ctx.options.trailing_comma_strategy != crate::TrailingCommaStrategy::None {
-        Doc::Group(Box::new(Doc::Concat(vec![
+    if ctx.style.soft_break_inside_condition_parens {
+        Doc::group(Doc::concat(vec![
             Doc::text("("),
-            Doc::indent(Doc::Concat(vec![Doc::SoftLine, Doc::Concat(inner)])),
+            Doc::continuation_indent(Doc::concat(vec![Doc::SoftLine, Doc::concat(inner_docs)])),
             Doc::SoftLine,
             Doc::text(")"),
-        ])))
+        ]))
     } else {
-        Doc::Concat(vec![Doc::text("("), Doc::Concat(inner), Doc::text(")")])
+        Doc::group(Doc::concat(vec![
+            Doc::text("("),
+            Doc::concat(inner_docs),
+            Doc::text(")"),
+        ]))
     }
 }
 
-fn is_braced_body(node: Node<'_>) -> bool {
-    if node.kind() == "control_structure_body" {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if matches!(
-                child.kind(),
-                "{" | "block" | "lambda_literal" | "annotated_lambda"
-            ) || is_braced_body(child)
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-    matches!(
-        node.kind(),
-        "block" | "{" | "lambda_literal" | "annotated_lambda"
-    )
-}
-
-fn is_if_expression(node: Node<'_>) -> bool {
-    if node.kind() == "control_structure_body" {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            if child.kind() == "if_expression" || is_if_expression(child) {
-                return true;
-            }
-        }
-        return false;
-    }
-    node.kind() == "if_expression"
-}
-
-fn lower_guard_condition<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut parts = vec![Doc::text("if ")];
+pub fn lower_guard_condition<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut expr_doc = None;
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if child.kind() != "if" {
-            parts.push(lower_node(child, ctx));
+            expr_doc = Some(lower_fn(child, ctx));
         }
     }
-    Doc::Concat(parts)
+    if let Some(doc) = expr_doc {
+        Doc::concat(vec![Doc::text("if "), doc])
+    } else {
+        Doc::text("if")
+    }
 }
 
-fn build_when_entry_head<'a>(
-    is_else: bool,
-    else_comments: Vec<Node<'a>>,
-    conditions: Vec<Node<'a>>,
-    guard: Option<Node<'a>>,
-    has_trailing_comma: bool,
-    arrow_has_newline: bool,
+fn handle_when_condition_comma<'a>(
+    child: Node<'a>,
+    condition_docs: &mut Vec<Doc<'a>>,
     ctx: &LowerContext<'a, '_>,
-) -> Doc<'a> {
-    let mut head_parts = Vec::new();
-    if is_else {
-        head_parts.push(Doc::text("else"));
-        for comment in else_comments {
-            head_parts.push(Doc::space());
-            head_parts.push(lower_node(comment, ctx));
-        }
-    } else {
-        let mut prev_item: Option<Node<'a>> = None;
-        for item in conditions {
-            if let Some(prev) = prev_item {
-                let prev_is_comment = matches!(
-                    prev.kind(),
-                    "comment" | "line_comment" | "multiline_comment"
-                );
-                let should_comma = !prev_is_comment;
-                if should_comma {
-                    if ctx.has_newline_between(&prev, &item) {
-                        head_parts.push(Doc::text(","));
-                        head_parts.push(Doc::HardLine);
-                    } else {
-                        head_parts.push(Doc::text(", "));
-                    }
-                } else if ctx.has_newline_between(&prev, &item) {
-                    head_parts.push(Doc::HardLine);
-                } else {
-                    head_parts.push(Doc::space());
-                }
+) {
+    let is_trailing = child.next_sibling().is_none_or(|next| {
+        next.kind() == "->"
+            || (matches!(
+                next.kind(),
+                "comment" | "line_comment" | "multiline_comment"
+            ) && next.next_sibling().is_none_or(|n2| n2.kind() == "->"))
+    });
+    if is_trailing {
+        if ctx.options.trailing_comma_strategy != crate::options::TrailingCommaStrategy::Complete {
+            condition_docs.push(Doc::text(","));
+            let has_user_newline = child
+                .next_sibling()
+                .is_some_and(|next| ctx.has_user_newline_between(&child, &next));
+            if has_user_newline {
+                condition_docs.push(Doc::HardLine);
             }
-            head_parts.push(lower_node(item, ctx));
-            prev_item = Some(item);
         }
-        if has_trailing_comma
-            && (arrow_has_newline
-                || ctx.options.trailing_comma_strategy == crate::TrailingCommaStrategy::OnlyAdd)
-        {
-            head_parts.push(Doc::text(","));
-        }
+        return;
     }
-    if let Some(g) = guard {
-        head_parts.push(Doc::space());
-        head_parts.push(lower_guard_condition(g, ctx));
-    }
-    if arrow_has_newline {
-        head_parts.push(Doc::HardLine);
-        head_parts.push(Doc::text("->"));
+    let next_is_same_line_comment = child.next_sibling().is_some_and(|next| {
+        matches!(
+            next.kind(),
+            "comment" | "line_comment" | "multiline_comment"
+        ) && !ctx.has_user_newline_between(&child, &next)
+    });
+    let has_user_newline = child
+        .next_sibling()
+        .is_some_and(|next| ctx.has_user_newline_between(&child, &next));
+    condition_docs.push(Doc::text(","));
+    if next_is_same_line_comment {
+        condition_docs.push(Doc::space());
+    } else if has_user_newline {
+        condition_docs.push(Doc::HardLine);
     } else {
-        head_parts.push(Doc::text(" ->"));
+        condition_docs.push(Doc::Line);
     }
-    Doc::Concat(head_parts)
 }
 
 fn format_when_entry_body<'a>(
-    head: Doc<'a>,
-    body_node: Option<Node<'a>>,
-    comments_before_body: Vec<Node<'a>>,
-    comments_after_body: Vec<Node<'a>>,
+    conditions_doc: Doc<'a>,
+    body: Node<'a>,
+    pending_comments: Vec<Doc<'a>>,
     ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> Doc<'a> {
-    let Some(body) = body_node else {
-        return head;
-    };
-    let body_doc = lower_node(body, ctx);
-    let main_doc = if !comments_before_body.is_empty() {
-        let mut inner_comments = Vec::new();
-        for comment in comments_before_body {
-            inner_comments.push(Doc::HardLine);
-            inner_comments.push(lower_node(comment, ctx));
+    let body_doc = lower_fn(body, ctx);
+    if !pending_comments.is_empty() {
+        let mut parts = Vec::new();
+        for c in pending_comments {
+            parts.push(c);
+            parts.push(Doc::HardLine);
         }
-        inner_comments.push(Doc::HardLine);
-        inner_comments.push(body_doc);
-        Doc::Concat(vec![
-            head,
-            Doc::continuation_indent(Doc::Concat(inner_comments)),
+        parts.push(body_doc);
+        Doc::concat(vec![
+            conditions_doc,
+            Doc::text(" ->"),
+            Doc::continuation_indent(Doc::concat(vec![Doc::HardLine, Doc::concat(parts)])),
         ])
-    } else if is_braced_body(body) || is_if_expression(body) {
-        Doc::Concat(vec![head, Doc::space(), body_doc])
-    } else {
-        Doc::Concat(vec![
-            head,
-            Doc::Group(Box::new(Doc::continuation_indent(Doc::Concat(vec![
-                Doc::Line,
-                body_doc,
-            ])))),
+    } else if body.kind() == "when_expression" {
+        Doc::concat(vec![
+            conditions_doc,
+            Doc::text(" ->"),
+            Doc::continuation_indent(Doc::concat(vec![Doc::HardLine, body_doc])),
         ])
-    };
-
-    if comments_after_body.is_empty() {
-        main_doc
+    } else if is_braced_body(&body) {
+        Doc::concat(vec![conditions_doc, Doc::text(" -> "), body_doc])
     } else {
-        let mut parts = vec![main_doc];
-        let mut prev = body;
-        for comment in comments_after_body {
-            if prev.end_position().row == comment.start_position().row {
-                parts.push(Doc::space());
-            } else {
-                parts.push(Doc::HardLine);
-            }
-            parts.push(lower_node(comment, ctx));
-            prev = comment;
-        }
-        Doc::Concat(parts)
+        format_assign_like(conditions_doc, "->", body, body_doc, ctx)
     }
 }
 
-pub fn lower_when_entry<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut is_else = false;
-    let mut else_comments = Vec::new();
-    let mut conditions = Vec::new();
-    let mut guard_node = None;
-    let mut comments_before_body = Vec::new();
-    let mut comments_after_body = Vec::new();
+fn push_when_after_body_comment<'a>(
+    child: Node<'a>,
+    prev_after_body: &mut Option<Node<'a>>,
+    body_node: Option<Node<'a>>,
+    after_body_comments: &mut Vec<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) {
+    let kind = child.kind();
+    let anchor = (*prev_after_body).or(body_node);
+    if crate::rules::comments::try_merge_continuation_comment(
+        anchor,
+        &child,
+        after_body_comments,
+        ctx,
+    ) {
+        *prev_after_body = Some(child);
+        return;
+    }
+    let is_same_line = anchor.is_some_and(|b| !ctx.has_user_newline_between(&b, &child));
+    let has_blank = anchor.is_some_and(|b| ctx.has_blank_line_between(&b, &child));
+    if is_same_line {
+        after_body_comments.push(Doc::space());
+        let c_doc = if kind == "line_comment" {
+            Doc::line_comment(
+                ctx.node_text(&child),
+                true,
+                ctx.style.align_wrapped_trailing_comments,
+            )
+        } else {
+            lower_fn(child, ctx)
+        };
+        after_body_comments.push(c_doc);
+    } else {
+        after_body_comments.push(if has_blank {
+            Doc::EmptyLine
+        } else {
+            Doc::HardLine
+        });
+        after_body_comments.push(lower_fn(child, ctx));
+    }
+    *prev_after_body = Some(child);
+}
+
+fn push_when_condition_child<'a>(
+    child: Node<'a>,
+    condition_docs: &mut Vec<Doc<'a>>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) {
+    let kind = child.kind();
+    if kind == "," {
+        handle_when_condition_comma(child, condition_docs, ctx);
+    } else if kind == "guard_condition" {
+        condition_docs.push(Doc::space());
+        condition_docs.push(lower_guard_condition(child, ctx, lower_fn));
+    } else if kind == "line_comment" {
+        let prev = child.prev_sibling();
+        let is_same_line = prev.is_some_and(|p| !ctx.has_user_newline_between(&p, &child));
+        if is_same_line {
+            if !condition_docs.last().is_some_and(|d| d.ends_with_space()) {
+                condition_docs.push(Doc::space());
+            }
+        } else if !condition_docs.is_empty()
+            && !condition_docs.last().is_some_and(|d| d.ends_with_newline())
+        {
+            condition_docs.push(Doc::HardLine);
+        }
+        condition_docs.push(lower_fn(child, ctx));
+        condition_docs.push(Doc::HardLine);
+    } else {
+        if matches!(kind, "comment" | "multiline_comment")
+            && !condition_docs.is_empty()
+            && !condition_docs
+                .last()
+                .is_some_and(|d| d.ends_with_space() || d.ends_with_newline())
+        {
+            condition_docs.push(Doc::space());
+        }
+        condition_docs.push(lower_fn(child, ctx));
+    }
+}
+
+pub fn lower_when_entry<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut condition_docs = Vec::new();
+    let mut pending_comments = Vec::new();
+    let mut after_body_comments = Vec::new();
     let mut body_node = None;
-    let mut after_arrow = false;
-    let mut has_trailing_comma = false;
-    let mut arrow_node = None;
+    let mut prev_after_body = None;
+    let mut in_conditions = true;
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         if kind == "->" {
-            after_arrow = true;
-            arrow_node = Some(child);
+            in_conditions = false;
             continue;
         }
-
-        if !after_arrow {
-            if kind == "else" {
-                is_else = true;
-            } else if is_else && matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-                else_comments.push(child);
-            } else if kind == "," {
-                has_trailing_comma = true;
-            } else if kind == "guard_condition" {
-                guard_node = Some(child);
-            } else if kind == "when_condition"
-                || matches!(kind, "comment" | "line_comment" | "multiline_comment")
-            {
-                has_trailing_comma = false;
-                conditions.push(child);
-            }
-        } else {
-            let is_comment = matches!(kind, "comment" | "line_comment" | "multiline_comment");
-            if is_comment && body_node.is_none() {
-                comments_before_body.push(child);
-            } else if is_comment {
-                comments_after_body.push(child);
-            } else if body_node.is_none() {
+        if in_conditions {
+            push_when_condition_child(child, &mut condition_docs, ctx, lower_fn);
+        } else if body_node.is_none() {
+            if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+                pending_comments.push(lower_fn(child, ctx));
+            } else {
                 body_node = Some(child);
+                prev_after_body = Some(child);
             }
+        } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+            push_when_after_body_comment(
+                child,
+                &mut prev_after_body,
+                body_node,
+                &mut after_body_comments,
+                ctx,
+                lower_fn,
+            );
         }
     }
 
-    let last_before_arrow = guard_node
-        .or_else(|| else_comments.last().copied())
-        .or_else(|| conditions.last().copied());
-    let arrow_has_newline = match (last_before_arrow, arrow_node) {
-        (Some(l), Some(a)) => ctx.has_newline_between(&l, &a),
-        _ => false,
+    let conditions_doc = Doc::concat(condition_docs);
+    let Some(body) = body_node else {
+        return Doc::group(Doc::concat(vec![conditions_doc, Doc::text(" ->")]));
     };
 
-    let head = build_when_entry_head(
-        is_else,
-        else_comments,
-        conditions,
-        guard_node,
-        has_trailing_comma,
-        arrow_has_newline,
-        ctx,
-    );
-    format_when_entry_body(
-        head,
-        body_node,
-        comments_before_body,
-        comments_after_body,
-        ctx,
-    )
+    let entry_doc = format_when_entry_body(conditions_doc, body, pending_comments, ctx, lower_fn);
+    if !after_body_comments.is_empty() {
+        let mut all = vec![Doc::group(entry_doc)];
+        all.extend(after_body_comments);
+        Doc::concat(all)
+    } else {
+        Doc::group(entry_doc)
+    }
 }

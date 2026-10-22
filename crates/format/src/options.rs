@@ -33,7 +33,6 @@ pub enum StylePreset {
 }
 
 /// Comprehensive formatting options with a fluent builder pattern.
-/// Uses `#[non_exhaustive]` so adding future options does not break downstream call sites.
 #[non_exhaustive]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FormattingOptions {
@@ -45,6 +44,8 @@ pub struct FormattingOptions {
     pub preserve_lambda_breaks: bool,
     pub end_of_line: Option<common::editorconfig::EndOfLine>,
     pub insert_final_newline: bool,
+    pub use_experimental_engine: bool,
+    pub style_preset: Option<StylePreset>,
 }
 
 impl FormattingOptions {
@@ -63,6 +64,8 @@ impl FormattingOptions {
             preserve_lambda_breaks: true,
             end_of_line: None,
             insert_final_newline: true,
+            use_experimental_engine: false,
+            style_preset: Some(StylePreset::Meta),
         }
     }
 
@@ -77,6 +80,8 @@ impl FormattingOptions {
             preserve_lambda_breaks: true,
             end_of_line: None,
             insert_final_newline: true,
+            use_experimental_engine: false,
+            style_preset: Some(StylePreset::Google),
         }
     }
 
@@ -91,6 +96,8 @@ impl FormattingOptions {
             preserve_lambda_breaks: true,
             end_of_line: None,
             insert_final_newline: true,
+            use_experimental_engine: false,
+            style_preset: Some(StylePreset::Kotlinlang),
         }
     }
 

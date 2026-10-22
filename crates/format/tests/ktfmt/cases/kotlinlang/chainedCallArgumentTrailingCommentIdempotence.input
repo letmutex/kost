@@ -1,0 +1,8 @@
+fun test() {
+    val request =
+        Request
+            .Builder()
+            .url("https://square.com")
+            .tag<UUID>(uuidTag) // Use the type parameter.
+            .build()
+}

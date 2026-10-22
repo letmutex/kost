@@ -1,0 +1,11 @@
+class FileWriterGenerator {
+    fun generate() {
+        FileWriter(
+                File(flavorFolder, flavorName.replaceFirstChar(Char::uppercaseChar) + ".java")
+                    .also { it.parentFile.mkdirs() },
+            )
+            .use { suite ->
+                val printer = Printer(suite)
+            }
+    }
+}

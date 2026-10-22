@@ -1,0 +1,6 @@
+class Foo {
+    init {
+        // This is a leading comment inside the init block
+        val x = 1
+    }
+}

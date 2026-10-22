@@ -1,0 +1,21 @@
+class C {
+    fun f() {
+        if (a) {
+            if (b) {
+                if (c) {
+                    val addedNewsResources =
+                        newsResourceDao
+                            .getNewsResources(
+                                useFilterTopicIds = true,
+                                filterTopicIds = followedTopicIds,
+                                useFilterNewsIds = true,
+                                filterNewsIds =
+                                    changedIds.toSet() - existingNewsResourceIdsThatHaveChanged,
+                            )
+                            .first()
+                            .map(PopulatedNewsResource::asExternalModel)
+                }
+            }
+        }
+    }
+}

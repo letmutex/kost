@@ -1,0 +1,13 @@
+class BoxingInterpreter {
+    fun test() {
+        return if (
+            insn.opcode == CHECKCAST &&
+                isExactValue(value) &&
+                !isCastToProgression(
+                    insn,
+                ) // operations such as cast kotlin/ranges/IntRange to kotlin/ranges/IntProgression,
+        // should be allowed
+        ) value
+        else super.unaryOperation(insn, value)
+    }
+}

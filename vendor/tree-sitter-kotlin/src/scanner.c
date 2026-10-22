@@ -416,6 +416,8 @@ static bool is_constructor_modifier(const char *word) {
          strcmp(word, "actual") == 0 || strcmp(word, "expect") == 0;
 }
 
+static bool check_annotation_then_constructor(TSLexer *lexer);
+
 // Check if the current position has modifiers (public, private, protected,
 // internal, actual, expect) followed by horizontal whitespace and "constructor".
 // Uses skip() — safe to call speculatively since no token boundary is changed.
@@ -438,6 +440,9 @@ static bool check_modifier_then_constructor(TSLexer *lexer) {
 
     if (lexer->lookahead == 'c' && check_word(lexer, "constructor", 11)) {
       return true;
+    }
+    if (lexer->lookahead == '@') {
+      return check_annotation_then_constructor(lexer);
     }
     if (!is_word_char(lexer->lookahead)) {
       return false;
@@ -559,7 +564,7 @@ static bool paren_has_comma_ahead(TSLexer *lexer) {
   return true;
 }
 
-static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols) {
+static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols, bool *had_newline) {
   lexer->result_symbol = AUTOMATIC_SEMICOLON;
   lexer->mark_end(lexer);
 
@@ -592,6 +597,8 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols) 
 
     skip(lexer);
   }
+
+  if (had_newline) *had_newline = !sameline;
 
   // Skip whitespace and comments
   if (!scan_whitespace_and_comments(lexer))
@@ -1123,10 +1130,10 @@ bool tree_sitter_kotlin_external_scanner_scan(void *payload, TSLexer *lexer, con
   // valid_symbols when the parser is in a delegation context. The scanner
   // never emits it; it's used only as a context flag in scan_automatic_semicolon.
   if (valid_symbols[AUTOMATIC_SEMICOLON]) {
-    bool ret = scan_automatic_semicolon(lexer, valid_symbols);
-    // if we fail to find an automatic semicolon, it's still possible that we may
-    // want to lex a string or comment later
+    bool had_newline = false;
+    bool ret = scan_automatic_semicolon(lexer, valid_symbols, &had_newline);
     if (ret) return ret;
+    if (had_newline) return false;
   }
 
   // Match dots in import identifiers, refusing dots that would cause

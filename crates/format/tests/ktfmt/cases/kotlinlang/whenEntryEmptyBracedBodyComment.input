@@ -1,0 +1,8 @@
+class Foo {
+    override fun close() {
+        when (state) {
+            ComponentState.Corrupted -> {
+            } // corrupted component is in the undefined state, ignore
+        }
+    }
+}

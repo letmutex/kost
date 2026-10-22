@@ -53,10 +53,15 @@ fn is_enum_redundant_semicolon(semi: Node<'_>) -> bool {
     true
 }
 
-fn is_companion_object_ambiguity(semi: Node<'_>, prev: Node<'_>) -> bool {
-    let mut cursor = prev.walk();
-    let has_body = prev.children(&mut cursor).any(|c| c.kind() == "class_body");
-    !has_body && semi.next_named_sibling().is_some()
+fn is_companion_object_ambiguity(semi: Node<'_>, obj: Node<'_>) -> bool {
+    let mut cursor = obj.walk();
+    let has_body = obj.children(&mut cursor).any(|c| c.kind() == "class_body");
+    let next_sibling = if semi.parent() == Some(obj) {
+        obj.next_named_sibling()
+    } else {
+        semi.next_named_sibling()
+    };
+    !has_body && next_sibling.is_some()
 }
 
 fn is_empty_control_body(semi: Node<'_>) -> bool {
@@ -93,9 +98,13 @@ fn is_redundant_semicolon(semi: Node<'_>) -> bool {
         return is_enum_redundant_semicolon(semi);
     }
 
+    if parent_kind == "companion_object" && is_companion_object_ambiguity(semi, parent) {
+        return false;
+    }
+
     if parent_kind == "class_body"
         && let Some(prev) = semi.prev_named_sibling()
-        && prev.kind() == "companion_object"
+        && (prev.kind() == "companion_object" || prev.kind() == "object_declaration")
         && is_companion_object_ambiguity(semi, prev)
     {
         return false;

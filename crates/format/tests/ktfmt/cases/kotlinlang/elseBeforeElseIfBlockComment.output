@@ -1,0 +1,10 @@
+fun test(hx: Int, lx: Int): Int {
+    if ((hx or lx) == 0) return 0
+    /* special case */
+    else
+    /* subnormal x */
+    if (hx == 0) {
+        return 1
+    }
+    return 2
+}

@@ -1,0 +1,3 @@
+fun test() {
+    val (firstEntry, secondEntry) = list.filter { it.hasSomeLongCondition() }.map { it.toSomeOtherTransformedEntry() }
+}

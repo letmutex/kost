@@ -1,0 +1,17 @@
+class AbstractLightClassUtilTest {
+    fun test() {
+        val lightElements =
+            when (file) {
+                is KtFile -> {
+                    analyzeForTest(file) {
+                        declaration?.getLightElements()
+                            ?: getSingleTestTargetSymbolOfType<KaDeclarationSymbol>(
+                                    testDataPath,
+                                    file,
+                                )
+                                .getLightElementsFromDeclaration()
+                    }
+                }
+            }
+    }
+}

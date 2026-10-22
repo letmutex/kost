@@ -1,0 +1,7 @@
+class Foo {
+    fun setSelectedBadge(badgeIndex: Int) {
+        store.update {
+            it.copy(selectedBadge = if (badgeIndex in it.badges.indices) it.badges[badgeIndex] else null)
+        }
+    }
+}

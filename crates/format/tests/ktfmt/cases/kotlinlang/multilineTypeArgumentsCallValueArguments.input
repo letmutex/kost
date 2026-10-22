@@ -1,0 +1,9 @@
+fun test() {
+    repeat(1) {
+        repeat(1) {
+            repeat(1) {
+                return@withContext NetworkResult.ApplicationError<RegistrationSessionMetadataResponse>(ex)
+            }
+        }
+    }
+}

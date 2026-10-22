@@ -1,7 +1,0 @@
-fun test() {
-    try {
-        lock()
-    }
-    /* comment */
-    catch (t: Exception) {}
-}

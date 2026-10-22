@@ -1,0 +1,7 @@
+class Repo {
+    override fun observeAllBookmarked(): Flow<List<UserNewsResource>> =
+        userDataRepository.userData
+            .map { it.bookmarkedNewsResources }
+            .distinctUntilChanged()
+            .flatMapLatest { flowOf(emptyList()) }
+}

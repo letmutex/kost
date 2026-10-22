@@ -1,0 +1,9 @@
+class AnalysisConfigurator {
+    class ModuleScope {
+        val directRegularDependencies by lazy {
+            listOf(
+                LLFirBuiltinsSessionFactory.getInstance(project).getBuiltinsModule(targetPlatform),
+            )
+        }
+    }
+}

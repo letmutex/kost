@@ -4,5 +4,4 @@ package kotlin
 
 import kotlin.internal.RequireKotlin
 
-@RequireKotlin("1.4")
-fun test() {}
+@RequireKotlin("1.4") fun test() {}

@@ -1,0 +1,10 @@
+class C {
+    fun test() {
+        receiver.firstVeryLongCallNameToExceedMaximumWidthLimitThatForcesChainBreak12345().secondCall {
+            emit(insertBeforeNode.startOffset, "Expected a blank line for this declaration", true)
+                .ifAutocorrectAllowed {
+                    action()
+                }
+        }
+    }
+}

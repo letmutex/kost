@@ -1,222 +1,221 @@
 use tree_sitter::Node;
 
 use crate::doc::Doc;
+use crate::lower::builders::{
+    DelimitedListBuilder, format_assign_like, format_assign_with_comments,
+    format_delimited_list_ext,
+};
 use crate::lower::context::LowerContext;
-use crate::lower::lower_node;
 
-fn has_following_sibling_of_kind(node: &Node<'_>, kind: &str) -> bool {
-    let mut sibling = node.next_sibling();
-    while let Some(sib) = sibling {
-        if sib.kind() == kind {
-            return true;
-        }
-        sibling = sib.next_sibling();
-    }
-    false
-}
-
-fn parameter_trailing_comma_reserve(node: &Node<'_>, ctx: &LowerContext<'_, '_>) -> usize {
-    if has_following_sibling_of_kind(node, "parameter") {
-        return 1;
-    }
-    let Some(parent) = node.parent() else {
-        return 0;
-    };
-    if !matches!(
-        parent.kind(),
-        "function_value_parameters" | "class_parameters"
-    ) {
-        return 0;
-    }
-    if ctx.options.trailing_comma_strategy != crate::TrailingCommaStrategy::None
-        && ctx.node_text(&parent).contains('\n')
-    {
-        return 1;
-    }
-    0
-}
-
-pub fn lower_parameter<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut name_docs: Vec<Doc<'a>> = Vec::new();
-    let mut type_docs: Vec<Doc<'a>> = Vec::new();
-    let mut default_docs: Vec<Doc<'a>> = Vec::new();
+/// Lower a parameter or class_parameter node (`name: Type = default`, `val x: Int = 1`)
+pub fn lower_parameter<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut prefix_docs = Vec::new();
     let mut is_after_equals = false;
-    let mut is_after_colon = false;
-    let mut cursor = node.walk();
+    let mut in_colon = false;
+    let mut default_node = None;
 
+    let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
-        if kind == "=" {
-            is_after_equals = true;
-            continue;
-        }
-        if kind == ":" {
-            is_after_colon = true;
-            continue;
-        }
-
-        if is_after_equals {
-            if !default_docs.is_empty()
-                && !default_docs
-                    .last()
-                    .is_some_and(|d| d.ends_with_space() || d.ends_with_line())
-            {
-                default_docs.push(Doc::space());
+        match kind {
+            "modifiers" | "parameter_modifiers" => {
+                prefix_docs.push(lower_fn(child, ctx));
             }
-            default_docs.push(lower_node(child, ctx));
-        } else if is_after_colon {
-            if !type_docs.is_empty()
-                && !type_docs
-                    .last()
-                    .is_some_and(|d| d.ends_with_space() || d.ends_with_line())
-            {
-                type_docs.push(Doc::space());
+            "val" | "var" | "binding_pattern_kind" => {
+                let kw = ctx.node_text(&child);
+                prefix_docs.push(Doc::smol(crate::concat_smol_str!(kw, " ")));
             }
-            type_docs.push(lower_node(child, ctx));
-        } else {
-            if !name_docs.is_empty()
-                && !name_docs
-                    .last()
-                    .is_some_and(|d| d.ends_with_space() || d.ends_with_line())
-            {
-                name_docs.push(Doc::space());
+            ":" => in_colon = true,
+            "=" => is_after_equals = true,
+            _ => {
+                if is_after_equals && default_node.is_none() {
+                    default_node = Some(child);
+                } else if in_colon {
+                    let type_doc = lower_fn(child, ctx);
+                    prefix_docs.push(Doc::group(Doc::concat(vec![
+                        Doc::text(":"),
+                        Doc::continuation_indent(Doc::concat(vec![Doc::Line, type_doc])),
+                    ])));
+                    in_colon = false;
+                } else {
+                    prefix_docs.push(lower_fn(child, ctx));
+                }
             }
-            name_docs.push(lower_node(child, ctx));
         }
     }
 
-    let mut prefix_parts = vec![Doc::Concat(name_docs)];
-    if !type_docs.is_empty() {
-        let reserve = parameter_trailing_comma_reserve(&node, ctx);
-        let mut type_parts = vec![Doc::Line, Doc::Concat(type_docs)];
-        if reserve > 0 {
-            type_parts.push(Doc::reserve_width(reserve));
-        }
-        prefix_parts.push(Doc::Group(Box::new(Doc::Concat(vec![
-            Doc::text(":"),
-            Doc::continuation_indent(Doc::Concat(type_parts)),
-        ]))));
-    }
-    let prefix_doc = Doc::Concat(prefix_parts);
-
-    if is_after_equals {
-        let default_doc = Doc::Concat(default_docs);
-        Doc::Group(Box::new(Doc::Concat(vec![
-            prefix_doc,
-            Doc::space(),
-            Doc::text("="),
-            Doc::if_break(
-                Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, default_doc.clone()])),
-                Doc::Concat(vec![Doc::space(), default_doc]),
-            ),
-        ])))
+    let prefix_doc = Doc::concat(prefix_docs);
+    if let Some(def) = default_node {
+        let rhs_doc = lower_fn(def, ctx);
+        format_assign_like(prefix_doc, "=", def, rhs_doc, ctx)
     } else {
         prefix_doc
     }
 }
 
-pub fn lower_multi_variable_declaration<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    crate::lower::lists::lower_list_with_commas(node, ctx)
-}
+/// Lower a value_argument node (`foo = bar`, `*args`, `expr`)
+pub fn lower_value_argument<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut name_node = None;
+    let mut op_node = None;
+    let mut rhs_node = None;
+    let mut comments_before_rhs = Vec::new();
+    let mut prefix_nodes = Vec::new();
 
-pub fn value_argument_closing_reserve(node: &Node<'_>) -> usize {
-    if has_following_sibling_of_kind(node, "value_argument") {
-        return 1;
-    }
-    let Some(parent) = node.parent() else {
-        return 0;
-    };
-    if parent.kind() != "value_arguments" {
-        return 0;
-    }
-    let Some(suffix) = parent.parent() else {
-        return 1;
-    };
-    let Some(call) = suffix.parent() else {
-        return 1;
-    };
-    let Some(arg) = call.parent() else {
-        return 1;
-    };
-    if arg.kind() != "value_argument" {
-        return 1;
-    }
-    let mut count = 1;
-    let mut curr = Some(arg);
-    while let Some(current_arg) = curr {
-        let Some(args) = current_arg.parent() else {
-            break;
-        };
-        if args.kind() != "value_arguments" {
-            break;
-        }
-        if has_following_sibling_of_kind(&current_arg, "value_argument") {
-            break;
-        }
-        count += 1;
-        let Some(suf) = args.parent() else {
-            break;
-        };
-        let Some(c_expr) = suf.parent() else {
-            break;
-        };
-        curr = c_expr.parent().filter(|p| p.kind() == "value_argument");
-    }
-    count
-}
-
-pub fn lower_value_argument<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut name = None;
-    let mut expr = None;
-    let mut expr_node = None;
-    let mut has_equals = false;
-
-    let mut comments_after_eq = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         if kind == "=" {
-            has_equals = true;
-        } else if !has_equals {
-            name = Some(lower_node(child, ctx));
+            op_node = Some(child);
+        } else if op_node.is_none() && kind == "simple_identifier" {
+            name_node = Some(child);
+        } else if op_node.is_none() {
+            prefix_nodes.push(child);
         } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-            comments_after_eq.push(lower_node(child, ctx));
-        } else {
-            expr = Some(lower_node(child, ctx));
-            expr_node = Some(child);
+            if rhs_node.is_none() {
+                comments_before_rhs.push(child);
+            }
+        } else if rhs_node.is_none() {
+            rhs_node = Some(child);
         }
     }
 
-    if has_equals && let (Some(n), Some(e)) = (name, expr) {
-        let is_lambda =
-            expr_node.is_some_and(|en| matches!(en.kind(), "lambda_literal" | "annotated_lambda"));
-        let mut prefix = vec![n, Doc::space(), Doc::text("=")];
-        for c in comments_after_eq {
-            prefix.push(Doc::space());
-            prefix.push(c);
-        }
-        if is_lambda {
-            prefix.push(Doc::space());
-            prefix.push(e);
-            Doc::Concat(prefix)
+    if let (Some(name), Some(rhs)) = (name_node, rhs_node)
+        && op_node.is_some()
+    {
+        let mut lhs: Vec<Doc<'a>> = prefix_nodes.into_iter().map(|c| lower_fn(c, ctx)).collect();
+        lhs.push(lower_fn(name, ctx));
+        let lhs_doc = Doc::concat(lhs);
+        let rhs_doc = lower_fn(rhs, ctx);
+        if comments_before_rhs.is_empty() {
+            return format_assign_like(lhs_doc, "=", rhs, rhs_doc, ctx);
         } else {
-            let reserve = value_argument_closing_reserve(&node);
-            let mut flat_parts = vec![Doc::space(), e.clone()];
-            if reserve > 0 {
-                flat_parts.push(Doc::reserve_width(reserve));
-            }
-            prefix.push(Doc::if_break(
-                Doc::continuation_indent(Doc::Concat(vec![Doc::HardLine, Doc::Group(Box::new(e))])),
-                Doc::Concat(flat_parts),
-            ));
-            Doc::Group(Box::new(Doc::Concat(prefix)))
+            return format_assign_with_comments(
+                lhs_doc,
+                "=",
+                op_node,
+                &comments_before_rhs,
+                rhs,
+                rhs_doc,
+                ctx,
+                lower_fn,
+            );
         }
-    } else {
-        let mut docs = Vec::new();
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            docs.push(lower_node(child, ctx));
-        }
-        Doc::Concat(docs)
     }
+
+    let mut docs = Vec::new();
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        docs.push(lower_fn(child, ctx));
+    }
+    Doc::concat(docs)
+}
+
+fn is_single_unnamed_lambda_arg(node: &Node<'_>) -> bool {
+    if node.kind() != "value_arguments" {
+        return false;
+    }
+    let mut cursor = node.walk();
+    let mut args = node
+        .children(&mut cursor)
+        .filter(|c| c.kind() == "value_argument");
+    let (Some(first), None) = (args.next(), args.next()) else {
+        return false;
+    };
+    let has_name = first
+        .children(&mut first.walk())
+        .any(|c| c.kind() == "=" || c.kind() == "value_argument_name");
+    if has_name {
+        return false;
+    }
+    first
+        .children(&mut first.walk())
+        .any(|c| matches!(c.kind(), "lambda_literal" | "annotated_lambda"))
+}
+
+/// Lower delimited lists (`(...)`, `[...]`, `<...>`) preserving item boundaries and comments
+pub fn lower_delimited_list_node<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let builder = DelimitedListBuilder::build_from_node(node, ctx, lower_fn);
+    let has_trailing = ctx.has_trailing_comma(&node);
+    if is_single_unnamed_lambda_arg(&node) && !has_trailing && builder.items.len() == 1 {
+        let item_doc = builder.items.into_iter().next().unwrap().doc;
+        return Doc::concat(vec![
+            Doc::text(builder.open),
+            item_doc,
+            Doc::text(builder.close),
+        ]);
+    }
+    let use_cont = node.kind() != "class_parameters";
+    let is_declaration = matches!(
+        node.kind(),
+        "function_value_parameters" | "class_parameters" | "type_parameters"
+    );
+    let omit_closing_break = !is_declaration
+        && !has_trailing
+        && ctx.style.pack_closing_paren_after_block_arg
+        && ctx.options.trailing_comma_strategy != crate::options::TrailingCommaStrategy::Complete
+        && (ctx.options.trailing_comma_strategy == crate::options::TrailingCommaStrategy::None
+            || builder
+                .items
+                .last()
+                .is_some_and(|d| d.doc.ends_with_brace()));
+
+    let mut cursor = node.walk();
+    let children: Vec<_> = node.children(&mut cursor).collect();
+    let has_user_newline = children
+        .windows(2)
+        .any(|w| ctx.has_user_newline_between(&w[0], &w[1]));
+
+    format_delimited_list_ext(
+        builder.open,
+        builder.close,
+        builder.items,
+        builder.dangling_comments,
+        has_trailing,
+        has_user_newline,
+        is_declaration,
+        ctx.options.trailing_comma_strategy,
+        use_cont,
+        omit_closing_break,
+        !is_declaration || node.kind() == "type_parameters",
+    )
+}
+
+pub fn lower_value_arguments_multiline<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let builder = DelimitedListBuilder::build_from_node(node, ctx, lower_fn);
+    let has_trailing = ctx.has_trailing_comma(&node);
+    let mut items = builder.items;
+    if let Some(first) = items.first_mut() {
+        first.force_newline_after = true;
+    }
+    let omit_closing_break = !has_trailing
+        && ctx.options.trailing_comma_strategy == crate::options::TrailingCommaStrategy::None;
+    format_delimited_list_ext(
+        builder.open,
+        builder.close,
+        items,
+        builder.dangling_comments,
+        has_trailing,
+        true,
+        false,
+        ctx.options.trailing_comma_strategy,
+        true,
+        omit_closing_break,
+        false,
+    )
 }

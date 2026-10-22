@@ -1,0 +1,5 @@
+fun test() {
+    val x =
+        a + // comment
+            b
+}

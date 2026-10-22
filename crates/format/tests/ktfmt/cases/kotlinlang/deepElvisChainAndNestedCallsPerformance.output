@@ -1,0 +1,32 @@
+fun expectedType(unwrapped: Any): Any? {
+    val expected =
+        getExpectedType1(unwrapped) ?: getExpectedType2(unwrapped) ?: getExpectedType3(unwrapped)
+            ?: getExpectedType4(unwrapped)
+            ?: getExpectedType5(unwrapped)
+            ?: getExpectedType6(unwrapped)
+            ?: getExpectedType7(unwrapped)
+            ?: getExpectedType8(unwrapped)
+            ?: getExpectedType9(unwrapped)
+            ?: getExpectedType10(unwrapped)
+            ?: getExpectedType11(unwrapped)
+            ?: getExpectedType12(unwrapped)
+            ?: getExpectedType13(unwrapped)
+            ?: getExpectedType14(unwrapped)
+            ?: getExpectedType15(unwrapped)
+            ?: getExpectedType16(unwrapped)
+            ?: getExpectedType17(unwrapped)
+            ?: getExpectedType18(unwrapped)
+            ?: getExpectedType19(unwrapped)
+            ?: getExpectedType20(unwrapped)
+    val nested =
+        listOf(
+            H1(
+                listOf(
+                    Description(
+                        CustomDocTag(listOf(Ul(listOf(Li(listOf(P(listOf(Text("item"))))))))),
+                    ),
+                ),
+            ),
+        )
+    return expected ?: nested
+}

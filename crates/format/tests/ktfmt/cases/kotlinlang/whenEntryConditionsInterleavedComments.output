@@ -3,7 +3,6 @@ fun test(x: Any) =
         is ScriptCustomization,
         // Synthetic Java declarations might have an implicit return type,
         // so lazy resolution is required to calculate it
-        is Enhancement,
-        -> true
+        is Enhancement -> true
         else -> false
     }

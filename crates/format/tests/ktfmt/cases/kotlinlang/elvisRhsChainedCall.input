@@ -1,0 +1,10 @@
+class C {
+    fun test(convertView: View?, context: Context, parent: ViewGroup): View {
+        val adapter =
+            object {
+                val view =
+                    convertView ?: LayoutInflater.from(context).inflate(R.layout.mute_dialog_item, parent, false)
+            }
+        return adapter.view
+    }
+}

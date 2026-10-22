@@ -1,0 +1,6 @@
+class Foo {
+    private fun test(): KtConstructorDelegationCall? {
+        return takeIf { it is KtConstructorDelegationReferenceExpression }?.parent
+            as? KtConstructorDelegationCall
+    }
+}

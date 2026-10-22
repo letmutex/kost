@@ -1,0 +1,6 @@
+fun test() {
+    view.setFingerprintViews(
+        fingerprintTargetData.fingerprint,
+        initialDisplayLoad,
+    ) // TODO - animateCodeChanges
+}

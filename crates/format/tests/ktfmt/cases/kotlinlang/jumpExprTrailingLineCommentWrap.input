@@ -1,0 +1,13 @@
+class A {
+    class B {
+        class C {
+            class D {
+                fun test() {
+                    if (c) {
+                        return // Never add a trailing comma after there is already a terminating semicolon
+                    }
+                }
+            }
+        }
+    }
+}

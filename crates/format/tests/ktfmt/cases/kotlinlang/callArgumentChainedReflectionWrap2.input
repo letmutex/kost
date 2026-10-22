@@ -1,0 +1,5 @@
+class ValidationHelper {
+    fun validate() {
+        findArgumentValidationErrorsSet(current::class.java.getDeclaredField("base").also { it.isAccessible = true }.get(current))
+    }
+}

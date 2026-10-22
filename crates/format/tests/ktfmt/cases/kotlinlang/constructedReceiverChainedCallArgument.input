@@ -1,0 +1,10 @@
+abstract class Test {
+    fun test() {
+        val actual =
+            analyzeForTest(mainFile) {
+                buildString {
+                    appendLine(KaDebugRenderer(renderTypeByProperties = true).renderType(useSiteSession, type))
+                }
+            }
+    }
+}

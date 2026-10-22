@@ -1,0 +1,5 @@
+class IdNamingPolicy {
+    fun check(policy: Policy): Result =
+        require(condition) { "Error message" }
+            .let { Result.Success }
+}

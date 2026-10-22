@@ -1,4 +1,0 @@
-fun test() {
-    val insertionPoint = prevLeaf.prevCodeLeaf as LeafPsiElement
-    (node as LeafPsiElement).remove()
-}

@@ -1,0 +1,8 @@
+class ReporterAggregator {
+    private fun List<String>.configurationOption(
+        reporterConfigurationElement: ReporterConfigurationElement,
+    ) = lastOrNull {
+        it.startsWith("${reporterConfigurationElement.name.lowercase()}=")
+    }
+        ?.substringAfter("=")
+}

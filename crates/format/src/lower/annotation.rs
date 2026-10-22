@@ -2,7 +2,6 @@ use tree_sitter::Node;
 
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
-use crate::lower::lower_node;
 
 #[derive(Clone)]
 struct ModifierContext {
@@ -10,9 +9,40 @@ struct ModifierContext {
     is_accessor: bool,
     is_class_member_prop: bool,
     is_top_decl: bool,
+    is_primary_constructor_multiline: bool,
+    is_empty_decl: bool,
     should_force_break_in_kotlinlang: bool,
     only_annotations_so_far: bool,
     annotation_count: usize,
+}
+
+fn is_empty_declaration(node: &Node<'_>) -> bool {
+    if node
+        .children(&mut node.walk())
+        .any(|c| matches!(c.kind(), "context_receiver" | "context_parameters"))
+    {
+        return false;
+    }
+    let kind = node.kind();
+    if matches!(kind, "class_declaration" | "object_declaration") {
+        let body = node
+            .children(&mut node.walk())
+            .find(|c| matches!(c.kind(), "class_body" | "enum_class_body"));
+        return body.is_none_or(|b| {
+            !b.children(&mut b.walk())
+                .any(|c| c.kind() != "{" && c.kind() != "}")
+        });
+    }
+    if kind == "function_declaration" {
+        let body = node
+            .children(&mut node.walk())
+            .find(|c| matches!(c.kind(), "function_body" | "block"));
+        return body.is_none_or(|b| {
+            !b.children(&mut b.walk())
+                .any(|c| c.kind() != "{" && c.kind() != "}")
+        });
+    }
+    false
 }
 
 fn resolve_annotation_style_trailing_doc<'a>(
@@ -21,7 +51,26 @@ fn resolve_annotation_style_trailing_doc<'a>(
     has_args: bool,
     ctx: &LowerContext<'a, '_>,
 ) -> Doc<'a> {
-    if ctx.options.block_indent == 4 {
+    if m_ctx.is_primary_constructor_multiline {
+        if !m_ctx.only_annotations_so_far {
+            return Doc::space();
+        }
+        return Doc::HardLine;
+    }
+    if ctx.options.use_experimental_engine
+        && ctx.style.break_after_declaration_annotations
+        && m_ctx.should_force_break_in_kotlinlang
+        && m_ctx.only_annotations_so_far
+    {
+        return Doc::HardLine;
+    }
+    if m_ctx.is_empty_decl {
+        if m_ctx.annotation_count > 1 && has_newline {
+            Doc::HardLine
+        } else {
+            Doc::Line
+        }
+    } else if ctx.style.break_after_declaration_annotations {
         if !m_ctx.only_annotations_so_far {
             Doc::space()
         } else if m_ctx.should_force_break_in_kotlinlang {
@@ -45,7 +94,7 @@ fn resolve_annotation_style_trailing_doc<'a>(
         }
     } else if m_ctx.is_accessor
         || (m_ctx.is_class_member_prop
-            && ctx.options.block_indent == 2
+            && !ctx.style.break_after_declaration_annotations
             && m_ctx.annotation_count == 1
             && !has_args)
     {
@@ -71,19 +120,25 @@ fn annotation_trailing_doc<'a>(
 ) -> Doc<'a> {
     if let Some(n) = child.next_sibling()
         && matches!(n.kind(), "comment" | "line_comment" | "multiline_comment")
-        && !ctx.has_newline_between(child, &n)
     {
-        return Doc::space();
+        if ctx.has_user_newline_between(child, &n) {
+            return Doc::HardLine;
+        } else {
+            return Doc::space();
+        }
     }
     if child.next_sibling().is_none()
         && let Some(n) = node.next_sibling()
         && matches!(n.kind(), "comment" | "line_comment" | "multiline_comment")
-        && !ctx.has_newline_between(node, &n)
     {
-        return Doc::space();
+        if ctx.has_user_newline_between(node, &n) {
+            return Doc::HardLine;
+        } else {
+            return Doc::space();
+        }
     }
     let next_node = child.next_sibling().or_else(|| node.next_sibling());
-    let has_newline = next_node.is_some_and(|n| ctx.has_newline_between(child, &n));
+    let has_newline = next_node.is_some_and(|n| ctx.has_user_newline_between(child, &n));
     let has_args = child.children(&mut child.walk()).any(|c| {
         matches!(
             c.kind(),
@@ -112,9 +167,24 @@ fn annotation_trailing_doc<'a>(
     }
 }
 
-pub fn lower_modifiers<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut docs = Vec::new();
-    let mut cursor = node.walk();
+fn is_multiline_constructor(
+    parent_kind: Option<&str>,
+    parent: &Option<Node<'_>>,
+    ctx: &LowerContext<'_, '_>,
+) -> bool {
+    parent_kind == Some("primary_constructor")
+        && parent.is_some_and(|p| {
+            ctx.node_text(&p).contains('\n')
+                || p.start_position().column + p.byte_range().len() > ctx.options.max_width
+                || p.parent().is_some_and(|cls| {
+                    ctx.node_text(&cls).contains('\n')
+                        || cls.start_position().column + cls.byte_range().len()
+                            > ctx.options.max_width
+                })
+        })
+}
+
+fn build_modifier_context<'a>(node: &Node<'a>, ctx: &LowerContext<'a, '_>) -> ModifierContext {
     let parent = node.parent();
     let parent_kind = parent.as_ref().map(|p| p.kind());
     let grandparent_kind = parent.as_ref().and_then(|p| p.parent()).map(|gp| gp.kind());
@@ -134,8 +204,11 @@ pub fn lower_modifiers<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a
         )
     );
 
-    let m_ctx = ModifierContext {
-        is_param: matches!(parent_kind, Some("parameter" | "class_parameter")),
+    ModifierContext {
+        is_param: matches!(
+            parent_kind,
+            Some("parameter" | "class_parameter" | "function_value_parameters")
+        ),
         is_accessor: matches!(parent_kind, Some("getter" | "setter")),
         is_class_member_prop: parent_kind == Some("property_declaration")
             && matches!(grandparent_kind, Some("class_body" | "enum_class_body")),
@@ -149,18 +222,47 @@ pub fn lower_modifiers<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a
             grandparent_kind,
             Some("source_file" | "class_body" | "enum_class_body")
         )),
+        is_primary_constructor_multiline: is_multiline_constructor(parent_kind, &parent, ctx),
+        is_empty_decl: parent.as_ref().is_some_and(is_empty_declaration),
         should_force_break_in_kotlinlang,
         only_annotations_so_far: true,
         annotation_count: node
             .children(&mut node.walk())
             .filter(|c| c.kind() == "annotation")
             .count(),
-    };
+    }
+}
+
+pub fn lower_modifiers<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
+    let mut docs = Vec::new();
+    let mut cursor = node.walk();
+    let m_ctx = build_modifier_context(&node, ctx);
 
     let mut only_annotations_so_far = true;
+    let mut prev_child: Option<Node<'a>> = None;
     for child in node.children(&mut cursor) {
         let kind = child.kind();
-        let doc = lower_node(child, ctx);
+        if crate::rules::comments::try_merge_continuation_comment(
+            prev_child, &child, &mut docs, ctx,
+        ) {
+            prev_child = Some(child);
+            continue;
+        }
+        let doc = if kind == "line_comment"
+            && prev_child.is_some_and(|p| !ctx.has_user_newline_between(&p, &child))
+        {
+            Doc::line_comment(
+                ctx.node_text(&child),
+                true,
+                ctx.style.align_wrapped_trailing_comments,
+            )
+        } else {
+            lower_fn(child, ctx)
+        };
         if kind == "annotation" {
             let mut item_m_ctx = m_ctx.clone();
             item_m_ctx.only_annotations_so_far = only_annotations_so_far;
@@ -168,39 +270,54 @@ pub fn lower_modifiers<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a
             docs.push(annotation_trailing_doc(&child, &node, ctx, &item_m_ctx));
         } else if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
             docs.push(doc);
-            let next_node = child.next_sibling().or_else(|| node.next_sibling());
-            if next_node.is_some_and(|n| ctx.has_newline_between(&child, &n)) {
+            if kind == "line_comment" {
                 if !docs.last().is_some_and(|d| d.ends_with_newline()) {
                     docs.push(Doc::HardLine);
                 }
             } else {
-                docs.push(Doc::space());
+                let next_node = child.next_sibling().or_else(|| node.next_sibling());
+                if next_node.is_some_and(|n| ctx.has_user_newline_between(&child, &n)) {
+                    if !docs.last().is_some_and(|d| d.ends_with_newline()) {
+                        docs.push(Doc::HardLine);
+                    }
+                } else {
+                    docs.push(Doc::space());
+                }
             }
         } else {
             only_annotations_so_far = false;
             docs.push(doc);
             docs.push(Doc::space());
         }
+        prev_child = Some(child);
     }
-    Doc::Concat(docs)
+    Doc::concat(docs)
 }
 
-pub fn lower_file_annotation<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+pub fn lower_file_annotation<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
     let mut docs = Vec::new();
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
             docs.push(Doc::space());
-            docs.push(lower_node(child, ctx));
+            docs.push(lower_fn(child, ctx));
         } else {
-            docs.push(lower_node(child, ctx));
+            docs.push(lower_fn(child, ctx));
         }
     }
-    Doc::Concat(docs)
+    Doc::concat(docs)
 }
 
-pub fn lower_annotation<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
+pub fn lower_annotation<'a>(
+    node: Node<'a>,
+    ctx: &LowerContext<'a, '_>,
+    lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+) -> Doc<'a> {
     if node.child_count() == 0 {
         return Doc::text(ctx.node_text(&node));
     }
@@ -226,35 +343,8 @@ pub fn lower_annotation<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'
         if inside_brackets && prev_was_entry {
             docs.push(Doc::space());
         }
-        docs.push(lower_node(child, ctx));
+        docs.push(lower_fn(child, ctx));
         prev_was_entry = inside_brackets;
     }
-    Doc::Concat(docs)
-}
-
-pub fn lower_annotated_lambda<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut docs = Vec::new();
-    let mut prev_kind: Option<&str> = None;
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        let kind = child.kind();
-        if !docs.is_empty() && prev_kind != Some("label") {
-            docs.push(Doc::space());
-        }
-        docs.push(lower_node(child, ctx));
-        prev_kind = Some(kind);
-    }
-    Doc::Concat(docs)
-}
-
-pub fn lower_annotated_expression<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let mut docs = Vec::new();
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if !docs.is_empty() {
-            docs.push(Doc::Line);
-        }
-        docs.push(lower_node(child, ctx));
-    }
-    Doc::Group(Box::new(Doc::Concat(docs)))
+    Doc::concat(docs)
 }

@@ -1,5 +1,6 @@
 use smol_str::SmolStr;
 
+use super::kdoc_words::{reflow_words, split_kdoc_words};
 use crate::doc::Doc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -24,10 +25,11 @@ fn is_kdoc_tag(s: &str) -> bool {
     };
     let tag = rest.split_whitespace().next().unwrap_or(rest);
     let tag_name = tag.split_once('[').map_or(tag, |(b, _)| b);
-    if tag_name.len() < 2 || tag.contains('@') {
-        return false;
-    }
-    tag_name.chars().all(|c| c.is_ascii_lowercase())
+    !tag_name.is_empty()
+        && tag_name
+            .chars()
+            .next()
+            .is_some_and(|c| c.is_alphabetic() || c == '@')
 }
 
 fn is_list_item(s: &str) -> bool {
@@ -71,70 +73,13 @@ fn collapse_spaces(s: &str) -> String {
     let mut out = String::with_capacity(s.len());
     let mut prev_space = false;
     for c in s.chars() {
-        if c == ' ' {
-            if !prev_space {
-                out.push(c);
-                prev_space = true;
-            }
-        } else {
+        let is_space = c == ' ';
+        if !is_space || !prev_space {
             out.push(c);
-            prev_space = false;
         }
+        prev_space = is_space;
     }
     out
-}
-
-fn split_kdoc_words(text: &str) -> Vec<String> {
-    let raw_words: Vec<&str> = text.split_whitespace().collect();
-    let mut words = Vec::new();
-    let mut idx = 0;
-    while idx < raw_words.len() {
-        let word = raw_words[idx];
-        if word.starts_with('[') && !word.contains(']') {
-            let mut combined = word.to_string();
-            idx += 1;
-            while idx < raw_words.len() {
-                combined.push(' ');
-                combined.push_str(raw_words[idx]);
-                if raw_words[idx].contains(']') {
-                    idx += 1;
-                    break;
-                }
-                idx += 1;
-            }
-            words.push(combined);
-        } else {
-            words.push(word.to_string());
-            idx += 1;
-        }
-    }
-    words
-}
-
-fn reflow_words(words: &[String], first_max: usize, cont_max: usize) -> Vec<String> {
-    if words.is_empty() {
-        return Vec::new();
-    }
-    let mut lines = Vec::new();
-    let mut cur = String::new();
-    let mut is_first = true;
-    for word in words {
-        let limit = if is_first { first_max } else { cont_max };
-        if cur.is_empty() {
-            cur.push_str(word);
-        } else if cur.len() + 1 + word.len() <= limit {
-            cur.push(' ');
-            cur.push_str(word);
-        } else {
-            lines.push(cur);
-            cur = word.clone();
-            is_first = false;
-        }
-    }
-    if !cur.is_empty() {
-        lines.push(cur);
-    }
-    lines
 }
 
 #[derive(Default)]
@@ -226,10 +171,15 @@ fn parse_kdoc(comment: &str) -> Vec<KDocParagraph> {
         return Vec::new();
     }
     let inner = &comment[3..comment.len() - 2];
+    let is_multiline = inner.contains('\n');
     let mut parser = KDocParser::default();
-    for raw_line in inner.lines() {
+    for (idx, raw_line) in inner.lines().enumerate() {
         let trimmed = raw_line.trim_start();
-        let content = if let Some(stripped) = trimmed.strip_prefix('*') {
+        let content = if is_multiline
+            && idx > 0
+            && !trimmed.starts_with("**")
+            && let Some(stripped) = trimmed.strip_prefix('*')
+        {
             stripped.strip_prefix(' ').unwrap_or(stripped)
         } else {
             trimmed
@@ -260,11 +210,13 @@ fn emit_paragraph_doc<'a>(paragraph: &KDocParagraph, max_width: usize, docs: &mu
     } else {
         line1_max
     };
-    let words = split_kdoc_words(&paragraph.combined_text);
-    for (i, line) in reflow_words(&words, line1_max, cont_max)
-        .into_iter()
-        .enumerate()
-    {
+    let words = split_kdoc_words(&paragraph.combined_text, is_hanging);
+    let reflowed = reflow_words(&words, line1_max, cont_max);
+    for (i, line) in reflowed.into_iter().enumerate() {
+        if i > 0 && paragraph.kind == KDocKind::Text && is_kdoc_tag(line.trim_start()) {
+            docs.push(Doc::HardLine);
+            docs.push(Doc::text(" *"));
+        }
         docs.push(Doc::HardLine);
         if i > 0 && is_hanging {
             docs.push(Doc::text(" *   "));
@@ -280,8 +232,8 @@ pub fn format_kdoc(comment: &str, max_width: usize) -> Doc<'static> {
     if !comment_trimmed.starts_with("/**") || !comment_trimmed.ends_with("*/") {
         return Doc::smol(SmolStr::new(comment_trimmed));
     }
-    if comment_trimmed.len() < 5 {
-        return Doc::text("/** */");
+    if comment_trimmed.len() <= 4 {
+        return Doc::smol(SmolStr::new(comment_trimmed));
     }
     let mut paragraphs = parse_kdoc(comment_trimmed);
     if paragraphs.is_empty() {
@@ -298,13 +250,18 @@ pub fn format_kdoc(comment: &str, max_width: usize) -> Doc<'static> {
         ));
     }
 
-    paragraphs.sort_by_key(|p| {
-        if p.kind == KDocKind::DocTag {
-            doc_tag_rank(&p.combined_text, p.is_priority)
+    let mut i = 0;
+    while i < paragraphs.len() {
+        if paragraphs[i].kind == KDocKind::DocTag {
+            let start = i;
+            while i < paragraphs.len() && paragraphs[i].kind == KDocKind::DocTag {
+                i += 1;
+            }
+            paragraphs[start..i].sort_by_key(|p| doc_tag_rank(&p.combined_text, p.is_priority));
         } else {
-            -100
+            i += 1;
         }
-    });
+    }
 
     let mut docs = Vec::new();
     docs.push(Doc::text("/**"));

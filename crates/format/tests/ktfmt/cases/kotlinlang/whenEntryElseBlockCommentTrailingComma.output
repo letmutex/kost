@@ -1,4 +1,0 @@
-fun test(x: Int) =
-    when (x) {
-        else /* comment */ -> 1
-    }

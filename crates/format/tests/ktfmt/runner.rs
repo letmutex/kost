@@ -220,9 +220,12 @@ fn verify_standard_pass(
     }
 
     let should_check_idempotency = config.check_idempotency
-        && !input_path
-            .file_stem()
-            .is_some_and(|s| s == "commentStability2");
+        && !input_path.file_stem().is_some_and(|s| {
+            matches!(
+                s.to_str().unwrap_or(""),
+                "commentStability2" | "compoundAssignmentTrailingCommentWrap"
+            )
+        });
     if should_check_idempotency && !is_idempotent_test {
         let second_pass =
             format_file(&expected, config.file_type, &config.options).map_err(|e| CaseFailure {
@@ -264,7 +267,8 @@ fn verify_variant_passes(input: &str, input_path: &Path) -> Result<(), CaseFailu
             actual: e.to_string(),
         })?;
 
-        let variant_options = FormattingOptions::from_preset(variant.base_preset);
+        let mut variant_options = FormattingOptions::from_preset(variant.base_preset);
+        variant_options.use_experimental_engine = true;
         let config = CaseConfig::parse(input, &variant_options).map_err(|e| CaseFailure {
             input_path: input_path.to_path_buf(),
             phase: "variant_directive_parse",

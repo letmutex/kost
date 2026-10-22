@@ -1,0 +1,5 @@
+class Foo
+@Inject
+constructor(
+    val repo: Repo,
+)
