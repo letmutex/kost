@@ -93,16 +93,16 @@ fn test_render_smart_diffs_truncated_omits_leading_dots() {
 
 #[test]
 fn test_render_smart_diffs_collapsed_header_and_overall_footer() {
-    let diff1 = "File1.kt -1 +1\n@@ -1 +1 @@\n-a\n+b\n";
-    let diff2 = "File2.kt -1 +1\n@@ -1 +1 @@\n-c\n+d\n";
+    let diff1 = "File1.kt (-1 +1)\n@@ -1 +1 @@\n-a\n+b\n";
+    let diff2 = "File2.kt (-1 +1)\n@@ -1 +1 @@\n-c\n+d\n";
     let files = [("File1.kt", Some(diff1)), ("File2.kt", Some(diff2))];
     let mut output = Vec::new();
     render_smart_diffs(&mut output, DisplayTier::Collapsed, &files, false).unwrap();
     let rendered = String::from_utf8(output).unwrap();
 
     assert!(!rendered.contains("..."));
-    assert!(rendered.contains("File1.kt -1 +1\n"));
-    assert!(rendered.contains("File2.kt -1 +1\n"));
+    assert!(rendered.contains("File1.kt (-1 +1)\n"));
+    assert!(rendered.contains("File2.kt (-1 +1)\n"));
     assert!(!rendered.contains("@@ -1 +1 @@"));
     assert!(rendered.contains(
         "diff collapsed for 2 files (use 'kost fmt --check <filepath>' to view full diff)\n"
