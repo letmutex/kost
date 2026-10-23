@@ -74,7 +74,12 @@ pub fn format_lambda_params_group<'a>(
                 || c.children(&mut c.walk())
                     .any(|gc| gc.kind() == "multi_variable_declaration")
         });
-        has_multi && pn.start_position().column + pn.byte_range().len() > max_width
+        if has_multi {
+            pn.start_position().column + pn.byte_range().len() > max_width
+        } else {
+            pn.byte_range().len() > max_width / 2
+                && pn.start_position().column + pn.byte_range().len() > max_width
+        }
     });
     let has_line_comment = params_node.is_some_and(|pn| {
         pn.children(&mut pn.walk())

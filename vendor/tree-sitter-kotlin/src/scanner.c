@@ -600,6 +600,13 @@ static bool paren_has_comma_ahead(TSLexer *lexer) {
   return true;
 }
 
+static bool semicolon_followed_by_else(TSLexer *lexer) {
+  if (!skip_whitespace_and_comments(lexer)) return false;
+  if (lexer->lookahead != 'e') return false;
+  if (!check_word(lexer, "else", 4)) return false;
+  return !followed_by_arrow(lexer);
+}
+
 static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols, bool *had_newline) {
   lexer->result_symbol = AUTOMATIC_SEMICOLON;
   lexer->mark_end(lexer);
@@ -611,6 +618,7 @@ static bool scan_automatic_semicolon(TSLexer *lexer, const bool *valid_symbols, 
     if (lexer->lookahead == ';') {
       advance(lexer);
       lexer->mark_end(lexer);
+      if (semicolon_followed_by_else(lexer)) return false;
       return true;
     }
 

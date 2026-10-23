@@ -194,6 +194,10 @@ pub(crate) fn assemble_chain_steps<'a>(segments: Vec<SpineSegment<'a>>) -> Vec<C
                 val_args,
                 trailing_lambda,
             } => {
+                if current_step.call.is_some() || !current_step.post_ops.is_empty() {
+                    steps.push(current_step);
+                    current_step = ChainStep::default();
+                }
                 current_step.call = Some((type_args, val_args, trailing_lambda));
             }
             SpineSegment::Indexing { suffix_node } => {

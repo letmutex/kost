@@ -50,10 +50,19 @@ fn parse_property_decl_parts<'a>(
     let mut is_after_equals = false;
 
     let mut cursor = node.walk();
+    let mut prev_child: Option<Node<'a>> = None;
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         match kind {
             "modifiers" | "annotation" => parts.modifier_docs.push(lower_fn(child, ctx)),
+            "context_receiver" | "context_parameters" => {
+                crate::rules::comments::push_context_receiver_doc(
+                    child,
+                    &mut parts.modifier_docs,
+                    ctx,
+                    lower_fn,
+                );
+            }
             "val" | "var" | "binding_pattern_kind" => {
                 parts.header_docs.push(Doc::smol(crate::concat_smol_str!(
                     ctx.node_text(&child),
@@ -87,6 +96,14 @@ fn parse_property_decl_parts<'a>(
             "comment" | "line_comment" | "multiline_comment" => {
                 if (is_after_equals || parts.is_after_by) && parts.init_node.is_none() {
                     parts.comments_before_init.push(child);
+                } else if parts.header_docs.is_empty() {
+                    crate::rules::comments::push_modifier_comment(
+                        child,
+                        prev_child,
+                        &mut parts.modifier_docs,
+                        ctx,
+                        lower_fn,
+                    );
                 } else {
                     parts.header_docs.push(lower_fn(child, ctx));
                 }
@@ -99,6 +116,7 @@ fn parse_property_decl_parts<'a>(
                 }
             }
         }
+        prev_child = Some(child);
     }
     parts
 }

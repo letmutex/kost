@@ -15,6 +15,20 @@ struct FuncDeclParts<'a> {
     is_expression_body: bool,
 }
 
+fn push_func_keyword<'a>(child: &Node<'a>, prefix_docs: &mut Vec<Doc<'a>>) {
+    if !prefix_docs.is_empty() && !prefix_docs.last().is_some_and(|d| d.ends_with_newline()) {
+        prefix_docs.push(Doc::space());
+    }
+    let is_direct_params = child
+        .next_sibling()
+        .is_some_and(|next| next.kind() == "function_value_parameters");
+    if is_direct_params {
+        prefix_docs.push(Doc::text("fun"));
+    } else {
+        prefix_docs.push(Doc::text("fun "));
+    }
+}
+
 fn parse_func_parts<'a>(
     node: Node<'a>,
     ctx: &LowerContext<'a, '_>,
@@ -24,32 +38,29 @@ fn parse_func_parts<'a>(
     let mut in_return_type = false;
 
     let mut cursor = node.walk();
+    let mut prev_child: Option<Node<'a>> = None;
     for child in node.children(&mut cursor) {
         let kind = child.kind();
         match kind {
             "modifiers" | "annotation" => parts.modifier_docs.push(lower_fn(child, ctx)),
             "context_receiver" | "context_parameters" => {
-                parts.modifier_docs.push(lower_fn(child, ctx));
-                parts.modifier_docs.push(Doc::HardLine);
+                crate::rules::comments::push_context_receiver_doc(
+                    child,
+                    &mut parts.modifier_docs,
+                    ctx,
+                    lower_fn,
+                );
             }
-            "fun" => {
-                if !parts.prefix_docs.is_empty()
-                    && !parts
-                        .prefix_docs
-                        .last()
-                        .is_some_and(|d| d.ends_with_newline())
-                {
-                    parts.prefix_docs.push(Doc::space());
-                }
-                let is_direct_params = child
-                    .next_sibling()
-                    .is_some_and(|next| next.kind() == "function_value_parameters");
-                if is_direct_params {
-                    parts.prefix_docs.push(Doc::text("fun"));
-                } else {
-                    parts.prefix_docs.push(Doc::text("fun "));
-                }
+            "comment" | "line_comment" | "multiline_comment" if parts.prefix_docs.is_empty() => {
+                crate::rules::comments::push_modifier_comment(
+                    child,
+                    prev_child,
+                    &mut parts.modifier_docs,
+                    ctx,
+                    lower_fn,
+                );
             }
+            "fun" => push_func_keyword(&child, &mut parts.prefix_docs),
             "type_parameters" => {
                 parts.prefix_docs.push(lower_fn(child, ctx));
                 parts.prefix_docs.push(Doc::space());
@@ -92,6 +103,7 @@ fn parse_func_parts<'a>(
                 }
             }
         }
+        prev_child = Some(child);
     }
     parts
 }

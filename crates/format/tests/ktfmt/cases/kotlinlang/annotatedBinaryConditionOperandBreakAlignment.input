@@ -1,0 +1,7 @@
+fun test() {
+    if (
+        firstCondition() &&
+            @OptIn(Annotation::class) context.isInsideAnnotationContext &&
+            data is WithExpectedType
+    ) {}
+}

@@ -1872,16 +1872,8 @@
                     }
                   },
                   {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "STRING",
-                        "value": "."
-                      },
-                      {
-                        "type": "BLANK"
-                      }
-                    ]
+                    "type": "STRING",
+                    "value": "."
                   }
                 ]
               },
@@ -2283,16 +2275,8 @@
                     }
                   },
                   {
-                    "type": "CHOICE",
-                    "members": [
-                      {
-                        "type": "STRING",
-                        "value": "."
-                      },
-                      {
-                        "type": "BLANK"
-                      }
-                    ]
+                    "type": "STRING",
+                    "value": "."
                   }
                 ]
               },
@@ -3539,34 +3523,40 @@
       ]
     },
     "_simple_user_type": {
-      "type": "PREC_RIGHT",
-      "value": 2,
-      "content": {
-        "type": "SEQ",
-        "members": [
-          {
-            "type": "ALIAS",
-            "content": {
-              "type": "SYMBOL",
-              "name": "simple_identifier"
-            },
-            "named": true,
-            "value": "type_identifier"
-          },
-          {
-            "type": "CHOICE",
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "PREC_RIGHT",
+          "value": 2,
+          "content": {
+            "type": "SEQ",
             "members": [
+              {
+                "type": "ALIAS",
+                "content": {
+                  "type": "SYMBOL",
+                  "name": "simple_identifier"
+                },
+                "named": true,
+                "value": "type_identifier"
+              },
               {
                 "type": "SYMBOL",
                 "name": "type_arguments"
-              },
-              {
-                "type": "BLANK"
               }
             ]
           }
-        ]
-      }
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
+            "name": "simple_identifier"
+          },
+          "named": true,
+          "value": "type_identifier"
+        }
+      ]
     },
     "type_projection": {
       "type": "CHOICE",
@@ -8401,6 +8391,10 @@
     [
       "_name_based_destructuring_entry",
       "_type_modifier"
+    ],
+    [
+      "_simple_user_type",
+      "_name_based_destructuring_entry"
     ],
     [
       "call_expression",

@@ -15,13 +15,27 @@ struct ClassDeclParts<'a> {
 }
 
 fn push_class_header_comment<'a>(
-    header_docs: &mut Vec<Doc<'a>>,
+    parts: &mut ClassDeclParts<'a>,
     child: Node<'a>,
     prev_child_node: Option<Node<'a>>,
     has_seen_primary_constructor: bool,
     ctx: &LowerContext<'a, '_>,
     lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) {
+    if crate::rules::comments::try_merge_continuation_comment(
+        prev_child_node,
+        &child,
+        &mut parts.header_docs,
+        ctx,
+    ) || crate::rules::comments::try_merge_continuation_comment(
+        prev_child_node,
+        &child,
+        &mut parts.modifier_docs,
+        ctx,
+    ) {
+        return;
+    }
+    let header_docs = &mut parts.header_docs;
     let is_same_line = prev_child_node.is_some_and(|p| !ctx.has_user_newline_between(&p, &child));
     if is_same_line {
         let prev_is_modifiers = prev_child_node.is_some_and(|p| p.kind() == "modifiers");
@@ -167,7 +181,7 @@ fn handle_class_header_child<'a>(
         }
         "comment" | "line_comment" | "multiline_comment" => {
             push_class_header_comment(
-                &mut parts.header_docs,
+                parts,
                 child,
                 prev_child_node,
                 *has_seen_primary_constructor,

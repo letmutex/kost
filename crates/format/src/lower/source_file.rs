@@ -41,7 +41,7 @@ fn separate_package_header<'a>(
             docs.push(Doc::HardLine);
         }
     } else if ctx.has_blank_line_between(&prev, &child) {
-        if last_ends_with_nl {
+        if child.kind() == "import_list" && last_ends_with_nl {
             docs.push(Doc::HardLine);
         } else {
             docs.push(Doc::EmptyLine);
@@ -159,7 +159,10 @@ pub fn lower_source_file<'a>(
                         })))
                 || (prev.kind() == "property_declaration"
                     && kind == "assignment"
-                    && child.child(0).is_some_and(|c| ctx.node_text(&c) == "field"));
+                    && child.child(0).is_some_and(|c| {
+                        let t = ctx.node_text(&c);
+                        t == "field" || t == "get()" || t.starts_with("set(")
+                    }));
 
             if is_accessor {
                 docs.push(Doc::indent(Doc::concat(vec![

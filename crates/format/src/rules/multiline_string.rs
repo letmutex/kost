@@ -41,7 +41,10 @@ fn process_trim_margin_lines(
     let mut closing_quote = "\"\"\"";
     if last_before_quote.trim_start() == "|" {
         closing_quote = "|\"\"\"";
-    } else if lines.last().is_some_and(|l| l.trim_start() == "|") {
+    } else if lines
+        .last()
+        .is_some_and(|l| l.trim_start() == "|" || l.is_empty())
+    {
         lines.pop();
         closing_quote = "|\"\"\"";
     }

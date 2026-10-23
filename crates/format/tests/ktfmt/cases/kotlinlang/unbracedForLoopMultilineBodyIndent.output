@@ -5,8 +5,11 @@ class FastLint {
                 if (true) {
                     if (true) {
                         if (xmlElementRules.isNotEmpty()) {
-                            for (rule in xmlElementRules)
-                                rule.onStartElement(element, context, sink)
+                            for (rule in xmlElementRules) rule.onStartElement(
+                                element,
+                                context,
+                                sink,
+                            )
                         }
                     }
                 }

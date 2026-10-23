@@ -121,6 +121,7 @@ module.exports = grammar({
     [$.variable_declaration, $._type_modifier],
     [$._annotated_delegation_specifier, $._type_modifier],
     [$._name_based_destructuring_entry, $._type_modifier],
+    [$._simple_user_type, $._name_based_destructuring_entry],
     // ambiguity between prefix unary operators and other expression types
     [$.call_expression, $._generic_call_expression, $.navigation_expression, $.prefix_expression, $.comparison_expression],
 
@@ -514,7 +515,7 @@ module.exports = grammar({
       optional($.modifiers),
       "fun",
       optional($.type_parameters),
-      optional(seq(field("receiver", $.receiver_type), optional('.'))),
+      optional(seq(field("receiver", $.receiver_type), '.')),
       $.simple_identifier,
       $.function_value_parameters,
       optional(seq(":", $._type)),
@@ -561,7 +562,7 @@ module.exports = grammar({
       optional($.modifiers),
       $.binding_pattern_kind,
       optional($.type_parameters),
-      optional(seq(field("receiver", $.receiver_type), optional('.'))),
+      optional(seq(field("receiver", $.receiver_type), '.')),
       choice($.variable_declaration, $.multi_variable_declaration),
       optional($.type_constraints),
       optional(choice(
@@ -735,10 +736,13 @@ module.exports = grammar({
 
     user_type: $ => sep1($._simple_user_type, "."),
 
-    _simple_user_type: $ => prec.right(PREC.SIMPLE_USER_TYPE, seq(
-      alias($.simple_identifier, $.type_identifier),
-      optional($.type_arguments)
-    )),
+    _simple_user_type: $ => choice(
+      prec.right(PREC.SIMPLE_USER_TYPE, seq(
+        alias($.simple_identifier, $.type_identifier),
+        $.type_arguments
+      )),
+      alias($.simple_identifier, $.type_identifier)
+    ),
 
     type_projection: $ => choice(
       seq(optional($.type_projection_modifiers), $._type),

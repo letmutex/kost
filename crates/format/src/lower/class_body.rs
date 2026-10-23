@@ -61,15 +61,20 @@ fn handle_class_body_comment<'a>(
         && kind == "line_comment"
         && let Some(prev) = prev_child.and_then(crate::rules::comments::find_trailing_line_comment)
         && crate::rules::comments::should_merge_wrapped_comment(&prev, &child, ctx)
-        && let Some(last) = items.last_mut()
     {
         let text = ctx.node_text(&child);
-        if let Some(ref mut slc) = last.same_line_comment
-            && crate::rules::comments::try_append_to_trailing_line_comment(slc, text)
+        if let Some(last) = items.last_mut() {
+            if let Some(ref mut slc) = last.same_line_comment
+                && crate::rules::comments::try_append_to_trailing_line_comment(slc, text)
+            {
+                return true;
+            }
+            if crate::rules::comments::try_append_to_trailing_line_comment(&mut last.doc, text) {
+                return true;
+            }
+        } else if let Some(ref mut oc) = *opening_comment
+            && crate::rules::comments::try_append_to_trailing_line_comment(oc, text)
         {
-            return true;
-        }
-        if crate::rules::comments::try_append_to_trailing_line_comment(&mut last.doc, text) {
             return true;
         }
     }
@@ -263,7 +268,10 @@ pub fn lower_class_body<'a>(
         let is_accessor_or_backing = matches!(kind, "getter" | "setter" | "backing_field")
             || (prev_child.is_some_and(|p| p.kind() == "property_declaration")
                 && kind == "assignment"
-                && child.child(0).is_some_and(|c| ctx.node_text(&c) == "field"));
+                && child.child(0).is_some_and(|c| {
+                    let t = ctx.node_text(&c);
+                    t == "field" || t == "get()" || t.starts_with("set(")
+                }));
 
         if is_accessor_or_backing {
             handle_class_body_accessor(child, &mut items, ctx, lower_fn);

@@ -1,0 +1,5 @@
+val a = 1
+
+// doc
+val veryLongReceiverNameExceedingMaximumWidthLimit.veryLongPropertyName by
+    delegateExpressionExceedingWidth

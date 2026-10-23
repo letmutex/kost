@@ -1,0 +1,3 @@
+@Annotation // comment
+context(Context)
+internal fun test() {}

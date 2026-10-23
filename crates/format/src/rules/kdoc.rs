@@ -175,8 +175,7 @@ fn parse_kdoc(comment: &str) -> Vec<KDocParagraph> {
     let mut parser = KDocParser::default();
     for (idx, raw_line) in inner.lines().enumerate() {
         let trimmed = raw_line.trim_start();
-        let content = if is_multiline
-            && idx > 0
+        let content = if (is_multiline && idx > 0 || trimmed.starts_with('*'))
             && !trimmed.starts_with("**")
             && let Some(stripped) = trimmed.strip_prefix('*')
         {
@@ -211,12 +210,10 @@ fn emit_paragraph_doc<'a>(paragraph: &KDocParagraph, max_width: usize, docs: &mu
         line1_max
     };
     let words = split_kdoc_words(&paragraph.combined_text, is_hanging);
-    let reflowed = reflow_words(&words, line1_max, cont_max);
-    for (i, line) in reflowed.into_iter().enumerate() {
-        if i > 0 && paragraph.kind == KDocKind::Text && is_kdoc_tag(line.trim_start()) {
-            docs.push(Doc::HardLine);
-            docs.push(Doc::text(" *"));
-        }
+    for (i, line) in reflow_words(&words, line1_max, cont_max)
+        .into_iter()
+        .enumerate()
+    {
         docs.push(Doc::HardLine);
         if i > 0 && is_hanging {
             docs.push(Doc::text(" *   "));
@@ -224,6 +221,52 @@ fn emit_paragraph_doc<'a>(paragraph: &KDocParagraph, max_width: usize, docs: &mu
             docs.push(Doc::text(" * "));
         }
         docs.push(Doc::smol(SmolStr::new(line)));
+    }
+}
+
+fn stabilize_kdoc_paragraphs(
+    paragraphs: Vec<KDocParagraph>,
+    max_width: usize,
+) -> Vec<KDocParagraph> {
+    let mut has_wrapped_tag = false;
+    let mut rebuilt = String::from("/**\n");
+    for p in &paragraphs {
+        if p.had_blank_line_before {
+            rebuilt.push_str(" *\n");
+        }
+        if p.kind == KDocKind::Preformatted {
+            for l in &p.lines {
+                rebuilt.push_str(" * ");
+                rebuilt.push_str(l);
+                rebuilt.push('\n');
+            }
+            continue;
+        }
+        let is_hanging = matches!(p.kind, KDocKind::DocTag | KDocKind::ListItem);
+        let line1_max = max_width.saturating_sub(3);
+        let cont_max = if is_hanging {
+            max_width.saturating_sub(5)
+        } else {
+            line1_max
+        };
+        let words = split_kdoc_words(&p.combined_text, is_hanging);
+        for (i, line) in reflow_words(&words, line1_max, cont_max)
+            .into_iter()
+            .enumerate()
+        {
+            if i > 0 && is_kdoc_tag(line.trim_start()) {
+                has_wrapped_tag = true;
+            }
+            rebuilt.push_str(" * ");
+            rebuilt.push_str(&line);
+            rebuilt.push('\n');
+        }
+    }
+    rebuilt.push_str(" */");
+    if has_wrapped_tag {
+        parse_kdoc(&rebuilt)
+    } else {
+        paragraphs
     }
 }
 
@@ -235,7 +278,7 @@ pub fn format_kdoc(comment: &str, max_width: usize) -> Doc<'static> {
     if comment_trimmed.len() <= 4 {
         return Doc::smol(SmolStr::new(comment_trimmed));
     }
-    let mut paragraphs = parse_kdoc(comment_trimmed);
+    let paragraphs = parse_kdoc(comment_trimmed);
     if paragraphs.is_empty() {
         return Doc::text("/** */");
     }
@@ -249,6 +292,7 @@ pub fn format_kdoc(comment: &str, max_width: usize) -> Doc<'static> {
             " */"
         ));
     }
+    let mut paragraphs = stabilize_kdoc_paragraphs(paragraphs, max_width);
 
     let mut i = 0;
     while i < paragraphs.len() {

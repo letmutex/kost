@@ -1,0 +1,6 @@
+fun test() {
+    for (arg1 in firstCollection) for (arg2 in secondCollection) computeResultWithBothArguments(
+        arg1,
+        arg2,
+    )
+}

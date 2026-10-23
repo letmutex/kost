@@ -5,10 +5,22 @@ use crate::lower::builders::BlockItem;
 use crate::lower::context::LowerContext;
 
 pub fn is_bodiless_loop(node: &Node<'_>) -> bool {
-    matches!(node.kind(), "for_statement" | "while_statement")
-        && !node
-            .children(&mut node.walk())
-            .any(|c| matches!(c.kind(), "control_structure_body" | "block" | "{" | ";"))
+    if !matches!(node.kind(), "for_statement" | "while_statement") {
+        return false;
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if matches!(child.kind(), "block" | "{" | ";") {
+            return false;
+        }
+        if child.kind() == "control_structure_body" {
+            return child
+                .children(&mut child.walk())
+                .last()
+                .is_some_and(|inner| is_bodiless_loop(&inner));
+        }
+    }
+    true
 }
 
 pub fn try_attach_loop_body<'a>(
@@ -28,10 +40,7 @@ pub fn try_attach_loop_body<'a>(
     {
         let prev_doc = std::mem::replace(&mut last_item.doc, Doc::empty());
         *last_trailing_comment = None;
-        last_item.doc = Doc::group(Doc::concat(vec![
-            prev_doc,
-            Doc::indent(Doc::concat(vec![Doc::Line, lower_fn(child, ctx)])),
-        ]));
+        last_item.doc = Doc::concat(vec![prev_doc, Doc::space(), lower_fn(child, ctx)]);
         *prev_child = Some(child);
         return true;
     }
@@ -100,15 +109,8 @@ pub fn lower_for_statement<'a>(
         return header_doc;
     };
 
-    let is_braced = is_braced_body(&body);
-    if is_braced {
-        Doc::concat(vec![header_doc, Doc::space(), lower_fn(body, ctx)])
-    } else {
-        Doc::group(Doc::concat(vec![
-            header_doc,
-            Doc::indent(Doc::concat(vec![Doc::Line, lower_fn(body, ctx)])),
-        ]))
-    }
+    let _is_braced = is_braced_body(&body);
+    Doc::concat(vec![header_doc, Doc::space(), lower_fn(body, ctx)])
 }
 
 pub fn lower_while_statement<'a>(

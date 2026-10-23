@@ -164,8 +164,23 @@ impl<'a> Doc<'a> {
         is_trailing: bool,
         align_to_start_col: bool,
     ) -> Self {
+        let raw: SmolStr = text.into();
+        let trimmed = raw.trim_end();
+        let normalized = if !trimmed.starts_with("//noinspection")
+            && !trimmed.starts_with("//$NON-NLS")
+            && let Some(rest) = trimmed.strip_prefix("//")
+            && !rest.starts_with(' ')
+            && !rest.starts_with('/')
+            && !rest.is_empty()
+        {
+            crate::concat_smol_str!("// ", rest)
+        } else if trimmed.len() == raw.len() {
+            raw
+        } else {
+            SmolStr::new(trimmed)
+        };
         Doc::LineComment {
-            text: text.into(),
+            text: normalized,
             is_trailing,
             align_to_start_col,
         }
