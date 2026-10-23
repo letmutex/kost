@@ -1,6 +1,6 @@
 //! Unified diff generation for formatting diagnostics.
 
-use common::color::{BOLD, CYAN, GREEN, RED, RESET};
+use common::color::{CYAN, GREEN, RED, RESET};
 use similar::{ChangeTag, TextDiff};
 use std::fmt::Write;
 
@@ -159,21 +159,19 @@ fn render_header(
     insertions: usize,
     colorize: bool,
 ) {
-    if !colorize {
-        let _ = write!(result, "{file_label}");
-        if deletions > 0 {
+    let _ = write!(result, "{file_label}");
+    if deletions > 0 {
+        if colorize {
+            let _ = write!(result, " {RED}-{RESET}{deletions}");
+        } else {
             let _ = write!(result, " -{deletions}");
         }
-        if insertions > 0 {
+    }
+    if insertions > 0 {
+        if colorize {
+            let _ = write!(result, " {GREEN}+{RESET}{insertions}");
+        } else {
             let _ = write!(result, " +{insertions}");
-        }
-    } else {
-        let _ = write!(result, "{BOLD}{file_label}{RESET}");
-        if deletions > 0 {
-            let _ = write!(result, " {RED}-{deletions}{RESET}");
-        }
-        if insertions > 0 {
-            let _ = write!(result, " {GREEN}+{insertions}{RESET}");
         }
     }
     result.push('\n');
