@@ -74,7 +74,7 @@ fn render_full_diffs<W: Write>(
         if let Some(diff_text) = diff {
             write!(writer, "{diff_text}")?;
         } else {
-            writeln!(writer, "---+++ {path_label}")?;
+            writeln!(writer, "{path_label}")?;
         }
     }
     Ok(())
@@ -94,7 +94,7 @@ fn render_truncated_diffs<W: Write>(
                 write!(writer, "{diff_text}")?;
             }
         } else {
-            writeln!(writer, "---+++ {path_label}")?;
+            writeln!(writer, "{path_label}")?;
         }
     }
     Ok(())
@@ -109,7 +109,7 @@ fn render_collapsed_diffs<W: Write>(
         if let Some(header) = diff.and_then(|text| text.lines().next()) {
             writeln!(writer, "{header}")?;
         } else {
-            writeln!(writer, "---+++ {path_label}")?;
+            writeln!(writer, "{path_label}")?;
         }
     }
     render_collapsed_footer(writer, unformatted_files.len(), colorize)?;

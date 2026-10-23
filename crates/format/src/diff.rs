@@ -5,8 +5,8 @@ use similar::{ChangeTag, TextDiff};
 use std::fmt::Write;
 
 struct DiffMetadata {
-    has_deletions: bool,
-    has_insertions: bool,
+    deletions: usize,
+    insertions: usize,
     gutter_width: usize,
     eof_line: usize,
     eof_newline_added: bool,
@@ -41,8 +41,8 @@ pub fn create_diff(
     render_header(
         &mut result,
         file_label,
-        metadata.has_deletions,
-        metadata.has_insertions,
+        metadata.deletions,
+        metadata.insertions,
         colorize,
     );
 
@@ -94,8 +94,8 @@ fn inspect_diff_metadata(
         0
     };
 
-    let mut has_deletions = eof_newline_removed;
-    let mut has_insertions = eof_newline_added;
+    let mut deletions = usize::from(eof_newline_removed);
+    let mut insertions = usize::from(eof_newline_added);
     let mut max_line = if eof_newline_added || eof_newline_removed {
         eof_line
     } else {
@@ -117,8 +117,8 @@ fn inspect_diff_metadata(
             }
             in_insert = is_insert;
             match change.tag() {
-                ChangeTag::Delete => has_deletions = true,
-                ChangeTag::Insert => has_insertions = true,
+                ChangeTag::Delete => deletions += 1,
+                ChangeTag::Insert => insertions += 1,
                 ChangeTag::Equal => {}
             }
         }
@@ -131,8 +131,8 @@ fn inspect_diff_metadata(
     };
 
     DiffMetadata {
-        has_deletions,
-        has_insertions,
+        deletions,
+        insertions,
         gutter_width,
         eof_line,
         eof_newline_added,
@@ -155,27 +155,28 @@ fn render_hunk_header(
 fn render_header(
     result: &mut String,
     file_label: &str,
-    has_deletions: bool,
-    has_insertions: bool,
+    deletions: usize,
+    insertions: usize,
     colorize: bool,
 ) {
     if !colorize {
-        let marker = match (has_deletions, has_insertions) {
-            (true, true) => "---+++",
-            (true, false) => "---   ",
-            (false, true) => "+++   ",
-            (false, false) => "      ",
-        };
-        let _ = writeln!(result, "{marker} {file_label}");
+        let _ = write!(result, "{file_label}");
+        if deletions > 0 {
+            let _ = write!(result, " -{deletions}");
+        }
+        if insertions > 0 {
+            let _ = write!(result, " +{insertions}");
+        }
     } else {
-        let styled_marker = match (has_deletions, has_insertions) {
-            (true, true) => common::concat_str!(RED, "---", GREEN, "+++", RESET),
-            (true, false) => common::concat_str!(RED, "---", RESET, "   "),
-            (false, true) => common::concat_str!(GREEN, "+++", RESET, "   "),
-            (false, false) => "      ".to_string(),
-        };
-        let _ = writeln!(result, "{styled_marker} {BOLD}{file_label}{RESET}");
+        let _ = write!(result, "{BOLD}{file_label}{RESET}");
+        if deletions > 0 {
+            let _ = write!(result, " {RED}-{deletions}{RESET}");
+        }
+        if insertions > 0 {
+            let _ = write!(result, " {GREEN}+{insertions}{RESET}");
+        }
     }
+    result.push('\n');
 }
 
 fn render_change(
