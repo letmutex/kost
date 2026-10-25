@@ -206,36 +206,28 @@ fn render_change(
         ChangeTag::Insert => '+',
     };
 
+    if show_line_num {
+        let line_num = match change.tag() {
+            ChangeTag::Equal | ChangeTag::Delete => change.old_index().unwrap() + 1,
+            ChangeTag::Insert => change.new_index().unwrap() + 1,
+        };
+        let _ = write!(result, "{line_num:>width$} | ");
+    } else {
+        let _ = write!(result, "{:>width$} | ", "");
+    }
+
     if !colorize {
-        if show_line_num {
-            let line_num = match change.tag() {
-                ChangeTag::Equal | ChangeTag::Delete => change.old_index().unwrap() + 1,
-                ChangeTag::Insert => change.new_index().unwrap() + 1,
-            };
-            let _ = write!(result, "{line_num:>width$} {sign}{content}{newline}");
-        } else {
-            let _ = write!(result, "{:>width$} {sign}{content}{newline}", "");
-        }
+        let _ = write!(result, "{sign}{content}{newline}");
     } else {
         match change.tag() {
             ChangeTag::Equal => {
-                let line_num = change.old_index().unwrap() + 1;
-                let _ = write!(result, "{line_num:>width$}  {content}{newline}");
+                let _ = write!(result, " {content}{newline}");
             }
             ChangeTag::Delete => {
-                let line_num = change.old_index().unwrap() + 1;
-                let _ = write!(result, "{line_num:>width$} {RED}-{content}{RESET}{newline}");
+                let _ = write!(result, "{RED}-{content}{RESET}{newline}");
             }
             ChangeTag::Insert => {
-                if show_line_num {
-                    let line_num = change.new_index().unwrap() + 1;
-                    let _ = write!(
-                        result,
-                        "{line_num:>width$} {GREEN}+{content}{RESET}{newline}"
-                    );
-                } else {
-                    let _ = write!(result, "{:>width$} {GREEN}+{content}{RESET}{newline}", "");
-                }
+                let _ = write!(result, "{GREEN}+{content}{RESET}{newline}");
             }
         }
     }
@@ -251,15 +243,15 @@ fn render_eof_marker(
 ) {
     if eof_newline_added {
         if !colorize {
-            let _ = writeln!(result, "{eof_line:>width$} +");
+            let _ = writeln!(result, "{eof_line:>width$} | +");
         } else {
-            let _ = writeln!(result, "{eof_line:>width$} {GREEN}+{RESET}");
+            let _ = writeln!(result, "{eof_line:>width$} | {GREEN}+{RESET}");
         }
     } else if eof_newline_removed {
         if !colorize {
-            let _ = writeln!(result, "{eof_line:>width$} -");
+            let _ = writeln!(result, "{eof_line:>width$} | -");
         } else {
-            let _ = writeln!(result, "{eof_line:>width$} {RED}-{RESET}");
+            let _ = writeln!(result, "{eof_line:>width$} | {RED}-{RESET}");
         }
     }
 }

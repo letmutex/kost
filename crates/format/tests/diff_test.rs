@@ -38,7 +38,7 @@ fn test_create_diff_trailing_newline_difference_outputs_hunk() {
     assert!(diff.starts_with("Main.kt (-1 +2)\n"));
     assert!(diff.contains("-fun main() {}\n"));
     assert!(diff.contains("+fun main() {}\n"));
-    assert!(diff.contains("2 +\n"));
+    assert!(diff.contains("2 | +\n"));
 }
 
 #[test]
@@ -88,7 +88,7 @@ fn test_create_diff_line_number_gutter_alignment() {
     let formatted = "fun main() {\n    val x = 1\n}\n";
     let diff = create_diff(original, formatted, "Main.kt", false).unwrap();
 
-    let expected = "Main.kt (-1 +1)\n@@ -1,3 +1,3 @@\n1  fun main() {\n2 -  val x = 1\n2 +    val x = 1\n3  }\n";
+    let expected = "Main.kt (-1 +1)\n@@ -1,3 +1,3 @@\n1 |  fun main() {\n2 | -  val x = 1\n2 | +    val x = 1\n3 |  }\n";
     assert_eq!(diff, expected);
 }
 
@@ -99,7 +99,7 @@ fn test_create_diff_deletions_only_header() {
     let diff = create_diff(original, formatted, "File.kt", false).unwrap();
 
     assert!(diff.starts_with("File.kt (-1)\n"));
-    assert!(diff.contains("2 -line2\n"));
+    assert!(diff.contains("2 | -line2\n"));
 }
 
 #[test]
@@ -108,6 +108,6 @@ fn test_create_diff_consecutive_insertions_omits_subsequent_line_numbers() {
     let formatted = "fun main() {\n    val a = 1\n    val b = 2\n}\n";
     let diff = create_diff(original, formatted, "Main.kt", false).unwrap();
 
-    let expected = "Main.kt (+2)\n@@ -1,2 +1,4 @@\n1  fun main() {\n2 +    val a = 1\n  +    val b = 2\n2  }\n";
+    let expected = "Main.kt (+2)\n@@ -1,2 +1,4 @@\n1 |  fun main() {\n2 | +    val a = 1\n  | +    val b = 2\n2 |  }\n";
     assert_eq!(diff, expected);
 }
