@@ -88,6 +88,7 @@ static STANDARD_AST_RULE_IDS: &[&str] = &[
     "no-empty-class-body",
     "no-empty-first-line-in-class-body",
     "no-empty-first-line-in-method-block",
+    "no-fully-qualified-type-names",
     "no-single-line-block-comment",
     "no-unit-return",
     "unnecessary-parentheses-before-trailing-lambda",

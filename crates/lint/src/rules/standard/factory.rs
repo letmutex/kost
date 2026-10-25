@@ -69,6 +69,7 @@ use super::no_empty_class_body::NoEmptyClassBody;
 use super::no_empty_file::NoEmptyFile;
 use super::no_empty_first_line_in_class_body::NoEmptyFirstLineInClassBody;
 use super::no_empty_first_line_in_method_block::NoEmptyFirstLineInMethodBlock;
+use super::no_fully_qualified_type_names::NoFullyQualifiedTypeNames;
 use super::no_line_break_after_else::NoLineBreakAfterElse;
 use super::no_line_break_before_assignment::NoLineBreakBeforeAssignment;
 use super::no_multi_spaces::NoMultiSpaces;
@@ -214,6 +215,7 @@ fn create_cleanup_and_trailing_rule(name: &str) -> Option<Box<dyn AstRule>> {
         "no-empty-class-body" => Some(Box::new(NoEmptyClassBody)),
         "no-empty-first-line-in-class-body" => Some(Box::new(NoEmptyFirstLineInClassBody)),
         "no-empty-first-line-in-method-block" => Some(Box::new(NoEmptyFirstLineInMethodBlock)),
+        "no-fully-qualified-type-names" => Some(Box::new(NoFullyQualifiedTypeNames)),
         "no-single-line-block-comment" => Some(Box::new(NoSingleLineBlockComment)),
         "no-unit-return" => Some(Box::new(NoUnitReturn)),
         "unnecessary-parentheses-before-trailing-lambda" => {

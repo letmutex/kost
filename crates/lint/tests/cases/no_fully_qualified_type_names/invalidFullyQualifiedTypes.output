@@ -1,0 +1,18 @@
+3:18: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.BaseClass' should not be used
+4:18: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.BaseInterface' should not be used
+6:11: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.User' should not be used
+7:12: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'java.util.concurrent.atomic.AtomicInteger' should not be used
+9:20: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.Param' should not be used
+9:40: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.Result' should not be used
+11:22: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'java.util.List' should not be used
+11:37: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.User' should not be used
+13:17: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.Item' should not be used
+15:21: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.Bound' should not be used
+18:20: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.Target' should not be used
+19:20: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.Check' should not be used
+22:5: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.Receiver' should not be used
+24:16: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.In' should not be used
+24:35: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.Out' should not be used
+26:18: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'com.example.Outer.Inner' should not be used
+27:17: [warning] standard:no-fully-qualified-type-names: Fully qualified type name 'élan.company.MyClass' should not be used
+

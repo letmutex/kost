@@ -113,6 +113,7 @@ The `standard` ruleset is enabled by default. It covers syntax formatting, idiom
 | `standard:no-unused-imports` | Flags and reports unused `import` statements. |
 | `standard:import-ordering` | Enforces alphabetical import ordering and standard grouping. |
 | `standard:no-empty-file` | Flags files that contain no code or declarations. |
+| `standard:no-fully-qualified-type-names` | Disallows fully qualified type names in type positions (use imports instead). |
 | `standard:no-empty-class-body` | Empty `{}` bodies on classes should be omitted. |
 | `standard:no-unit-return` | Disallows explicit `: Unit` return types on functions. |
 | `standard:unnecessary-parentheses-before-trailing-lambda` | Omit empty parentheses `()` when passing a trailing lambda. |

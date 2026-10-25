@@ -70,6 +70,7 @@ pub mod no_empty_class_body;
 pub mod no_empty_file;
 pub mod no_empty_first_line_in_class_body;
 pub mod no_empty_first_line_in_method_block;
+pub mod no_fully_qualified_type_names;
 pub mod no_line_break_after_else;
 pub mod no_line_break_before_assignment;
 pub mod no_multi_spaces;
