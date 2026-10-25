@@ -1,0 +1,7 @@
+lint:
+  rules:
+    - id: async-function
+      severity: warning
+      where:
+        function.name: has("Async")
+      message: "Async function: ${function.name}"

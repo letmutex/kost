@@ -152,7 +152,7 @@ impl Scope {
             "file" => Some(Self::File),
             "class" => Some(Self::Class),
             "function" => Some(Self::Function),
-            "property" => Some(Self::Property),
+            "property" | "variable" => Some(Self::Property),
             "lambda" => Some(Self::Lambda),
             "import" => Some(Self::Import),
             _ => None,

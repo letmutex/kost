@@ -1,0 +1,9 @@
+lint:
+  rules:
+    - id: abstract-service
+      severity: warning
+      where:
+        all:
+          - class.name: startswith("Abstract")
+          - class.name: endswith("Service")
+      message: "Abstract service: ${class.name}"

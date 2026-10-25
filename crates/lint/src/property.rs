@@ -7,6 +7,7 @@ use crate::types::Scope;
 pub enum PropertyKey {
     // Function scope
     FunctionName,
+    FunctionNameLength,
     FunctionLines,
     FunctionBodyLines,
     FunctionParametersCount,
@@ -19,6 +20,7 @@ pub enum PropertyKey {
 
     // Class scope
     ClassName,
+    ClassNameLength,
     ClassLines,
     ClassMethodsCount,
     ClassPropertiesCount,
@@ -30,6 +32,7 @@ pub enum PropertyKey {
 
     // Property scope
     PropertyName,
+    PropertyNameLength,
     PropertyLines,
     PropertyType,
     PropertyHasCustomGetter,
@@ -42,6 +45,7 @@ pub enum PropertyKey {
 
     // File scope
     FileLines,
+    FileFunctionsCount,
     FileImportsCount,
     FileTopLevelDeclarationsCount,
     FileMaxIndentSpaces,
@@ -55,6 +59,7 @@ impl PropertyKey {
     pub fn scope(&self) -> Scope {
         match self {
             Self::FunctionName
+            | Self::FunctionNameLength
             | Self::FunctionLines
             | Self::FunctionBodyLines
             | Self::FunctionParametersCount
@@ -66,6 +71,7 @@ impl PropertyKey {
             | Self::FunctionReturnType => Scope::Function,
 
             Self::ClassName
+            | Self::ClassNameLength
             | Self::ClassLines
             | Self::ClassMethodsCount
             | Self::ClassPropertiesCount
@@ -76,6 +82,7 @@ impl PropertyKey {
             | Self::ClassConstructorParametersCount => Scope::Class,
 
             Self::PropertyName
+            | Self::PropertyNameLength
             | Self::PropertyLines
             | Self::PropertyType
             | Self::PropertyHasCustomGetter
@@ -84,6 +91,7 @@ impl PropertyKey {
             Self::ImportPath | Self::ImportAlias | Self::ImportIsWildcard => Scope::Import,
 
             Self::FileLines
+            | Self::FileFunctionsCount
             | Self::FileImportsCount
             | Self::FileTopLevelDeclarationsCount
             | Self::FileMaxIndentSpaces
@@ -96,6 +104,7 @@ impl PropertyKey {
     pub fn from_scope_and_field(scope: Scope, field: &str) -> Option<Self> {
         match (scope, field) {
             (Scope::Function, "name") => Some(Self::FunctionName),
+            (Scope::Function, "name.length") => Some(Self::FunctionNameLength),
             (Scope::Function, "lines") => Some(Self::FunctionLines),
             (Scope::Function, "body_lines") => Some(Self::FunctionBodyLines),
             (Scope::Function, "parameters_count") => Some(Self::FunctionParametersCount),
@@ -107,8 +116,9 @@ impl PropertyKey {
             (Scope::Function, "return_type") => Some(Self::FunctionReturnType),
 
             (Scope::Class, "name") => Some(Self::ClassName),
+            (Scope::Class, "name.length") => Some(Self::ClassNameLength),
             (Scope::Class, "lines") => Some(Self::ClassLines),
-            (Scope::Class, "methods_count") => Some(Self::ClassMethodsCount),
+            (Scope::Class, "methods_count" | "functions_count") => Some(Self::ClassMethodsCount),
             (Scope::Class, "properties_count") => Some(Self::ClassPropertiesCount),
             (Scope::Class, "annotations") => Some(Self::ClassAnnotations),
             (Scope::Class, "supertypes") => Some(Self::ClassSupertypes),
@@ -119,6 +129,7 @@ impl PropertyKey {
             }
 
             (Scope::Property, "name") => Some(Self::PropertyName),
+            (Scope::Property, "name.length") => Some(Self::PropertyNameLength),
             (Scope::Property, "lines") => Some(Self::PropertyLines),
             (Scope::Property, "type") => Some(Self::PropertyType),
             (Scope::Property, "has_custom_getter") => Some(Self::PropertyHasCustomGetter),
@@ -129,6 +140,7 @@ impl PropertyKey {
             (Scope::Import, "is_wildcard") => Some(Self::ImportIsWildcard),
 
             (Scope::File, "lines") => Some(Self::FileLines),
+            (Scope::File, "functions_count") => Some(Self::FileFunctionsCount),
             (Scope::File, "imports_count") => Some(Self::FileImportsCount),
             (Scope::File, "top_level_declarations_count") => {
                 Some(Self::FileTopLevelDeclarationsCount)
@@ -143,44 +155,39 @@ impl PropertyKey {
 
     pub fn field_name(&self) -> &'static str {
         match self {
-            Self::FunctionName => "name",
-            Self::FunctionLines => "lines",
+            Self::FunctionName | Self::ClassName | Self::PropertyName => "name",
+            Self::FunctionNameLength | Self::ClassNameLength | Self::PropertyNameLength => {
+                "name.length"
+            }
+            Self::FunctionLines
+            | Self::ClassLines
+            | Self::PropertyLines
+            | Self::FileLines
+            | Self::LambdaLines => "lines",
             Self::FunctionBodyLines => "body_lines",
             Self::FunctionParametersCount => "parameters_count",
-            Self::FunctionAnnotations => "annotations",
-            Self::FunctionVisibility => "visibility",
+            Self::FileFunctionsCount => "functions_count",
+            Self::FunctionAnnotations | Self::ClassAnnotations => "annotations",
+            Self::FunctionVisibility | Self::ClassVisibility => "visibility",
             Self::FunctionMaxNesting => "max_nesting",
             Self::FunctionCyclomaticComplexity => "cyclomatic_complexity",
             Self::FunctionHasExpressionBody => "has_expression_body",
             Self::FunctionReturnType => "return_type",
-
-            Self::ClassName => "name",
-            Self::ClassLines => "lines",
             Self::ClassMethodsCount => "methods_count",
             Self::ClassPropertiesCount => "properties_count",
-            Self::ClassAnnotations => "annotations",
             Self::ClassSupertypes => "supertypes",
-            Self::ClassVisibility => "visibility",
             Self::ClassKind => "kind",
             Self::ClassConstructorParametersCount => "constructor_parameters_count",
-
-            Self::PropertyName => "name",
-            Self::PropertyLines => "lines",
             Self::PropertyType => "type",
             Self::PropertyHasCustomGetter => "has_custom_getter",
             Self::PropertyHasCustomSetter => "has_custom_setter",
-
             Self::ImportPath => "path",
             Self::ImportAlias => "alias",
             Self::ImportIsWildcard => "is_wildcard",
-
-            Self::FileLines => "lines",
             Self::FileImportsCount => "imports_count",
             Self::FileTopLevelDeclarationsCount => "top_level_declarations_count",
             Self::FileMaxIndentSpaces => "max_indent_spaces",
             Self::FilePackage => "package",
-
-            Self::LambdaLines => "lines",
         }
     }
 
@@ -198,7 +205,10 @@ impl PropertyKey {
             | Self::ImportAlias
             | Self::FilePackage => "Str",
 
-            Self::FunctionLines
+            Self::FunctionNameLength
+            | Self::ClassNameLength
+            | Self::PropertyNameLength
+            | Self::FunctionLines
             | Self::FunctionBodyLines
             | Self::FunctionParametersCount
             | Self::FunctionMaxNesting
@@ -209,6 +219,7 @@ impl PropertyKey {
             | Self::ClassConstructorParametersCount
             | Self::PropertyLines
             | Self::FileLines
+            | Self::FileFunctionsCount
             | Self::FileImportsCount
             | Self::FileTopLevelDeclarationsCount
             | Self::FileMaxIndentSpaces

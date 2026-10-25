@@ -2,7 +2,7 @@
 
 use crate::condition::CondOp;
 use crate::config::error::ConfigError;
-use crate::types::{Numeric, Operand, PropertyKey, PropertyValue};
+use crate::types::{Numeric, Operand, PropertyValue};
 use indexmap::IndexMap;
 use smol_str::SmolStr;
 
@@ -44,10 +44,19 @@ pub fn parse_operator(
                 let operand = parse_value_operand(rule_id, property_path, trimmed_arg, options)?;
                 return Ok(CondOp::Eq(operand));
             }
-            "has" => {
+            "has" | "startswith" | "endswith" => {
+                let static_op = match op_name {
+                    "has" => "has",
+                    "startswith" => "startswith",
+                    _ => "endswith",
+                };
                 let operand =
-                    parse_str_operand(rule_id, property_path, "has", trimmed_arg, options)?;
-                return Ok(CondOp::Has(operand));
+                    parse_str_operand(rule_id, property_path, static_op, trimmed_arg, options)?;
+                return Ok(match op_name {
+                    "has" => CondOp::Has(operand),
+                    "startswith" => CondOp::StartsWith(operand),
+                    _ => CondOp::EndsWith(operand),
+                });
             }
             "matches" => {
                 let (pattern_str, option_ref) =
@@ -68,7 +77,7 @@ pub fn parse_operator(
     Err(ConfigError::InvalidOperator {
         property: property_path.to_string(),
         operator: op_str.to_string(),
-        reason: "Unknown operator; expected one of gt, lt, gte, lte, eq, has, matches, not",
+        reason: "Unknown operator; expected one of gt, lt, gte, lte, eq, has, startswith, endswith, matches, not",
     })
 }
 
@@ -79,21 +88,14 @@ fn parse_comparison_op(
     arg: &str,
     options: Option<&IndexMap<SmolStr, PropertyValue>>,
 ) -> Option<Result<CondOp, ConfigError>> {
-    match op_name {
-        "gt" => {
-            Some(parse_numeric_operand(rule_id, property_path, "gt", arg, options).map(CondOp::Gt))
-        }
-        "lt" => {
-            Some(parse_numeric_operand(rule_id, property_path, "lt", arg, options).map(CondOp::Lt))
-        }
-        "gte" => Some(
-            parse_numeric_operand(rule_id, property_path, "gte", arg, options).map(CondOp::Gte),
-        ),
-        "lte" => Some(
-            parse_numeric_operand(rule_id, property_path, "lte", arg, options).map(CondOp::Lte),
-        ),
-        _ => None,
-    }
+    let (static_op, constructor): (&'static str, fn(Operand<Numeric>) -> CondOp) = match op_name {
+        "gt" => ("gt", CondOp::Gt),
+        "lt" => ("lt", CondOp::Lt),
+        "gte" => ("gte", CondOp::Gte),
+        "lte" => ("lte", CondOp::Lte),
+        _ => return None,
+    };
+    Some(parse_numeric_operand(rule_id, property_path, static_op, arg, options).map(constructor))
 }
 
 fn parse_numeric_operand(
@@ -216,14 +218,11 @@ fn parse_value_operand(
 /// Trims leading and trailing matching quotes from string literals.
 pub fn unquote(s: &str) -> &str {
     let trimmed = s.trim();
-    if (trimmed.starts_with('"') && trimmed.ends_with('"'))
-        || (trimmed.starts_with('\'') && trimmed.ends_with('\''))
+    if trimmed.len() >= 2
+        && ((trimmed.starts_with('"') && trimmed.ends_with('"'))
+            || (trimmed.starts_with('\'') && trimmed.ends_with('\'')))
     {
-        if trimmed.len() >= 2 {
-            &trimmed[1..trimmed.len() - 1]
-        } else {
-            trimmed
-        }
+        &trimmed[1..trimmed.len() - 1]
     } else {
         trimmed
     }
@@ -259,75 +258,4 @@ fn parse_regex_pattern<'a>(
     }
 }
 
-pub fn validate_property_operator(
-    property_key: PropertyKey,
-    property_path: &str,
-    op: &CondOp,
-    options: Option<&IndexMap<SmolStr, PropertyValue>>,
-) -> Result<(), ConfigError> {
-    let prop_type = property_key.expected_type_name();
-    match op {
-        CondOp::Gt(_) | CondOp::Lt(_) | CondOp::Gte(_) | CondOp::Lte(_) => {
-            if prop_type != "Int" && prop_type != "Float" {
-                let op_str = match op {
-                    CondOp::Gt(_) => "gt",
-                    CondOp::Lt(_) => "lt",
-                    CondOp::Gte(_) => "gte",
-                    CondOp::Lte(_) => "lte",
-                    _ => unreachable!(),
-                };
-                return Err(ConfigError::IncompatiblePropertyOperator {
-                    property: property_path.to_string(),
-                    property_type: prop_type,
-                    operator: op_str,
-                });
-            }
-        }
-        CondOp::Has(_) => {
-            if prop_type != "StrList" {
-                return Err(ConfigError::IncompatiblePropertyOperator {
-                    property: property_path.to_string(),
-                    property_type: prop_type,
-                    operator: "has",
-                });
-            }
-        }
-        CondOp::Matches { .. } => {
-            if prop_type != "Str" {
-                return Err(ConfigError::IncompatiblePropertyOperator {
-                    property: property_path.to_string(),
-                    property_type: prop_type,
-                    operator: "matches",
-                });
-            }
-        }
-        CondOp::Eq(operand) => {
-            if prop_type == "StrList" {
-                return Err(ConfigError::IncompatiblePropertyOperator {
-                    property: property_path.to_string(),
-                    property_type: prop_type,
-                    operator: "eq",
-                });
-            }
-            let actual_type = match operand {
-                Operand::Literal(v) => v.type_name(),
-                Operand::OptionRef(opt) => options
-                    .and_then(|m| m.get(opt))
-                    .map(|v| v.type_name())
-                    .unwrap_or(prop_type),
-            };
-            if actual_type != prop_type {
-                return Err(ConfigError::InvalidOperandType {
-                    property: property_path.to_string(),
-                    operator: "eq",
-                    expected: prop_type,
-                    actual: actual_type.to_string(),
-                });
-            }
-        }
-        CondOp::Not(inner) => {
-            validate_property_operator(property_key, property_path, inner, options)?;
-        }
-    }
-    Ok(())
-}
+pub use super::validate::validate_property_operator;

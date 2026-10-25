@@ -6,6 +6,7 @@ pub mod operator;
 pub mod parser;
 pub mod schema;
 pub mod template;
+pub mod validate;
 
 use crate::config::error::ConfigError;
 use crate::config::merge::{ExportedRuleset, RuleLookup, RuleMerger};

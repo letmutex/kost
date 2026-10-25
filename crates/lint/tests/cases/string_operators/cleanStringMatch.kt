@@ -1,0 +1,2 @@
+fun processOrderSync() {}
+class SimpleOrder

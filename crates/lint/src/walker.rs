@@ -65,6 +65,16 @@ pub fn lint_source_with_path_and_config(
                 PropertyValue::Int(ctx.max_indent_spaces),
             );
         }
+        if ctx
+            .registry
+            .needed_properties
+            .contains(&PropertyKey::FileFunctionsCount)
+        {
+            file_frame.properties.insert(
+                PropertyKey::FileFunctionsCount,
+                PropertyValue::Int(ctx.file_functions_count),
+            );
+        }
         evaluate_scope_stat_rules(
             &file_frame.scope,
             &file_frame.range,
@@ -105,6 +115,9 @@ fn walk_cursor<'a>(cursor: &mut tree_sitter::TreeCursor<'a>, source: &[u8], ctx:
             false
         };
         let opened_scope = enter_scope_if_matching(curr_node, source, ctx);
+        if opened_scope == Some(Scope::Function) {
+            ctx.file_functions_count += 1;
+        }
 
         // 1. Dispatch pre-order AST rules
         dispatch_pre_rules(curr_node, kind, source, ctx);

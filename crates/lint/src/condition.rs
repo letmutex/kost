@@ -126,6 +126,8 @@ pub enum CondOp {
     Lte(Operand<Numeric>),
     Eq(Operand<PropertyValue>),
     Has(Operand<SmolStr>),
+    StartsWith(Operand<SmolStr>),
+    EndsWith(Operand<SmolStr>),
     Not(Box<CondOp>),
     Matches {
         regex: regex::Regex,
@@ -188,7 +190,22 @@ impl CondOp {
             },
             Self::Has(operand) => match (value, resolve_str(operand, options)) {
                 (PropertyValue::StrList(list), Some(target_str)) => {
-                    list.iter().any(|item| item == &target_str)
+                    list.iter().any(|item| item.as_str() == target_str)
+                }
+                (PropertyValue::Str(string_value), Some(target_str)) => {
+                    string_value.contains(target_str)
+                }
+                _ => false,
+            },
+            Self::StartsWith(operand) => match (value, resolve_str(operand, options)) {
+                (PropertyValue::Str(string_value), Some(target_str)) => {
+                    string_value.starts_with(target_str)
+                }
+                _ => false,
+            },
+            Self::EndsWith(operand) => match (value, resolve_str(operand, options)) {
+                (PropertyValue::Str(string_value), Some(target_str)) => {
+                    string_value.ends_with(target_str)
                 }
                 _ => false,
             },
@@ -225,16 +242,16 @@ fn resolve_value(
     }
 }
 
-fn resolve_str(
-    operand: &Operand<SmolStr>,
-    options: Option<&IndexMap<SmolStr, PropertyValue>>,
-) -> Option<SmolStr> {
+fn resolve_str<'a>(
+    operand: &'a Operand<SmolStr>,
+    options: Option<&'a IndexMap<SmolStr, PropertyValue>>,
+) -> Option<&'a str> {
     match operand {
-        Operand::Literal(string_value) => Some(string_value.clone()),
+        Operand::Literal(string_value) => Some(string_value.as_str()),
         Operand::OptionRef(option_key) => options
             .and_then(|options_map| options_map.get(option_key))
             .and_then(|property_value| match property_value {
-                PropertyValue::Str(string_val) => Some(string_val.clone()),
+                PropertyValue::Str(string_val) => Some(string_val.as_str()),
                 _ => None,
             }),
     }

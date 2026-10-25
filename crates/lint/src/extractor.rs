@@ -12,7 +12,15 @@ pub fn populate_file_properties(node: &tree_sitter::Node, ctx: &mut LintCtx) {
         .needed_properties
         .contains(&PropertyKey::FileLines)
     {
-        let lines = (node.end_position().row - node.start_position().row + 1) as i64;
+        let start_pos = node.start_position();
+        let end_pos = node.end_position();
+        let lines = if node.start_byte() == node.end_byte() {
+            0
+        } else if end_pos.column == 0 && end_pos.row > start_pos.row {
+            (end_pos.row - start_pos.row) as i64
+        } else {
+            (end_pos.row - start_pos.row + 1) as i64
+        };
         ctx.scope_tracker
             .insert_property(PropertyKey::FileLines, PropertyValue::Int(lines));
     }
@@ -27,11 +35,20 @@ pub fn populate_function_properties(node: tree_sitter::Node, source: &[u8], ctx:
             .insert_property(PropertyKey::FunctionLines, PropertyValue::Int(lines));
     }
 
-    if needed.contains(&PropertyKey::FunctionName)
+    let needs_name = needed.contains(&PropertyKey::FunctionName);
+    let needs_len = needed.contains(&PropertyKey::FunctionNameLength);
+    if (needs_name || needs_len)
         && let Some(name) = find_child_identifier(node, source)
     {
-        ctx.scope_tracker
-            .insert_property(PropertyKey::FunctionName, PropertyValue::Str(name));
+        if needs_len {
+            let len = identifier_clean_length(name.as_str());
+            ctx.scope_tracker
+                .insert_property(PropertyKey::FunctionNameLength, PropertyValue::Int(len));
+        }
+        if needs_name {
+            ctx.scope_tracker
+                .insert_property(PropertyKey::FunctionName, PropertyValue::Str(name));
+        }
     }
 
     if needed.contains(&PropertyKey::FunctionParametersCount) {
@@ -60,11 +77,26 @@ pub fn populate_class_properties(node: tree_sitter::Node, source: &[u8], ctx: &m
             .insert_property(PropertyKey::ClassLines, PropertyValue::Int(lines));
     }
 
-    if needed.contains(&PropertyKey::ClassName)
+    let needs_name = needed.contains(&PropertyKey::ClassName);
+    let needs_len = needed.contains(&PropertyKey::ClassNameLength);
+    if (needs_name || needs_len)
         && let Some(name) = find_child_identifier(node, source)
     {
+        if needs_len {
+            let len = identifier_clean_length(name.as_str());
+            ctx.scope_tracker
+                .insert_property(PropertyKey::ClassNameLength, PropertyValue::Int(len));
+        }
+        if needs_name {
+            ctx.scope_tracker
+                .insert_property(PropertyKey::ClassName, PropertyValue::Str(name));
+        }
+    }
+
+    if needed.contains(&PropertyKey::ClassMethodsCount) {
+        let count = count_class_methods(node);
         ctx.scope_tracker
-            .insert_property(PropertyKey::ClassName, PropertyValue::Str(name));
+            .insert_property(PropertyKey::ClassMethodsCount, PropertyValue::Int(count));
     }
 
     if needed.contains(&PropertyKey::ClassAnnotations) {
@@ -85,11 +117,20 @@ pub fn populate_property_properties(node: tree_sitter::Node, source: &[u8], ctx:
             .insert_property(PropertyKey::PropertyLines, PropertyValue::Int(lines));
     }
 
-    if needed.contains(&PropertyKey::PropertyName)
+    let needs_name = needed.contains(&PropertyKey::PropertyName);
+    let needs_len = needed.contains(&PropertyKey::PropertyNameLength);
+    if (needs_name || needs_len)
         && let Some(name) = find_child_identifier(node, source)
     {
-        ctx.scope_tracker
-            .insert_property(PropertyKey::PropertyName, PropertyValue::Str(name));
+        if needs_len {
+            let len = identifier_clean_length(name.as_str());
+            ctx.scope_tracker
+                .insert_property(PropertyKey::PropertyNameLength, PropertyValue::Int(len));
+        }
+        if needs_name {
+            ctx.scope_tracker
+                .insert_property(PropertyKey::PropertyName, PropertyValue::Str(name));
+        }
     }
 }
 
@@ -243,4 +284,28 @@ pub fn enter_scope_if_matching(
         }
         _ => None,
     }
+}
+
+fn identifier_clean_length(raw_name: &str) -> i64 {
+    let clean = raw_name
+        .strip_prefix('`')
+        .and_then(|s| s.strip_suffix('`'))
+        .unwrap_or(raw_name);
+    clean.chars().count() as i64
+}
+
+fn count_class_methods(node: tree_sitter::Node) -> i64 {
+    let mut count = 0;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "class_body" {
+            let mut body_cursor = child.walk();
+            for body_child in child.children(&mut body_cursor) {
+                if body_child.kind() == "function_declaration" {
+                    count += 1;
+                }
+            }
+        }
+    }
+    count
 }

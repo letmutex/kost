@@ -146,4 +146,10 @@ test_case_groups! {
     test_indent_cases: "indent",
     test_max_line_length_cases: "max_line_length",
     test_final_newline_cases: "final_newline",
+    test_class_name_length_cases: "class_name_length",
+    test_function_name_length_cases: "function_name_length",
+    test_variable_name_length_cases: "variable_name_length",
+    test_file_length_cases: "file_length",
+    test_too_many_functions_cases: "too_many_functions",
+    test_string_operators_cases: "string_operators",
 }

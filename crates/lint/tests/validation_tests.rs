@@ -236,3 +236,81 @@ lint:
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_string_operator_incompatible_property_type_rejected() {
+    let startswith_yaml = r#"
+lint:
+  rules:
+    - id: bad-startswith
+      where:
+        file.lines: startswith("1")
+      message: "Error"
+"#;
+    let err = ConfigLoader::load_string(startswith_yaml, "kost.yaml").unwrap_err();
+    match err {
+        ConfigError::IncompatiblePropertyOperator {
+            property,
+            property_type,
+            operator,
+        } => {
+            assert_eq!(property, "file.lines");
+            assert_eq!(property_type, "Int");
+            assert_eq!(operator, "startswith");
+        }
+        other => panic!(
+            "Expected IncompatiblePropertyOperator for startswith, got: {:?}",
+            other
+        ),
+    }
+
+    let endswith_yaml = r#"
+lint:
+  rules:
+    - id: bad-endswith
+      where:
+        function.lines: endswith("0")
+      message: "Error"
+"#;
+    let err = ConfigLoader::load_string(endswith_yaml, "kost.yaml").unwrap_err();
+    match err {
+        ConfigError::IncompatiblePropertyOperator {
+            property,
+            property_type,
+            operator,
+        } => {
+            assert_eq!(property, "function.lines");
+            assert_eq!(property_type, "Int");
+            assert_eq!(operator, "endswith");
+        }
+        other => panic!(
+            "Expected IncompatiblePropertyOperator for endswith, got: {:?}",
+            other
+        ),
+    }
+
+    let has_yaml = r#"
+lint:
+  rules:
+    - id: bad-has
+      where:
+        file.lines: has("1")
+      message: "Error"
+"#;
+    let err = ConfigLoader::load_string(has_yaml, "kost.yaml").unwrap_err();
+    match err {
+        ConfigError::IncompatiblePropertyOperator {
+            property,
+            property_type,
+            operator,
+        } => {
+            assert_eq!(property, "file.lines");
+            assert_eq!(property_type, "Int");
+            assert_eq!(operator, "has");
+        }
+        other => panic!(
+            "Expected IncompatiblePropertyOperator for has, got: {:?}",
+            other
+        ),
+    }
+}

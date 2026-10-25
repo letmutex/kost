@@ -1,0 +1,7 @@
+lint:
+  includes:
+    - statistics
+  rules:
+    - id: statistics:too-many-functions
+      options:
+        max_functions: 2

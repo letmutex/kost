@@ -134,6 +134,7 @@ Every condition in `where` inspects a property scoped to an AST element:
 | Property | Type | Description |
 | --- | --- | --- |
 | `file.lines` | `Int` | Total number of lines in the file. |
+| `file.functions_count` | `Int` | Total number of functions declared in the file. |
 | `file.imports_count` | `Int` | Number of import directives. |
 | `file.top_level_declarations_count` | `Int` | Number of top-level classes, functions, and properties. |
 | `file.max_indent_spaces` | `Int` | Deepest indentation level in spaces anywhere in the file. |
@@ -144,6 +145,7 @@ Every condition in `where` inspects a property scoped to an AST element:
 | Property | Type | Description |
 | --- | --- | --- |
 | `class.name` | `Str` | Class or interface name. |
+| `class.name.length` | `Int` | Character length of the class name (excluding backtick delimiters). |
 | `class.lines` | `Int` | Line count of the class declaration. |
 | `class.methods_count` | `Int` | Number of member methods in the class. |
 | `class.properties_count` | `Int` | Number of member properties in the class. |
@@ -158,6 +160,7 @@ Every condition in `where` inspects a property scoped to an AST element:
 | Property | Type | Description |
 | --- | --- | --- |
 | `function.name` | `Str` | Function name. |
+| `function.name.length` | `Int` | Character length of the function name (excluding backtick delimiters). |
 | `function.lines` | `Int` | Total line span from `fun` to the end of the body. |
 | `function.body_lines` | `Int` | Number of lines inside the function body block. |
 | `function.parameters_count` | `Int` | Number of parameters. |
@@ -168,13 +171,14 @@ Every condition in `where` inspects a property scoped to an AST element:
 | `function.has_expression_body` | `Bool` | `true` if defined with `= expr` instead of `{ ... }`. |
 | `function.return_type` | `Str` | Declared return type string. |
 
-### `property` Scope
+### `property` Scope (also aliased as `variable`)
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `property.name` | `Str` | Property identifier. |
-| `property.lines` | `Int` | Line count of the property declaration. |
-| `property.type` | `Str` | Declared property type. |
+| `property.name` / `variable.name` | `Str` | Property identifier. |
+| `property.name.length` / `variable.name.length` | `Int` | Character length of the property name (excluding backtick delimiters). |
+| `property.lines` / `variable.lines` | `Int` | Line count of the property declaration. |
+| `property.type` / `variable.type` | `Str` | Declared property type. |
 | `property.has_custom_getter` | `Bool` | Whether a custom `get()` accessor is defined. |
 | `property.has_custom_setter` | `Bool` | Whether a custom `set()` accessor is defined. |
 
@@ -203,7 +207,9 @@ Conditions compare properties using operator expressions:
 | `gte(val)` | `Int`, `Float` | Greater than or equal to. |
 | `lte(val)` | `Int`, `Float` | Less than or equal to. |
 | `eq(val)` | `Int`, `Float`, `Str`, `Bool` | Strict equality. String literals must match type. |
-| `has(val)` | `StrList` | Checks if a string item is present in a string list. |
+| `has(val)` | `StrList`, `Str` | Checks if item is in list, or substring is contained in string. |
+| `startswith(val)` | `Str` | Checks if string starts with prefix. Supports strings or `options.<key>`. |
+| `endswith(val)` | `Str` | Checks if string ends with suffix. Supports strings or `options.<key>`. |
 | `matches(pattern)` | `Str` | Matches against a regular expression pattern. |
 | `not(operator)` | Any | Inverts the enclosed operator (e.g. `not(has('@Composable'))`). |
 
