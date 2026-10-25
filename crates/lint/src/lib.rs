@@ -11,6 +11,7 @@ pub mod registry;
 pub mod rule;
 pub mod rules;
 pub mod smart_lint;
+pub mod snippet;
 pub mod suppression;
 pub mod types;
 #[macro_use]

@@ -106,7 +106,13 @@ impl Linter {
             &self.registry,
             editorconfig,
         );
-        LintReport::new(diagnostics, file_path.map(|path| path.to_string()))
+        let mut report = LintReport::new(diagnostics, file_path.map(|path| path.to_string()));
+        if !report.is_clean()
+            && let Ok(utf8_str) = std::str::from_utf8(source)
+        {
+            report = report.with_source(utf8_str);
+        }
+        report
     }
 
     /// Lints a UTF-8 source string without an explicit file path.
@@ -135,6 +141,7 @@ impl Linter {
 pub struct LintReport {
     diagnostics: Vec<Diagnostic>,
     file_path: Option<String>,
+    source: Option<std::sync::Arc<str>>,
     error_count: usize,
     warning_count: usize,
 }
@@ -162,9 +169,22 @@ impl LintReport {
         Self {
             diagnostics,
             file_path,
+            source: None,
             error_count,
             warning_count,
         }
+    }
+
+    /// Attaches the original source code to this report for rich diagnostic printing.
+    pub fn with_source(mut self, source: impl Into<std::sync::Arc<str>>) -> Self {
+        self.source = Some(source.into());
+        self
+    }
+
+    /// Returns a reference to the source code associated with this report, if available.
+    #[inline]
+    pub fn source(&self) -> Option<&str> {
+        self.source.as_deref()
     }
 
     /// Returns true if no diagnostics were produced.

@@ -87,39 +87,37 @@ impl Diagnostic {
         file_path: Option<&str>,
         colorize: bool,
     ) -> std::fmt::Result {
-        if let Some(path) = file_path {
-            write!(writer, "{path}:")?;
-        }
-        write!(
-            writer,
-            "{}:{}: [{}] {} (",
-            self.range.start_line,
-            self.range.start_col,
-            self.rule_id.as_str(),
-            self.message.as_str(),
-        )?;
-        self.write_severity(writer, colorize)?;
-        write!(writer, ")")
-    }
-
-    fn write_severity<W: std::fmt::Write>(
-        &self,
-        writer: &mut W,
-        colorize: bool,
-    ) -> std::fmt::Result {
         if colorize {
-            if let Some(color_code) = self.severity.color() {
-                write!(
-                    writer,
-                    "{color_code}{}{}",
-                    self.severity.as_str(),
-                    common::color::RESET
-                )
-            } else {
-                write!(writer, "{}", self.severity.as_str())
+            use common::color::{BOLD, DIM, RESET, YELLOW};
+            if let Some(path) = file_path {
+                write!(writer, "{path}{DIM}:{RESET}")?;
             }
+            write!(
+                writer,
+                "{YELLOW}{}{RESET}{DIM}:{RESET}{YELLOW}{}{RESET}{DIM}:{RESET} ",
+                self.range.start_line, self.range.start_col,
+            )?;
+            let sev_color = self.severity.color().unwrap_or(RESET);
+            write!(
+                writer,
+                "{BOLD}[{}] {} ({RESET}{sev_color}{}{RESET}{BOLD}){RESET}",
+                self.rule_id.as_str(),
+                self.message.as_str(),
+                self.severity.as_str(),
+            )
         } else {
-            write!(writer, "{}", self.severity.as_str())
+            if let Some(path) = file_path {
+                write!(writer, "{path}:")?;
+            }
+            write!(
+                writer,
+                "{}:{}: [{}] {} ({})",
+                self.range.start_line,
+                self.range.start_col,
+                self.rule_id.as_str(),
+                self.message.as_str(),
+                self.severity.as_str(),
+            )
         }
     }
 

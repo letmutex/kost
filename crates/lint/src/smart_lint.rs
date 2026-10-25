@@ -3,7 +3,7 @@
 use crate::linter::LintReport;
 use crate::types::Diagnostic;
 use cli::PrintMode;
-use common::color::{BOLD_RED, BOLD_YELLOW, CYAN, RESET};
+use common::color::{BOLD, BOLD_RED, BOLD_YELLOW, CYAN, DIM, RESET, YELLOW};
 use std::io::Write;
 
 const MAX_TRUNCATED_DIAGNOSTICS: usize = 20;
@@ -49,14 +49,35 @@ fn render_full_reports<W: Write>(
     reports: &[LintReport],
     colorize: bool,
 ) -> std::io::Result<()> {
+    let mut has_emitted = false;
+    let mut last_was_snippet = false;
     for report in reports {
         let path = report.file_path();
-        for diagnostic in report.diagnostics() {
-            render_diagnostic(writer, diagnostic, path, colorize)?;
+        if let Some(source) = report.source() {
+            let lines: Vec<&str> = source.lines().collect();
+            for diagnostic in report.diagnostics() {
+                if has_emitted {
+                    writeln!(writer)?;
+                }
+                render_full_snippet_diagnostic(writer, diagnostic, &lines, path, colorize)?;
+                has_emitted = true;
+                last_was_snippet = true;
+            }
+        } else {
+            for diagnostic in report.diagnostics() {
+                if last_was_snippet {
+                    writeln!(writer)?;
+                }
+                render_diagnostic(writer, diagnostic, path, colorize)?;
+                has_emitted = true;
+                last_was_snippet = false;
+            }
         }
     }
     Ok(())
 }
+
+pub use crate::snippet::render_full_snippet_diagnostic;
 
 fn render_truncated_reports<W: Write>(
     writer: &mut W,
@@ -192,29 +213,35 @@ pub fn render_diagnostic<W: Write>(
     path: Option<&str>,
     colorize: bool,
 ) -> std::io::Result<()> {
-    if let Some(file_path) = path {
-        write!(writer, "{file_path}:")?;
-    }
-    write!(
-        writer,
-        "{}:{}: [{}] {} (",
-        diagnostic.range.start_line,
-        diagnostic.range.start_col,
-        diagnostic.rule_id.as_str(),
-        diagnostic.message.as_str(),
-    )?;
     if colorize {
-        if let Some(color_code) = diagnostic.severity.color() {
-            write!(
-                writer,
-                "{color_code}{}{RESET}",
-                diagnostic.severity.as_str()
-            )?;
-        } else {
-            write!(writer, "{}", diagnostic.severity.as_str())?;
+        if let Some(file_path) = path {
+            write!(writer, "{file_path}{DIM}:{RESET}")?;
         }
+        write!(
+            writer,
+            "{YELLOW}{}{RESET}{DIM}:{RESET}{YELLOW}{}{RESET}{DIM}:{RESET} ",
+            diagnostic.range.start_line, diagnostic.range.start_col,
+        )?;
+        let sev_color = diagnostic.severity.color().unwrap_or(RESET);
+        writeln!(
+            writer,
+            "{BOLD}[{}] {} ({RESET}{sev_color}{}{RESET}{BOLD}){RESET}",
+            diagnostic.rule_id.as_str(),
+            diagnostic.message.as_str(),
+            diagnostic.severity.as_str(),
+        )
     } else {
-        write!(writer, "{}", diagnostic.severity.as_str())?;
+        if let Some(file_path) = path {
+            write!(writer, "{file_path}:")?;
+        }
+        writeln!(
+            writer,
+            "{}:{}: [{}] {} ({})",
+            diagnostic.range.start_line,
+            diagnostic.range.start_col,
+            diagnostic.rule_id.as_str(),
+            diagnostic.message.as_str(),
+            diagnostic.severity.as_str(),
+        )
     }
-    writeln!(writer, ")")
 }
