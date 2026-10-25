@@ -30,12 +30,15 @@ impl AstRule for ChainMethodContinuation {
             return;
         }
 
-        let is_any_on_newline = operators.iter().any(|&op| {
-            spaces_before(op, source) == WhitespaceBefore::StartOfLine
-                || is_on_closing_delimiter_line(op, source)
-        });
+        let is_multiline_chain = operators.first().is_some_and(|first| {
+            operators
+                .last()
+                .is_some_and(|last| first.start_position().row != last.start_position().row)
+        }) || operators
+            .iter()
+            .any(|&op| spaces_before(op, source) == WhitespaceBefore::StartOfLine);
 
-        let force_multiline = operators.len() >= 4 || is_any_on_newline;
+        let force_multiline = operators.len() >= 4 || is_multiline_chain;
 
         if force_multiline {
             for &operator_node in &operators {
@@ -43,9 +46,16 @@ impl AstRule for ChainMethodContinuation {
                     .utf8_text(source)
                     .unwrap_or(operator_node.kind());
 
+                let is_first_call_on_receiver_line = is_multiline_chain
+                    && operator_node == operators[0]
+                    && get_first_call_receiver(operator_node).is_some_and(|receiver| {
+                        receiver.end_position().row == operator_node.start_position().row
+                    });
+
                 let is_valid_start = spaces_before(operator_node, source)
                     == WhitespaceBefore::StartOfLine
-                    || is_on_closing_delimiter_line(operator_node, source);
+                    || is_on_closing_delimiter_line(operator_node, source)
+                    || is_first_call_on_receiver_line;
 
                 if !is_valid_start {
                     let message =
@@ -64,6 +74,17 @@ impl AstRule for ChainMethodContinuation {
             }
         }
     }
+}
+
+fn get_first_call_receiver(operator_node: tree_sitter::Node) -> Option<tree_sitter::Node> {
+    let mut current = operator_node.parent()?;
+    if current.kind() == "navigation_suffix" {
+        current = current.parent()?;
+    }
+    if current.kind() == "navigation_expression" {
+        return current.child(0);
+    }
+    None
 }
 
 fn is_on_closing_delimiter_line(operator_node: tree_sitter::Node, source: &[u8]) -> bool {
