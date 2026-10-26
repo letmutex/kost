@@ -4,7 +4,10 @@ mod reporting;
 use common::files::resolve_target_files;
 use format::{FileType, Formatter};
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use reporting::{format_number, print_format_summary, print_slowest_files, run_preset_comparison};
+use reporting::{
+    format_number, print_check_summary, print_format_summary, print_slowest_files,
+    run_preset_comparison,
+};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -44,6 +47,14 @@ pub struct FormatResult {
     pub modified_count: usize,
     pub error_count: usize,
     pub slowest_files: Vec<SlowFileRecord>,
+}
+
+pub struct FormatCheckResult {
+    pub duration: Duration,
+    pub clean_count: usize,
+    pub unformatted_count: usize,
+    pub diff_count: usize,
+    pub error_count: usize,
 }
 
 fn load_dataset(target_dir: &Path) -> Result<BenchmarkDataset, std::io::Error> {
@@ -165,13 +176,38 @@ pub fn run_parallel_format(formatter: &Formatter, dataset: &BenchmarkDataset) ->
     }
 }
 
-fn run_parallel_check(
-    formatter: &Formatter,
-    dataset: &BenchmarkDataset,
-) -> (Duration, usize, usize, usize, usize) {
+fn run_sequential_check(formatter: &Formatter, dataset: &BenchmarkDataset) -> FormatCheckResult {
+    let start_time = Instant::now();
+    let mut clean_count = 0;
+    let mut unformatted_count = 0;
+    let mut diff_count = 0;
+    let mut error_count = 0;
+
+    for file in &dataset.files {
+        let path_label = file.path.to_string_lossy();
+        match formatter.check(&file.content, file.file_type, &path_label, false) {
+            Ok(result) if result.is_formatted => clean_count += 1,
+            Ok(result) => {
+                unformatted_count += 1;
+                diff_count += usize::from(result.diff.is_some());
+            }
+            Err(_) => error_count += 1,
+        }
+    }
+
+    FormatCheckResult {
+        duration: start_time.elapsed(),
+        clean_count,
+        unformatted_count,
+        diff_count,
+        error_count,
+    }
+}
+
+fn run_parallel_check(formatter: &Formatter, dataset: &BenchmarkDataset) -> FormatCheckResult {
     let start_time = Instant::now();
 
-    let (clean, unformatted, diffs, errors) = dataset
+    let (clean_count, unformatted_count, diff_count, error_count) = dataset
         .files
         .par_iter()
         .fold(
@@ -201,14 +237,24 @@ fn run_parallel_check(
             },
         );
 
-    (start_time.elapsed(), clean, unformatted, diffs, errors)
+    FormatCheckResult {
+        duration: start_time.elapsed(),
+        clean_count,
+        unformatted_count,
+        diff_count,
+        error_count,
+    }
 }
 
 fn main() {
     if env::args().any(|argument| argument == "--help" || argument == "-h") {
-        println!("Usage: cargo bench --bench format_bench [-- <path-to-kotlin-repo>]");
+        println!(
+            "Usage: cargo bench --bench format_bench [-- <path-to-kotlin-repo>] [--sequential-check-only]"
+        );
         return;
     }
+
+    let sequential_check_only = env::args().any(|argument| argument == "--sequential-check-only");
 
     let target_dir = env::args()
         .skip(1)
@@ -239,6 +285,16 @@ fn main() {
     );
 
     let formatter = Formatter::new();
+    if sequential_check_only {
+        let seq_check_result = run_sequential_check(&formatter, &dataset);
+        print_check_summary(
+            "Format Verification & Diff Generation (Single Thread)",
+            &seq_check_result,
+            &dataset,
+            None,
+        );
+        return;
+    }
     let seq_result = run_sequential_format(&formatter, &dataset);
     print_format_summary(
         "1. In-Memory Sequential Formatting (Single Thread)",
@@ -255,20 +311,20 @@ fn main() {
         Some(seq_result.duration),
     );
 
-    let (check_duration, clean, unformatted, diffs, errors) =
-        run_parallel_check(&formatter, &dataset);
-    let check_seconds = check_duration.as_secs_f64().max(0.000_001);
-    let check_lines_per_sec = (dataset.total_lines as f64 / check_seconds).round() as usize;
-    println!(
-        "\n--- 3. Format Verification & Diff Generation (Rayon Parallel) ---\n\
-         Duration:         {:.2} ms ({check_seconds:.3} s)\n\
-         Throughput:       {} lines/s ({} clean, {} need format, {} errors, {} diffs)",
-        check_duration.as_secs_f64() * 1000.0,
-        format_number(check_lines_per_sec),
-        format_number(clean),
-        format_number(unformatted),
-        format_number(errors),
-        format_number(diffs),
+    let seq_check_result = run_sequential_check(&formatter, &dataset);
+    print_check_summary(
+        "3. Format Verification & Diff Generation (Single Thread)",
+        &seq_check_result,
+        &dataset,
+        None,
+    );
+
+    let par_check_result = run_parallel_check(&formatter, &dataset);
+    print_check_summary(
+        "4. Format Verification & Diff Generation (Rayon Parallel)",
+        &par_check_result,
+        &dataset,
+        Some(seq_check_result.duration),
     );
 
     print_slowest_files(&seq_result.slowest_files, &resolved_dir);

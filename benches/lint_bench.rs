@@ -250,9 +250,13 @@ fn print_slowest_files(slowest_files: &[SlowFileRecord], target_dir: &Path, limi
 
 fn main() {
     if env::args().any(|argument| argument == "--help" || argument == "-h") {
-        println!("Usage: cargo bench --bench lint_bench [-- <path-to-kotlin-repo>]");
+        println!(
+            "Usage: cargo bench --bench lint_bench [-- <path-to-kotlin-repo>] [--sequential-only]"
+        );
         return;
     }
+
+    let sequential_only = env::args().any(|argument| argument == "--sequential-only");
 
     let target_dir = env::args()
         .skip(1)
@@ -294,11 +298,22 @@ fn main() {
     );
 
     let sequential_result = run_sequential_lint(&linter, &dataset);
-    print_result_summary(
-        "1. In-Memory Sequential Linting (Single Thread)",
-        &sequential_result,
-        None,
-    );
+    let title = if sequential_only {
+        "In-Memory Sequential Linting (Single Thread)"
+    } else {
+        "1. In-Memory Sequential Linting (Single Thread)"
+    };
+    print_result_summary(title, &sequential_result, None);
+
+    if sequential_only {
+        print_top_rules(
+            &sequential_result.top_rules,
+            sequential_result.diagnostics_count,
+            15,
+        );
+        print_slowest_files(&sequential_result.slowest_files, &resolved_dir, 5);
+        return;
+    }
 
     let parallel_result = run_parallel_lint(&linter, &dataset);
     print_result_summary(

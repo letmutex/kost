@@ -1,4 +1,6 @@
-use crate::{BenchmarkDataset, FormatResult, SlowFileRecord, run_parallel_format};
+use crate::{
+    BenchmarkDataset, FormatCheckResult, FormatResult, SlowFileRecord, run_parallel_format,
+};
 use format::{Formatter, StylePreset};
 use std::path::Path;
 use std::time::Duration;
@@ -38,6 +40,32 @@ pub fn print_format_summary(
         format_number(result.clean_count),
         format_number(result.modified_count),
         format_number(result.error_count),
+    );
+    if let Some(base_duration) = speedup_against {
+        let speedup = base_duration.as_secs_f64() / result.duration.as_secs_f64();
+        println!("Parallel Speedup: {speedup:.2}x");
+    }
+}
+
+pub fn print_check_summary(
+    title: &str,
+    result: &FormatCheckResult,
+    dataset: &BenchmarkDataset,
+    speedup_against: Option<Duration>,
+) {
+    let check_seconds = result.duration.as_secs_f64().max(0.000_001);
+    let check_lines_per_sec = (dataset.total_lines as f64 / check_seconds).round() as usize;
+
+    println!("\n--- {title} ---");
+    println!(
+        "Duration:         {:.2} ms ({check_seconds:.3} s)\n\
+         Throughput:       {} lines/s ({} clean, {} need format, {} errors, {} diffs)",
+        result.duration.as_secs_f64() * 1000.0,
+        format_number(check_lines_per_sec),
+        format_number(result.clean_count),
+        format_number(result.unformatted_count),
+        format_number(result.error_count),
+        format_number(result.diff_count),
     );
     if let Some(base_duration) = speedup_against {
         let speedup = base_duration.as_secs_f64() / result.duration.as_secs_f64();
