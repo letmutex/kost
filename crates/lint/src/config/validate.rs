@@ -7,6 +7,7 @@ use indexmap::IndexMap;
 use smol_str::SmolStr;
 
 pub fn validate_property_operator(
+    rule_id: &str,
     property_key: PropertyKey,
     property_path: &str,
     op: &CondOp,
@@ -17,6 +18,7 @@ pub fn validate_property_operator(
         CondOp::Gt(_) | CondOp::Lt(_) | CondOp::Gte(_) | CondOp::Lte(_) => {
             if prop_type != "Int" && prop_type != "Float" {
                 return Err(ConfigError::IncompatiblePropertyOperator {
+                    rule_id: rule_id.to_string(),
                     property: property_path.to_string(),
                     property_type: prop_type,
                     operator: match op {
@@ -31,6 +33,7 @@ pub fn validate_property_operator(
         CondOp::Has(_) => {
             if prop_type != "StrList" && prop_type != "Str" {
                 return Err(ConfigError::IncompatiblePropertyOperator {
+                    rule_id: rule_id.to_string(),
                     property: property_path.to_string(),
                     property_type: prop_type,
                     operator: "has",
@@ -40,6 +43,7 @@ pub fn validate_property_operator(
         CondOp::StartsWith(_) | CondOp::EndsWith(_) => {
             if prop_type != "Str" {
                 return Err(ConfigError::IncompatiblePropertyOperator {
+                    rule_id: rule_id.to_string(),
                     property: property_path.to_string(),
                     property_type: prop_type,
                     operator: if matches!(op, CondOp::StartsWith(_)) {
@@ -53,21 +57,25 @@ pub fn validate_property_operator(
         CondOp::Matches { .. } => {
             if prop_type != "Str" {
                 return Err(ConfigError::IncompatiblePropertyOperator {
+                    rule_id: rule_id.to_string(),
                     property: property_path.to_string(),
                     property_type: prop_type,
                     operator: "matches",
                 });
             }
         }
-        CondOp::Eq(operand) => validate_eq_operand(property_path, prop_type, operand, options)?,
+        CondOp::Eq(operand) => {
+            validate_eq_operand(rule_id, property_path, prop_type, operand, options)?
+        }
         CondOp::Not(inner) => {
-            validate_property_operator(property_key, property_path, inner, options)?;
+            validate_property_operator(rule_id, property_key, property_path, inner, options)?;
         }
     }
     Ok(())
 }
 
 fn validate_eq_operand(
+    rule_id: &str,
     property_path: &str,
     prop_type: &'static str,
     operand: &Operand<PropertyValue>,
@@ -75,6 +83,7 @@ fn validate_eq_operand(
 ) -> Result<(), ConfigError> {
     if prop_type == "StrList" {
         return Err(ConfigError::IncompatiblePropertyOperator {
+            rule_id: rule_id.to_string(),
             property: property_path.to_string(),
             property_type: prop_type,
             operator: "eq",
@@ -89,6 +98,7 @@ fn validate_eq_operand(
     };
     if actual_type != prop_type {
         return Err(ConfigError::InvalidOperandType {
+            rule_id: rule_id.to_string(),
             property: property_path.to_string(),
             operator: "eq",
             expected: prop_type,

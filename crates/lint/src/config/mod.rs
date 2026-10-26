@@ -3,6 +3,7 @@
 pub mod error;
 pub mod merge;
 pub mod operator;
+pub mod options;
 pub mod parser;
 pub mod ruleset;
 pub mod schema;
@@ -137,6 +138,7 @@ impl ConfigLoader {
                     field: "message",
                 })?;
             RuleParser::validate_message_template_for_condition(
+                &full_id,
                 &condition,
                 rule_scope,
                 &message_str,

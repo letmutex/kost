@@ -3,9 +3,9 @@
 use crate::condition::{Condition, PropertyCondition};
 use crate::config::error::ConfigError;
 use crate::config::operator::{parse_operator, validate_property_operator};
+use crate::config::options;
 use crate::types::{PropertyKey, PropertyValue, Scope};
 use indexmap::IndexMap;
-use smallvec::SmallVec;
 use smol_str::SmolStr;
 
 pub use common::util::is_valid_kebab_case;
@@ -15,82 +15,12 @@ pub struct RuleParser;
 
 impl RuleParser {
     /// Validates and converts raw YAML options into typed `IndexMap<SmolStr, PropertyValue>`.
+    #[inline]
     pub fn parse_options(
         rule_id: &str,
         raw_options: &Option<IndexMap<String, serde_yaml::Value>>,
     ) -> Result<Option<IndexMap<SmolStr, PropertyValue>>, ConfigError> {
-        let Some(raw_map) = raw_options else {
-            return Ok(None);
-        };
-
-        if raw_map.is_empty() {
-            return Err(ConfigError::EmptyOptions {
-                rule_id: rule_id.to_string(),
-            });
-        }
-
-        let mut parsed_options = IndexMap::with_capacity(raw_map.len());
-        for (key, value) in raw_map {
-            if !is_valid_kebab_case(key)
-                && !key.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
-            {
-                return Err(ConfigError::InvalidIdFormat {
-                    id: key.clone(),
-                    reason: "Option key must be alphanumeric or snake_case/kebab-case",
-                });
-            }
-
-            let typed_val = Self::yaml_value_to_property_value(key, value)?;
-            parsed_options.insert(SmolStr::new(key), typed_val);
-        }
-
-        Ok(Some(parsed_options))
-    }
-
-    fn yaml_value_to_property_value(
-        key: &str,
-        value: &serde_yaml::Value,
-    ) -> Result<PropertyValue, ConfigError> {
-        match value {
-            serde_yaml::Value::Number(num) => {
-                if let Some(int_val) = num.as_i64() {
-                    Ok(PropertyValue::Int(int_val))
-                } else if let Some(float_val) = num.as_f64() {
-                    Ok(PropertyValue::Float(float_val))
-                } else {
-                    Err(ConfigError::InvalidOperandType {
-                        property: key.to_string(),
-                        operator: "options",
-                        expected: "Int or Float",
-                        actual: "Invalid number".to_string(),
-                    })
-                }
-            }
-            serde_yaml::Value::String(s) => Ok(PropertyValue::Str(SmolStr::new(s))),
-            serde_yaml::Value::Bool(b) => Ok(PropertyValue::Bool(*b)),
-            serde_yaml::Value::Sequence(seq) => {
-                let mut list = SmallVec::new();
-                for item in seq {
-                    if let Some(s) = item.as_str() {
-                        list.push(SmolStr::new(s));
-                    } else {
-                        return Err(ConfigError::InvalidOperandType {
-                            property: key.to_string(),
-                            operator: "options",
-                            expected: "String items",
-                            actual: "Non-string item".to_string(),
-                        });
-                    }
-                }
-                Ok(PropertyValue::StrList(list))
-            }
-            _ => Err(ConfigError::InvalidOperandType {
-                property: key.to_string(),
-                operator: "options",
-                expected: "Int, Float, Str, Bool, or StrList",
-                actual: "Unsupported YAML type".to_string(),
-            }),
-        }
+        options::parse_options(rule_id, raw_options)
     }
 
     /// Parses and strictly validates a `where` clause into a `Condition` and target `Scope`.
@@ -102,6 +32,7 @@ impl RuleParser {
         let mapping = raw_where
             .as_mapping()
             .ok_or_else(|| ConfigError::InvalidOperator {
+                rule_id: rule_id.to_string(),
                 property: "where".to_string(),
                 operator: "root".to_string(),
                 reason: "'where' block must be a mapping",
@@ -109,6 +40,7 @@ impl RuleParser {
 
         if mapping.is_empty() {
             return Err(ConfigError::InvalidOperator {
+                rule_id: rule_id.to_string(),
                 property: "where".to_string(),
                 operator: "root".to_string(),
                 reason: "'where' block cannot be empty",
@@ -117,6 +49,7 @@ impl RuleParser {
 
         if mapping.len() > 1 {
             return Err(ConfigError::InvalidOperator {
+                rule_id: rule_id.to_string(),
                 property: "where".to_string(),
                 operator: "root".to_string(),
                 reason: "'where' block must contain exactly one combinator ('all', 'any') or a single property condition",
@@ -127,6 +60,7 @@ impl RuleParser {
             let seq = all_val
                 .as_sequence()
                 .ok_or_else(|| ConfigError::InvalidOperator {
+                    rule_id: rule_id.to_string(),
                     property: "where.all".to_string(),
                     operator: "all".to_string(),
                     reason: "'all' must contain a sequence of conditions",
@@ -137,6 +71,7 @@ impl RuleParser {
             let seq = any_val
                 .as_sequence()
                 .ok_or_else(|| ConfigError::InvalidOperator {
+                    rule_id: rule_id.to_string(),
                     property: "where.any".to_string(),
                     operator: "any".to_string(),
                     reason: "'any' must contain a sequence of conditions",
@@ -148,6 +83,7 @@ impl RuleParser {
             let key_str = first_key
                 .as_str()
                 .ok_or_else(|| ConfigError::InvalidOperator {
+                    rule_id: rule_id.to_string(),
                     property: "where".to_string(),
                     operator: "root".to_string(),
                     reason: "Property key must be a string",
@@ -165,6 +101,7 @@ impl RuleParser {
     ) -> Result<(Vec<PropertyCondition>, Scope), ConfigError> {
         if seq.is_empty() {
             return Err(ConfigError::InvalidOperator {
+                rule_id: rule_id.to_string(),
                 property: "where".to_string(),
                 operator: "combinator".to_string(),
                 reason: "Condition sequence cannot be empty",
@@ -243,6 +180,7 @@ impl RuleParser {
         let mapping = value
             .as_mapping()
             .ok_or_else(|| ConfigError::InvalidOperator {
+                rule_id: rule_id.to_string(),
                 property: "condition".to_string(),
                 operator: "item".to_string(),
                 reason: "Condition item must be a mapping of '<scope>.<property>: <op>'",
@@ -250,6 +188,7 @@ impl RuleParser {
 
         if mapping.is_empty() {
             return Err(ConfigError::InvalidOperator {
+                rule_id: rule_id.to_string(),
                 property: "condition".to_string(),
                 operator: "item".to_string(),
                 reason: "Condition item cannot be empty",
@@ -258,6 +197,7 @@ impl RuleParser {
 
         if mapping.len() > 1 {
             return Err(ConfigError::InvalidOperator {
+                rule_id: rule_id.to_string(),
                 property: "condition".to_string(),
                 operator: "item".to_string(),
                 reason: "Condition item must contain exactly one '<scope>.<property>: <op>' pair",
@@ -269,6 +209,7 @@ impl RuleParser {
         let key_str = key_val
             .as_str()
             .ok_or_else(|| ConfigError::InvalidOperator {
+                rule_id: rule_id.to_string(),
                 property: "condition".to_string(),
                 operator: "key".to_string(),
                 reason: "Property key must be a string",
@@ -287,12 +228,14 @@ impl RuleParser {
             property_path
                 .split_once('.')
                 .ok_or_else(|| ConfigError::InvalidOperator {
+                    rule_id: rule_id.to_string(),
                     property: property_path.to_string(),
                     operator: "path".to_string(),
                     reason: "Property must be scoped in '<scope>.<property>' format",
                 })?;
 
         let scope = Scope::parse(scope_str).ok_or_else(|| ConfigError::UnknownScope {
+            rule_id: rule_id.to_string(),
             scope: scope_str.to_string(),
             property: property_path.to_string(),
         })?;
@@ -300,34 +243,20 @@ impl RuleParser {
         let property_key =
             PropertyKey::from_scope_and_field(scope, field_str).ok_or_else(|| {
                 ConfigError::UnknownProperty {
+                    rule_id: rule_id.to_string(),
                     scope: scope_str.to_string(),
                     property: field_str.to_string(),
                 }
             })?;
 
         let op = parse_operator(rule_id, property_path, op_val, options)?;
-        validate_property_operator(property_key, property_path, &op, options)?;
+        validate_property_operator(rule_id, property_key, property_path, &op, options)?;
         Ok((PropertyCondition::new(property_key, op), scope))
-    }
-
-    /// Strictly validates message template placeholders (`${scope.property}` and `${options.key}`).
-    #[inline]
-    pub fn validate_message_template(
-        target_scope: Scope,
-        allowed_scopes: &[Scope],
-        template: &str,
-        options: Option<&IndexMap<SmolStr, PropertyValue>>,
-    ) -> Result<(), ConfigError> {
-        crate::config::template::validate_message_template(
-            target_scope,
-            allowed_scopes,
-            template,
-            options,
-        )
     }
 
     /// Validates message template placeholders against participating scopes in a condition tree.
     pub fn validate_message_template_for_condition(
+        rule_id: &str,
         condition: &Condition,
         rule_scope: Scope,
         template: &str,
@@ -337,6 +266,12 @@ impl RuleParser {
         if !allowed_scopes.contains(&rule_scope) {
             allowed_scopes.push(rule_scope);
         }
-        Self::validate_message_template(rule_scope, &allowed_scopes, template, options)
+        crate::config::template::validate_message_template(
+            rule_id,
+            rule_scope,
+            &allowed_scopes,
+            template,
+            options,
+        )
     }
 }

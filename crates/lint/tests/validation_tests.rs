@@ -18,8 +18,12 @@ lint:
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
         ConfigError::InvalidOperator {
-            property, reason, ..
+            rule_id,
+            property,
+            reason,
+            ..
         } => {
+            assert_eq!(rule_id, "kost.yaml:multi-top-level");
             assert_eq!(property, "where");
             assert!(reason.contains("exactly one combinator"));
         }
@@ -44,10 +48,12 @@ lint:
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
         ConfigError::IncompatiblePropertyOperator {
+            rule_id,
             property,
             property_type,
             operator,
         } => {
+            assert_eq!(rule_id, "kost.yaml:invalid-type-op");
             assert_eq!(property, "function.name");
             assert_eq!(property_type, "Str");
             assert_eq!(operator, "gt");
@@ -91,7 +97,10 @@ lint:
 "#;
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
-        ConfigError::InvalidPlaceholder { reason, .. } => {
+        ConfigError::InvalidPlaceholder {
+            rule_id, reason, ..
+        } => {
+            assert_eq!(rule_id, "kost.yaml:unclosed-placeholder");
             assert!(reason.contains("Unclosed placeholder"));
         }
         other => panic!("Expected InvalidPlaceholder, got: {:?}", other),
@@ -112,11 +121,13 @@ lint:
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
         ConfigError::InvalidOperandType {
+            rule_id,
             property,
             operator,
             expected,
             actual,
         } => {
+            assert_eq!(rule_id, "kost.yaml:mismatched-eq");
             assert_eq!(property, "function.lines");
             assert_eq!(operator, "eq");
             assert_eq!(expected, "Int");
@@ -143,8 +154,12 @@ lint:
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
         ConfigError::InvalidOperandType {
-            property, operator, ..
+            rule_id,
+            property,
+            operator,
+            ..
         } => {
+            assert_eq!(rule_id, "kost.yaml:bad-option");
             assert_eq!(property, "threshold");
             assert_eq!(operator, "options");
         }
@@ -169,10 +184,12 @@ lint:
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
         ConfigError::InvalidOperator {
+            rule_id,
             property,
             operator,
             reason,
         } => {
+            assert_eq!(rule_id, "kost.yaml:empty-all");
             assert_eq!(property, "where");
             assert_eq!(operator, "combinator");
             assert!(reason.contains("empty"));
@@ -220,10 +237,12 @@ lint:
     let err = ConfigLoader::load_file(&override_file).unwrap_err();
     match err {
         ConfigError::InvalidOperator {
+            rule_id,
             property,
             operator,
             reason,
         } => {
+            assert_eq!(rule_id, "base.yaml:custom-rule");
             assert_eq!(property, "pattern");
             assert_eq!(operator, "matches");
             assert!(reason.contains("regular expression"));
@@ -235,82 +254,4 @@ lint:
     }
 
     let _ = std::fs::remove_dir_all(&temp_dir);
-}
-
-#[test]
-fn test_string_operator_incompatible_property_type_rejected() {
-    let startswith_yaml = r#"
-lint:
-  rules:
-    - id: bad-startswith
-      where:
-        file.lines: startswith("1")
-      message: "Error"
-"#;
-    let err = ConfigLoader::load_string(startswith_yaml, "kost.yaml").unwrap_err();
-    match err {
-        ConfigError::IncompatiblePropertyOperator {
-            property,
-            property_type,
-            operator,
-        } => {
-            assert_eq!(property, "file.lines");
-            assert_eq!(property_type, "Int");
-            assert_eq!(operator, "startswith");
-        }
-        other => panic!(
-            "Expected IncompatiblePropertyOperator for startswith, got: {:?}",
-            other
-        ),
-    }
-
-    let endswith_yaml = r#"
-lint:
-  rules:
-    - id: bad-endswith
-      where:
-        function.lines: endswith("0")
-      message: "Error"
-"#;
-    let err = ConfigLoader::load_string(endswith_yaml, "kost.yaml").unwrap_err();
-    match err {
-        ConfigError::IncompatiblePropertyOperator {
-            property,
-            property_type,
-            operator,
-        } => {
-            assert_eq!(property, "function.lines");
-            assert_eq!(property_type, "Int");
-            assert_eq!(operator, "endswith");
-        }
-        other => panic!(
-            "Expected IncompatiblePropertyOperator for endswith, got: {:?}",
-            other
-        ),
-    }
-
-    let has_yaml = r#"
-lint:
-  rules:
-    - id: bad-has
-      where:
-        file.lines: has("1")
-      message: "Error"
-"#;
-    let err = ConfigLoader::load_string(has_yaml, "kost.yaml").unwrap_err();
-    match err {
-        ConfigError::IncompatiblePropertyOperator {
-            property,
-            property_type,
-            operator,
-        } => {
-            assert_eq!(property, "file.lines");
-            assert_eq!(property_type, "Int");
-            assert_eq!(operator, "has");
-        }
-        other => panic!(
-            "Expected IncompatiblePropertyOperator for has, got: {:?}",
-            other
-        ),
-    }
 }

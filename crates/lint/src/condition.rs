@@ -100,16 +100,17 @@ impl Condition {
 
     pub fn update_options(
         &mut self,
+        rule_id: &str,
         options: &IndexMap<SmolStr, PropertyValue>,
     ) -> Result<(), ConfigError> {
         match self {
             Self::All(conditions) | Self::Any(conditions) => {
                 for condition in conditions {
-                    condition.op.update_options(options)?;
+                    condition.op.update_options(rule_id, options)?;
                 }
             }
             Self::Single(condition) => {
-                condition.op.update_options(options)?;
+                condition.op.update_options(rule_id, options)?;
             }
         }
         Ok(())
@@ -161,6 +162,7 @@ pub enum CondOp {
 impl CondOp {
     pub fn update_options(
         &mut self,
+        rule_id: &str,
         options: &IndexMap<SmolStr, PropertyValue>,
     ) -> Result<(), ConfigError> {
         match self {
@@ -171,6 +173,7 @@ impl CondOp {
                 if let Some(PropertyValue::Str(new_pattern)) = options.get(opt_key) {
                     let new_regex = regex::Regex::new(new_pattern.as_str()).map_err(|_| {
                         ConfigError::InvalidOperator {
+                            rule_id: rule_id.to_string(),
                             property: opt_key.to_string(),
                             operator: "matches".to_string(),
                             reason: "Invalid regular expression pattern in option override",
@@ -179,7 +182,7 @@ impl CondOp {
                     *regex = new_regex;
                 }
             }
-            Self::Not(inner) => inner.update_options(options)?,
+            Self::Not(inner) => inner.update_options(rule_id, options)?,
             _ => {}
         }
         Ok(())

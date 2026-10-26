@@ -28,6 +28,13 @@ pub enum ConfigError {
     #[error("Option '{option_key}' is not declared by rule '{rule_id}'")]
     OptionNotDeclared { rule_id: String, option_key: String },
 
+    #[error("Invalid option key '{option_key}' in rule '{rule_id}': {reason}")]
+    InvalidOptionKey {
+        rule_id: String,
+        option_key: String,
+        reason: &'static str,
+    },
+
     #[error(
         "Option '{option_key}' on rule '{rule_id}' expected type '{expected_type}', found '{actual_type}'"
     )]
@@ -38,11 +45,19 @@ pub enum ConfigError {
         actual_type: &'static str,
     },
 
-    #[error("Unknown scope '{scope}' in property '{property}'")]
-    UnknownScope { scope: String, property: String },
+    #[error("Unknown scope '{scope}' in property '{property}' in rule '{rule_id}'")]
+    UnknownScope {
+        rule_id: String,
+        scope: String,
+        property: String,
+    },
 
-    #[error("Unknown property '{property}' for scope '{scope}'")]
-    UnknownProperty { scope: String, property: String },
+    #[error("Unknown property '{property}' for scope '{scope}' in rule '{rule_id}'")]
+    UnknownProperty {
+        rule_id: String,
+        scope: String,
+        property: String,
+    },
 
     #[error(
         "Scope mismatch in rule '{rule_id}': rule scope is '{expected_scope}', but property targets '{actual_scope}'"
@@ -68,25 +83,30 @@ pub enum ConfigError {
     InvalidSeverity { rule_id: String, severity: String },
 
     #[error(
-        "Operator '{operator}' is incompatible with property '{property}' of type {property_type}"
+        "Operator '{operator}' in rule '{rule_id}' is incompatible with property '{property}' of type {property_type}"
     )]
     IncompatiblePropertyOperator {
+        rule_id: String,
         property: String,
         property_type: &'static str,
         operator: &'static str,
     },
 
-    #[error("Invalid condition operator '{operator}' for property '{property}': {reason}")]
+    #[error(
+        "Invalid condition operator '{operator}' for property '{property}' in rule '{rule_id}': {reason}"
+    )]
     InvalidOperator {
+        rule_id: String,
         property: String,
         operator: String,
         reason: &'static str,
     },
 
     #[error(
-        "Invalid operand for operator '{operator}' on property '{property}': expected {expected}, found {actual}"
+        "Invalid operand for operator '{operator}' on property '{property}' in rule '{rule_id}': expected {expected}, found {actual}"
     )]
     InvalidOperandType {
+        rule_id: String,
         property: String,
         operator: &'static str,
         expected: &'static str,
@@ -99,8 +119,11 @@ pub enum ConfigError {
         field: &'static str,
     },
 
-    #[error("Invalid placeholder '${{{placeholder}}}' in message template: {reason}")]
+    #[error(
+        "Invalid placeholder '${{{placeholder}}}' in message template for rule '{rule_id}': {reason}"
+    )]
     InvalidPlaceholder {
+        rule_id: String,
         placeholder: String,
         reason: &'static str,
     },

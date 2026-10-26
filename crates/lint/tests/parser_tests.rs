@@ -107,7 +107,12 @@ lint:
 "#;
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
-        ConfigError::InvalidPlaceholder { placeholder, .. } => {
+        ConfigError::InvalidPlaceholder {
+            rule_id,
+            placeholder,
+            ..
+        } => {
+            assert_eq!(rule_id, "kost.yaml:custom-rule");
             assert_eq!(placeholder, "function.invalid_property");
         }
         other => panic!("Expected InvalidPlaceholder, got: {:?}", other),
@@ -127,7 +132,12 @@ lint:
 "#;
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
-        ConfigError::InvalidPlaceholder { placeholder, .. } => {
+        ConfigError::InvalidPlaceholder {
+            rule_id,
+            placeholder,
+            ..
+        } => {
+            assert_eq!(rule_id, "kost.yaml:custom-rule");
             assert_eq!(placeholder, "class.name");
         }
         other => panic!("Expected InvalidPlaceholder, got: {:?}", other),
@@ -253,9 +263,11 @@ lint:
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
         ConfigError::InvalidPlaceholder {
+            rule_id,
             placeholder,
             reason,
         } => {
+            assert_eq!(rule_id, "kost.yaml:mixed-rule");
             assert_eq!(placeholder, "file.functions_count");
             assert!(reason.contains("Deferred file aggregate property"));
         }

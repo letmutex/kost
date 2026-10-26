@@ -1,6 +1,7 @@
 //! Rule merging and override evaluation.
 
 use crate::config::error::ConfigError;
+use crate::config::options;
 use crate::config::parser::{RuleParser, is_valid_kebab_case};
 pub use crate::config::ruleset::{ExportedRuleset, MergedRule, RuleLookup};
 use crate::config::schema::RawRule;
@@ -153,6 +154,7 @@ impl RuleMerger {
 
         if let Some(new_msg) = raw.message {
             RuleParser::validate_message_template_for_condition(
+                full_id,
                 &stat.condition,
                 stat.scope,
                 &new_msg,
@@ -186,10 +188,7 @@ impl RuleMerger {
                         option_key: key.clone(),
                     })?;
 
-            let parsed_val =
-                RuleParser::parse_options(full_id, &Some(IndexMap::from([(key.clone(), val)])))?
-                    .and_then(|mut m| m.swap_remove(&key_smol))
-                    .unwrap();
+            let parsed_val = options::parse_option_value(full_id, &key, &val)?;
 
             if existing_val.type_name() != parsed_val.type_name() {
                 return Err(ConfigError::OptionTypeMismatch {
@@ -202,7 +201,7 @@ impl RuleMerger {
 
             existing_options.insert(key_smol, parsed_val);
         }
-        stat.condition.update_options(existing_options)?;
+        stat.condition.update_options(full_id, existing_options)?;
         Ok(())
     }
 
@@ -236,6 +235,7 @@ impl RuleMerger {
             })?;
 
         RuleParser::validate_message_template_for_condition(
+            &full_id,
             &condition,
             rule_scope,
             &message_str,

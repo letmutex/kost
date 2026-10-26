@@ -17,6 +17,7 @@ pub fn parse_operator(
         serde_yaml::Value::String(s) => s.trim(),
         _ => {
             return Err(ConfigError::InvalidOperator {
+                rule_id: rule_id.to_string(),
                 property: property_path.to_string(),
                 operator: format!("{:?}", op_val),
                 reason: "Operator expression must be a string (e.g. gt(60), has('@Marker'))",
@@ -24,6 +25,15 @@ pub fn parse_operator(
         }
     };
 
+    parse_operator_str(rule_id, property_path, op_str, options)
+}
+
+fn parse_operator_str(
+    rule_id: &str,
+    property_path: &str,
+    op_str: &str,
+    options: Option<&IndexMap<SmolStr, PropertyValue>>,
+) -> Result<CondOp, ConfigError> {
     if let Some((op_name, rest)) = op_str.split_once('(')
         && let Some(arg) = rest.strip_suffix(')')
     {
@@ -36,8 +46,7 @@ pub fn parse_operator(
 
         match op_name {
             "not" => {
-                let inner_val = serde_yaml::Value::String(trimmed_arg.to_string());
-                let inner_op = parse_operator(rule_id, property_path, &inner_val, options)?;
+                let inner_op = parse_operator_str(rule_id, property_path, trimmed_arg, options)?;
                 return Ok(CondOp::Not(Box::new(inner_op)));
             }
             "eq" => {
@@ -63,6 +72,7 @@ pub fn parse_operator(
                     parse_regex_pattern(rule_id, property_path, trimmed_arg, options)?;
                 let regex =
                     regex::Regex::new(pattern_str).map_err(|_| ConfigError::InvalidOperator {
+                        rule_id: rule_id.to_string(),
                         property: property_path.to_string(),
                         operator: "matches".to_string(),
                         reason: "Invalid regular expression pattern",
@@ -75,6 +85,7 @@ pub fn parse_operator(
     }
 
     Err(ConfigError::InvalidOperator {
+        rule_id: rule_id.to_string(),
         property: property_path.to_string(),
         operator: op_str.to_string(),
         reason: "Unknown operator; expected one of gt, lt, gte, lte, eq, has, startswith, endswith, matches, not",
@@ -114,6 +125,7 @@ fn parse_numeric_operand(
         if let Some(val) = options_map.get(&opt_smol) {
             if val.as_numeric().is_none() {
                 return Err(ConfigError::InvalidOperandType {
+                    rule_id: rule_id.to_string(),
                     property: property_path.to_string(),
                     operator,
                     expected: "Int or Float option",
@@ -138,6 +150,7 @@ fn parse_numeric_operand(
     }
 
     Err(ConfigError::InvalidOperandType {
+        rule_id: rule_id.to_string(),
         property: property_path.to_string(),
         operator,
         expected: "numeric literal or numeric options reference",
@@ -161,6 +174,7 @@ fn parse_str_operand(
         if let Some(val) = options_map.get(&opt_smol) {
             if !matches!(val, PropertyValue::Str(_)) {
                 return Err(ConfigError::InvalidOperandType {
+                    rule_id: rule_id.to_string(),
                     property: property_path.to_string(),
                     operator,
                     expected: "Str option",
@@ -243,6 +257,7 @@ fn parse_regex_pattern<'a>(
         match options_map.get(&opt_smol) {
             Some(PropertyValue::Str(s)) => Ok((s.as_str(), Some(opt_smol))),
             Some(val) => Err(ConfigError::InvalidOperandType {
+                rule_id: rule_id.to_string(),
                 property: property_path.to_string(),
                 operator: "matches",
                 expected: "Str option",

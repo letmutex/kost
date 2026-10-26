@@ -7,6 +7,7 @@ use smol_str::SmolStr;
 
 /// Strictly validates message template placeholders (`${scope.property}` and `${options.key}`).
 pub fn validate_message_template(
+    rule_id: &str,
     target_scope: Scope,
     allowed_scopes: &[Scope],
     template: &str,
@@ -23,6 +24,7 @@ pub fn validate_message_template(
                 let has_option = options.is_some_and(|m| m.contains_key(opt_key));
                 if !has_option {
                     return Err(ConfigError::InvalidPlaceholder {
+                        rule_id: rule_id.to_string(),
                         placeholder: placeholder.to_string(),
                         reason: "Option reference does not exist in declared rule options",
                     });
@@ -30,12 +32,14 @@ pub fn validate_message_template(
             } else if let Some((scope_prefix, field_name)) = placeholder.split_once('.') {
                 let scope =
                     Scope::parse(scope_prefix).ok_or_else(|| ConfigError::InvalidPlaceholder {
+                        rule_id: rule_id.to_string(),
                         placeholder: placeholder.to_string(),
                         reason: "Unknown scope prefix in placeholder",
                     })?;
 
                 if !allowed_scopes.contains(&scope) {
                     return Err(ConfigError::InvalidPlaceholder {
+                        rule_id: rule_id.to_string(),
                         placeholder: placeholder.to_string(),
                         reason: "Scope prefix does not match any participating scope in rule or conditions",
                     });
@@ -43,18 +47,21 @@ pub fn validate_message_template(
 
                 let property_key = PropertyKey::from_scope_and_field(scope, field_name)
                     .ok_or_else(|| ConfigError::InvalidPlaceholder {
+                        rule_id: rule_id.to_string(),
                         placeholder: placeholder.to_string(),
                         reason: "Unknown property for scope in placeholder",
                     })?;
 
                 if target_scope != Scope::File && property_key.is_deferred_file_aggregate() {
                     return Err(ConfigError::InvalidPlaceholder {
+                        rule_id: rule_id.to_string(),
                         placeholder: placeholder.to_string(),
                         reason: "Deferred file aggregate property cannot be referenced in child-scoped rules",
                     });
                 }
             } else {
                 return Err(ConfigError::InvalidPlaceholder {
+                    rule_id: rule_id.to_string(),
                     placeholder: placeholder.to_string(),
                     reason: "Placeholder must be '${options.<key>}' or '${<scope>.<property>}'",
                 });
@@ -64,6 +71,7 @@ pub fn validate_message_template(
         } else {
             let unclosed = &template[actual_start + 2..];
             return Err(ConfigError::InvalidPlaceholder {
+                rule_id: rule_id.to_string(),
                 placeholder: unclosed.to_string(),
                 reason: "Unclosed placeholder, missing '}'",
             });
