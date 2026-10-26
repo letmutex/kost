@@ -66,27 +66,6 @@ lint:
 }
 
 #[test]
-fn test_stat_rule_override_rejects_where_when_locked() {
-    let yaml = r#"
-lint:
-  includes:
-    - statistics
-  rules:
-    - id: statistics:deep-indent
-      where:
-        file.lines: gt(100)
-
-"#;
-    let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
-    match err {
-        ConfigError::WhereOverrideRejected { id } => {
-            assert_eq!(id, "statistics:deep-indent");
-        }
-        other => panic!("Expected WhereOverrideRejected, got: {:?}", other),
-    }
-}
-
-#[test]
 fn test_stat_rule_override_allows_where_when_permitted() {
     let yaml = r#"
 lint:

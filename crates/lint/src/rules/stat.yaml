@@ -11,7 +11,7 @@ lint:
 
     - id: deep-indent
       severity: warning
-      allow_where_override: false
+      allow_where_override: true
       options:
         max_indent: 32
       where:
@@ -20,7 +20,7 @@ lint:
 
     - id: too-many-parameters
       severity: warning
-      allow_where_override: false
+      allow_where_override: true
       options:
         max_params: 7
       where:
