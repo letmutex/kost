@@ -1,4 +1,4 @@
-use common::color::{BOLD_GREEN, CYAN, RESET, wrap_styled};
+use common::color::{BOLD_GREEN, CYAN, DIM, RESET, wrap_styled};
 
 /// Returns the error prefix tag (`error:`) with optional bold red ANSI styling.
 pub fn error_prefix(colorize: bool) -> &'static str {
@@ -26,6 +26,17 @@ pub fn push_header(buffer: &mut String, header_text: &str, colorize: bool) {
         buffer.push_str(RESET);
     } else {
         buffer.push_str(header_text);
+    }
+}
+
+/// Appends dimmed text
+pub fn push_dimmed(buffer: &mut String, text: &str, colorize: bool) {
+    if colorize {
+        buffer.push_str(DIM);
+        buffer.push_str(text);
+        buffer.push_str(RESET);
+    } else {
+        buffer.push_str(text);
     }
 }
 

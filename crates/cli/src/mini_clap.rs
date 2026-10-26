@@ -25,15 +25,17 @@ pub struct Subcommand {
 pub struct MiniClap {
     pub name: &'static str,
     pub description: &'static str,
+    pub version: &'static str,
     pub flags: Vec<Flag>,
     pub subcommands: Vec<Subcommand>,
 }
 
 impl MiniClap {
-    pub fn new(name: &'static str, description: &'static str) -> Self {
+    pub fn new(name: &'static str, version: &'static str, description: &'static str) -> Self {
         Self {
             name,
             description,
+            version,
             flags: Vec::new(),
             subcommands: Vec::new(),
         }
@@ -92,6 +94,9 @@ impl MiniClap {
         buffer.push_str(self.name);
         buffer.push_str(" - ");
         buffer.push_str(self.description);
+        crate::style::push_dimmed(&mut buffer, " (", colorize);
+        crate::style::push_dimmed(&mut buffer, self.version, colorize);
+        crate::style::push_dimmed(&mut buffer, ")", colorize);
         buffer.push_str("\n\n");
 
         crate::style::push_header(&mut buffer, "USAGE:", colorize);

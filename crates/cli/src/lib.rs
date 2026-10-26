@@ -18,6 +18,7 @@ pub use update::{UpdateArgs, render_update_help, render_update_help_styled};
 pub fn build_app() -> MiniClap {
     MiniClap::new(
         "kost",
+        env!("CARGO_PKG_VERSION"),
         "Fast JVM-free Kotlin static analysis & language server",
     )
     .flag("-h", "--help", "Print help information")
@@ -45,7 +46,7 @@ pub fn print_help() {
 }
 
 pub fn print_version() {
-    println!("kost {}", env!("CARGO_PKG_VERSION"));
+    println!("{}", env!("CARGO_PKG_VERSION"));
 }
 
 pub(crate) fn parse_value_option<'a, I>(
