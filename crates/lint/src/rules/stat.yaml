@@ -47,6 +47,7 @@ lint:
         all:
           - function.name.length: gt(options.max_length)
           - function.name: not(has(" "))
+          - function.annotations: not(has("@Test"))
       message: "Function '${function.name}' name length is ${function.name.length} (limit: ${options.max_length})"
 
     - id: variable-name-length

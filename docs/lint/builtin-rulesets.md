@@ -158,7 +158,7 @@ The `statistics` ruleset provides configurable code complexity and code size che
 | `statistics:deep-indent` | `max_indent: 32` | `file.max_indent_spaces > max_indent` | `Max indent depth is <spaces> spaces (limit: <limit>)` |
 | `statistics:too-many-parameters` | `max_params: 7` | `function.parameters_count > max_params` | `Function '<name>' has <count> parameters (limit: <limit>)` |
 | `statistics:class-name-length` | `max_length: 40` | `class.name.length > max_length` (exempts names containing spaces) | `Class '<name>' name length is <length> (limit: <limit>)` |
-| `statistics:function-name-length` | `max_length: 30` | `function.name.length > max_length` (exempts names containing spaces) | `Function '<name>' name length is <length> (limit: <limit>)` |
+| `statistics:function-name-length` | `max_length: 30` | `function.name.length > max_length` (exempts names containing spaces or `@Test` annotation) | `Function '<name>' name length is <length> (limit: <limit>)` |
 | `statistics:variable-name-length` | `max_length: 30` | `variable.name.length > max_length` (exempts names containing spaces) | `Variable '<name>' name length is <length> (limit: <limit>)` |
 | `statistics:file-length` | `max_lines: 600` | `file.lines > max_lines` | `File is <lines> lines (limit: <limit>)` |
 | `statistics:too-many-functions` | `max_functions: 15` | `file.functions_count > max_functions` | `File has <count> functions (limit: <limit>)` |
