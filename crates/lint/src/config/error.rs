@@ -55,6 +55,14 @@ pub enum ConfigError {
     },
 
     #[error(
+        "Deferred property '{property}' in rule '{rule_id}' is aggregated across the entire file and can only be evaluated in file-scoped rules"
+    )]
+    DeferredPropertyInChildScope {
+        rule_id: String,
+        property: &'static str,
+    },
+
+    #[error(
         "Invalid severity '{severity}' for rule '{rule_id}': expected 'error', 'warning', or 'none'"
     )]
     InvalidSeverity { rule_id: String, severity: String },

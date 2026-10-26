@@ -4,13 +4,15 @@ pub mod error;
 pub mod merge;
 pub mod operator;
 pub mod parser;
+pub mod ruleset;
 pub mod schema;
 pub mod template;
 pub mod validate;
 
 use crate::config::error::ConfigError;
-use crate::config::merge::{ExportedRuleset, RuleLookup, RuleMerger};
+pub use crate::config::merge::RuleMerger;
 use crate::config::parser::RuleParser;
+pub use crate::config::ruleset::{ExportedRuleset, MergedRule, RuleLookup};
 use crate::config::schema::{ConfigFile, RawInclude};
 use crate::registry::RuleRegistry;
 use crate::rule::StatRule;
@@ -134,7 +136,12 @@ impl ConfigLoader {
                     rule_id: full_id.to_string(),
                     field: "message",
                 })?;
-            RuleParser::validate_message_template(rule_scope, &message_str, options.as_ref())?;
+            RuleParser::validate_message_template_for_condition(
+                &condition,
+                rule_scope,
+                &message_str,
+                options.as_ref(),
+            )?;
 
             let policy = WherePolicy::from_allow_bool(raw.allow_where_override.unwrap_or(true));
             let severity = raw

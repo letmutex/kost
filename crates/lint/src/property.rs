@@ -101,6 +101,16 @@ impl PropertyKey {
         }
     }
 
+    pub const fn is_deferred_file_aggregate(&self) -> bool {
+        matches!(
+            self,
+            Self::FileFunctionsCount
+                | Self::FileMaxIndentSpaces
+                | Self::FileImportsCount
+                | Self::FileTopLevelDeclarationsCount
+        )
+    }
+
     pub fn from_scope_and_field(scope: Scope, field: &str) -> Option<Self> {
         match (scope, field) {
             (Scope::Function, "name") => Some(Self::FunctionName),

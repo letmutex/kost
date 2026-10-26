@@ -1,6 +1,6 @@
 //! Traversal context and lexical scope tracking during AST walk.
 
-use crate::condition::PropertyBag;
+use crate::condition::{PropertyBag, PropertyLookup};
 use crate::registry::RuleRegistry;
 use crate::suppression::SuppressionLocator;
 use crate::types::{
@@ -57,6 +57,27 @@ impl ScopeTracker {
         if let Some(frame) = self.stack.last_mut() {
             frame.properties.insert(key, value);
         }
+    }
+}
+
+/// Resolves properties across the current scope and enclosing ancestor scopes on the stack.
+pub struct StackPropertyResolver<'a> {
+    pub current: &'a ScopeFrame,
+    pub tracker: &'a ScopeTracker,
+}
+
+impl<'a> PropertyLookup for StackPropertyResolver<'a> {
+    #[inline]
+    fn get_property(&self, key: PropertyKey) -> Option<&PropertyValue> {
+        if key.scope() == self.current.scope {
+            return self.current.properties.get(key);
+        }
+        for frame in self.tracker.stack.iter().rev() {
+            if frame.scope == key.scope() {
+                return frame.properties.get(key);
+            }
+        }
+        None
     }
 }
 

@@ -1,0 +1,10 @@
+lint:
+  includes:
+    - statistics
+  rules:
+    - id: statistics:long-function
+      where:
+        all:
+          - class.name: endswith("Controller")
+          - function.lines: gt(2)
+      message: "Controller method ${function.name} in ${class.name} is too long"

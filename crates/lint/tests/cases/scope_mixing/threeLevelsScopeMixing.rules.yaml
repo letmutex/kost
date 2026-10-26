@@ -1,0 +1,10 @@
+lint:
+  rules:
+    - id: deep-nesting-rule
+      severity: error
+      where:
+        all:
+          - file.lines: gt(5)
+          - class.name: eq("TargetClass")
+          - function.lines: gt(2)
+      message: "File (${file.lines} lines): TargetClass.${function.name} is long"

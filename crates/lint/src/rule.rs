@@ -1,6 +1,6 @@
 //! Rule definitions for AST rules and statistical rules.
 
-use crate::condition::{Condition, PropertyBag};
+use crate::condition::{Condition, PropertyLookup};
 use crate::context::LintCtx;
 use crate::types::{OptionValue, PropertyKey, Scope, Severity, WherePolicy};
 use indexmap::IndexMap;
@@ -51,7 +51,7 @@ impl StatRule {
     }
 
     /// Interpolates `${scope.property}` and `${options.key}` placeholders in `message_template`.
-    pub fn format_message(&self, properties: &PropertyBag) -> String {
+    pub fn format_message<P: PropertyLookup + ?Sized>(&self, properties: &P) -> String {
         let template = self.message_template.as_str();
         let mut result = String::with_capacity(template.len());
         let mut cursor = 0;
@@ -84,7 +84,11 @@ impl StatRule {
         result
     }
 
-    fn resolve_placeholder(&self, placeholder: &str, properties: &PropertyBag) -> Option<String> {
+    fn resolve_placeholder<P: PropertyLookup + ?Sized>(
+        &self,
+        placeholder: &str,
+        properties: &P,
+    ) -> Option<String> {
         if let Some(option_key) = placeholder.strip_prefix("options.") {
             return self
                 .options
@@ -101,10 +105,9 @@ impl StatRule {
 
         if let Some((scope_prefix, field_name)) = placeholder.split_once('.')
             && let Some(scope) = Scope::parse(scope_prefix)
-            && scope == self.scope
             && let Some(property_key) =
                 crate::types::PropertyKey::from_scope_and_field(scope, field_name)
-            && let Some(value) = properties.get(property_key)
+            && let Some(value) = properties.get_property(property_key)
         {
             return Some(match value {
                 OptionValue::Int(n) => n.to_string(),

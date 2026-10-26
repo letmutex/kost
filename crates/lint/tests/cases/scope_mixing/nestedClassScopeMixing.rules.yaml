@@ -1,0 +1,9 @@
+lint:
+  rules:
+    - id: inner-handler-method
+      severity: warning
+      where:
+        all:
+          - class.name: eq("InnerHandler")
+          - function.lines: gt(2)
+      message: "Handler method ${function.name} inside ${class.name}"

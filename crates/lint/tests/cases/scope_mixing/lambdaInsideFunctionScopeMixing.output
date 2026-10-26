@@ -1,0 +1,1 @@
+2:9: [error] lambdaInsideFunctionScopeMixing.rules.yaml:large-lambda-in-critical-func: Critical task criticalTask contains multi-line lambda

@@ -71,6 +71,23 @@ pub fn format_elapsed(duration: std::time::Duration) -> String {
     }
 }
 
+/// Validates that a string is valid kebab-case (e.g. "no-semi", "long-function-1").
+pub fn is_valid_kebab_case(s: &str) -> bool {
+    if s.is_empty() {
+        return false;
+    }
+    for part in s.split('-') {
+        if part.is_empty()
+            || !part
+                .chars()
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
+        {
+            return false;
+        }
+    }
+    true
+}
+
 #[cfg(test)]
 mod tests {
     use smol_str::SmolStr;
@@ -132,5 +149,23 @@ mod tests {
         let cls: SmolStr = SmolStr::new("List");
         let result = concat_smol_str!(pkg, mid, cls);
         assert_eq!(result.as_str(), "kotlin.collections.List");
+    }
+
+    #[test]
+    fn test_is_valid_kebab_case() {
+        use super::is_valid_kebab_case;
+
+        assert!(is_valid_kebab_case("no-semi"));
+        assert!(is_valid_kebab_case("long-function-1"));
+        assert!(is_valid_kebab_case("rule"));
+        assert!(is_valid_kebab_case("rule-123"));
+
+        assert!(!is_valid_kebab_case(""));
+        assert!(!is_valid_kebab_case("-leading"));
+        assert!(!is_valid_kebab_case("trailing-"));
+        assert!(!is_valid_kebab_case("double--hyphen"));
+        assert!(!is_valid_kebab_case("Upper-Case"));
+        assert!(!is_valid_kebab_case("snake_case"));
+        assert!(!is_valid_kebab_case("special!char"));
     }
 }

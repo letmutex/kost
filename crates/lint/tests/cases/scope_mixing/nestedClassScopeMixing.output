@@ -1,0 +1,1 @@
+8:9: [warning] nestedClassScopeMixing.rules.yaml:inner-handler-method: Handler method handle inside InnerHandler

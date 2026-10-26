@@ -18,10 +18,10 @@ pub mod util;
 pub mod walker;
 
 pub use cli::run;
-pub use condition::{CondOp, Condition, PropertyBag, PropertyCondition};
+pub use condition::{CondOp, Condition, PropertyBag, PropertyCondition, PropertyLookup};
 pub use config::ConfigLoader;
 pub use config::error::ConfigError;
-pub use context::{LintCtx, ScopeFrame, ScopeTracker};
+pub use context::{LintCtx, ScopeFrame, ScopeTracker, StackPropertyResolver};
 pub use linter::{LintReport, Linter};
 pub use registry::{RuleRegistry, RuleRegistryBuilder};
 pub use rule::{AstRule, StatRule};

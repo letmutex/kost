@@ -153,4 +153,5 @@ test_case_groups! {
     test_too_many_functions_cases: "too_many_functions",
     test_string_operators_cases: "string_operators",
     test_no_fully_qualified_type_names_cases: "no_fully_qualified_type_names",
+    test_scope_mixing_cases: "scope_mixing",
 }

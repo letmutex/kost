@@ -1,6 +1,6 @@
 //! Single-pass DFS tree-sitter AST traversal engine.
 
-use crate::context::LintCtx;
+use crate::context::{LintCtx, ScopeFrame, StackPropertyResolver};
 use crate::extractor::{enter_scope_if_matching, populate_file_properties};
 use crate::registry::RuleRegistry;
 use crate::types::{Diagnostic, PropertyKey, PropertyValue, Scope, TextRange};
@@ -75,12 +75,7 @@ pub fn lint_source_with_path_and_config(
                 PropertyValue::Int(ctx.file_functions_count),
             );
         }
-        evaluate_scope_stat_rules(
-            &file_frame.scope,
-            &file_frame.range,
-            &file_frame.properties,
-            &mut ctx,
-        );
+        evaluate_scope_stat_rules(&file_frame.scope, &file_frame, &mut ctx);
     }
 
     ctx.diagnostics
@@ -180,7 +175,7 @@ fn exit_node<'a>(
     if let Some(scope) = opened_scope
         && let Some(frame) = ctx.scope_tracker.pop()
     {
-        evaluate_scope_stat_rules(&scope, &frame.range, &frame.properties, ctx);
+        evaluate_scope_stat_rules(&scope, &frame, ctx);
     }
 
     if entered_string {
@@ -218,26 +213,25 @@ fn dispatch_post_rules(node: tree_sitter::Node, kind: &str, source: &[u8], ctx: 
     dispatch_rules(kind, ctx, |rule, c| rule.after_node(node, source, c));
 }
 
-fn evaluate_scope_stat_rules(
-    scope: &Scope,
-    range: &TextRange,
-    properties: &crate::condition::PropertyBag,
-    ctx: &mut LintCtx,
-) {
+fn evaluate_scope_stat_rules(scope: &Scope, frame: &ScopeFrame, ctx: &mut LintCtx) {
     if let Some(rules) = ctx.registry.stat_dispatch.get(scope) {
+        let resolver = StackPropertyResolver {
+            current: frame,
+            tracker: &ctx.scope_tracker,
+        };
         for rule in rules {
-            if rule.condition.matches(properties, rule.options.as_ref()) {
+            if rule.condition.matches(&resolver, rule.options.as_ref()) {
                 if ctx
                     .suppression_locator
-                    .is_suppressed(&rule.report_id, range)
+                    .is_suppressed(&rule.report_id, &frame.range)
                 {
                     continue;
                 }
-                let message = rule.format_message(properties);
+                let message = rule.format_message(&resolver);
                 ctx.diagnostics.push(Diagnostic {
                     rule_id: rule.report_id.clone(),
                     severity: rule.severity,
-                    range: *range,
+                    range: frame.range,
                     message,
                 });
             }

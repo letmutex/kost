@@ -1,15 +1,27 @@
 //! Declarative condition tree evaluation for statistical rules.
 
 use crate::config::error::ConfigError;
-use crate::types::{Numeric, Operand, PropertyKey, PropertyValue};
+use crate::types::{Numeric, Operand, PropertyKey, PropertyValue, Scope};
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 use smol_str::SmolStr;
+
+/// Trait for resolving property values from a scope or scope stack.
+pub trait PropertyLookup {
+    fn get_property(&self, key: PropertyKey) -> Option<&PropertyValue>;
+}
 
 /// A property bag containing accumulated properties for a lexical scope.
 #[derive(Debug, Clone, Default)]
 pub struct PropertyBag {
     pub entries: SmallVec<[(PropertyKey, PropertyValue); 8]>,
+}
+
+impl PropertyLookup for PropertyBag {
+    #[inline]
+    fn get_property(&self, key: PropertyKey) -> Option<&PropertyValue> {
+        self.get(key)
+    }
 }
 
 impl PropertyBag {
@@ -44,9 +56,9 @@ pub enum Condition {
 }
 
 impl Condition {
-    pub fn matches(
+    pub fn matches<P: PropertyLookup + ?Sized>(
         &self,
-        properties: &PropertyBag,
+        properties: &P,
         options: Option<&IndexMap<SmolStr, PropertyValue>>,
     ) -> bool {
         match self {
@@ -58,6 +70,17 @@ impl Condition {
                 .any(|condition| condition.eval(properties, options)),
             Self::Single(condition) => condition.eval(properties, options),
         }
+    }
+
+    pub fn participating_scopes(&self) -> SmallVec<[Scope; 4]> {
+        let mut scopes = SmallVec::new();
+        for key in self.referenced_properties() {
+            let scope = key.scope();
+            if !scopes.contains(&scope) {
+                scopes.push(scope);
+            }
+        }
+        scopes
     }
 
     pub fn referenced_properties(&self) -> Vec<PropertyKey> {
@@ -105,12 +128,12 @@ impl PropertyCondition {
         Self { property, op }
     }
 
-    pub fn eval(
+    pub fn eval<P: PropertyLookup + ?Sized>(
         &self,
-        properties: &PropertyBag,
+        properties: &P,
         options: Option<&IndexMap<SmolStr, PropertyValue>>,
     ) -> bool {
-        match properties.get(self.property) {
+        match properties.get_property(self.property) {
             Some(value) => self.op.eval(value, options),
             None => false,
         }

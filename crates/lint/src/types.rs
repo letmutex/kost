@@ -169,6 +169,36 @@ impl Scope {
             Self::Import => "import",
         }
     }
+
+    /// Evaluates whether `self` can be a lexical ancestor of `descendant` in the AST hierarchy.
+    ///
+    /// The linter enforces a strict top-down acyclic scope hierarchy:
+    /// `File -> Class -> Function -> Property -> Lambda`
+    /// (with `File -> Import` as a disjoint leaf branch).
+    ///
+    /// To ensure deterministic target scope inference and avoid ambiguity cycles,
+    /// local declarations (e.g. local classes in functions or local functions in lambdas)
+    /// are not modeled as ancestor inversions.
+    pub const fn can_be_ancestor_of(self, descendant: Scope) -> bool {
+        match self {
+            Self::File => true,
+            Self::Class => matches!(
+                descendant,
+                Self::Class | Self::Function | Self::Property | Self::Lambda
+            ),
+            Self::Function => matches!(descendant, Self::Function | Self::Property | Self::Lambda),
+            Self::Property => matches!(descendant, Self::Property | Self::Lambda),
+            Self::Lambda => matches!(descendant, Self::Lambda),
+            Self::Import => matches!(descendant, Self::Import),
+        }
+    }
+
+    pub fn resolve_target_scope(scopes: &[Scope]) -> Option<Scope> {
+        scopes
+            .iter()
+            .copied()
+            .find(|&candidate| scopes.iter().all(|&s| s.can_be_ancestor_of(candidate)))
+    }
 }
 
 /// Dynamically typed property and option value.

@@ -7,7 +7,8 @@ use smol_str::SmolStr;
 
 /// Strictly validates message template placeholders (`${scope.property}` and `${options.key}`).
 pub fn validate_message_template(
-    rule_scope: Scope,
+    target_scope: Scope,
+    allowed_scopes: &[Scope],
     template: &str,
     options: Option<&IndexMap<SmolStr, PropertyValue>>,
 ) -> Result<(), ConfigError> {
@@ -33,17 +34,23 @@ pub fn validate_message_template(
                         reason: "Unknown scope prefix in placeholder",
                     })?;
 
-                if scope != rule_scope {
+                if !allowed_scopes.contains(&scope) {
                     return Err(ConfigError::InvalidPlaceholder {
                         placeholder: placeholder.to_string(),
-                        reason: "Scope prefix does not match rule scope",
+                        reason: "Scope prefix does not match any participating scope in rule or conditions",
                     });
                 }
 
-                if PropertyKey::from_scope_and_field(scope, field_name).is_none() {
-                    return Err(ConfigError::InvalidPlaceholder {
+                let property_key = PropertyKey::from_scope_and_field(scope, field_name)
+                    .ok_or_else(|| ConfigError::InvalidPlaceholder {
                         placeholder: placeholder.to_string(),
                         reason: "Unknown property for scope in placeholder",
+                    })?;
+
+                if target_scope != Scope::File && property_key.is_deferred_file_aggregate() {
+                    return Err(ConfigError::InvalidPlaceholder {
+                        placeholder: placeholder.to_string(),
+                        reason: "Deferred file aggregate property cannot be referenced in child-scoped rules",
                     });
                 }
             } else {

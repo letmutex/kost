@@ -1,0 +1,9 @@
+lint:
+  rules:
+    - id: large-lambda-in-critical-func
+      severity: error
+      where:
+        all:
+          - function.name: eq("criticalTask")
+          - lambda.lines: gt(2)
+      message: "Critical task ${function.name} contains multi-line lambda"

@@ -8,22 +8,7 @@ use indexmap::IndexMap;
 use smallvec::SmallVec;
 use smol_str::SmolStr;
 
-/// Validates that a string is valid kebab-case (e.g. "no-semi", "long-function-1").
-pub fn is_valid_kebab_case(s: &str) -> bool {
-    if s.is_empty() {
-        return false;
-    }
-    for part in s.split('-') {
-        if part.is_empty()
-            || !part
-                .chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit())
-        {
-            return false;
-        }
-    }
-    true
-}
+pub use common::util::is_valid_kebab_case;
 
 /// Parses a raw rule definition into validated options, condition, scope, and message.
 pub struct RuleParser;
@@ -187,28 +172,67 @@ impl RuleParser {
         }
 
         let mut conditions = Vec::with_capacity(seq.len());
-
-        let mut inferred_scope: Option<Scope> = None;
+        let mut distinct_scopes: smallvec::SmallVec<[Scope; 4]> = smallvec::SmallVec::new();
 
         for item in seq {
             let (prop_cond, scope) = Self::parse_single_condition_value(rule_id, item, options)?;
-            if let Some(existing_scope) = inferred_scope {
-                if existing_scope != scope {
-                    return Err(ConfigError::ScopeMismatch {
-                        rule_id: rule_id.to_string(),
-                        expected_scope: existing_scope.as_str(),
-                        actual_scope: scope.as_str(),
-                        property: prop_cond.property.field_name().to_string(),
-                    });
-                }
-            } else {
-                inferred_scope = Some(scope);
+            if !distinct_scopes.contains(&scope) {
+                distinct_scopes.push(scope);
             }
             conditions.push(prop_cond);
         }
 
-        let scope = inferred_scope.unwrap_or(Scope::File);
-        Ok((conditions, scope))
+        let target_scope = Scope::resolve_target_scope(&distinct_scopes).ok_or_else(|| {
+            let (expected, actual, prop) = distinct_scopes
+                .iter()
+                .enumerate()
+                .find_map(|(i, &s1)| {
+                    distinct_scopes[i + 1..].iter().find_map(|&s2| {
+                        if !s1.can_be_ancestor_of(s2) && !s2.can_be_ancestor_of(s1) {
+                            let offending_prop = conditions
+                                .iter()
+                                .find(|c| c.property.scope() == s2)
+                                .map(|c| c.property.field_name().to_string())
+                                .unwrap_or_default();
+                            Some((s1.as_str(), s2.as_str(), offending_prop))
+                        } else {
+                            None
+                        }
+                    })
+                })
+                .unwrap_or_else(|| {
+                    (
+                        distinct_scopes
+                            .first()
+                            .map(|s| s.as_str())
+                            .unwrap_or("file"),
+                        distinct_scopes.get(1).map(|s| s.as_str()).unwrap_or("file"),
+                        conditions
+                            .last()
+                            .map(|c| c.property.field_name().to_string())
+                            .unwrap_or_default(),
+                    )
+                });
+            ConfigError::ScopeMismatch {
+                rule_id: rule_id.to_string(),
+                expected_scope: expected,
+                actual_scope: actual,
+                property: prop,
+            }
+        })?;
+
+        if target_scope != Scope::File {
+            for cond in &conditions {
+                if cond.property.is_deferred_file_aggregate() {
+                    return Err(ConfigError::DeferredPropertyInChildScope {
+                        rule_id: rule_id.to_string(),
+                        property: cond.property.field_name(),
+                    });
+                }
+            }
+        }
+
+        Ok((conditions, target_scope))
     }
 
     fn parse_single_condition_value(
@@ -289,10 +313,30 @@ impl RuleParser {
     /// Strictly validates message template placeholders (`${scope.property}` and `${options.key}`).
     #[inline]
     pub fn validate_message_template(
+        target_scope: Scope,
+        allowed_scopes: &[Scope],
+        template: &str,
+        options: Option<&IndexMap<SmolStr, PropertyValue>>,
+    ) -> Result<(), ConfigError> {
+        crate::config::template::validate_message_template(
+            target_scope,
+            allowed_scopes,
+            template,
+            options,
+        )
+    }
+
+    /// Validates message template placeholders against participating scopes in a condition tree.
+    pub fn validate_message_template_for_condition(
+        condition: &Condition,
         rule_scope: Scope,
         template: &str,
         options: Option<&IndexMap<SmolStr, PropertyValue>>,
     ) -> Result<(), ConfigError> {
-        crate::config::template::validate_message_template(rule_scope, template, options)
+        let mut allowed_scopes = condition.participating_scopes();
+        if !allowed_scopes.contains(&rule_scope) {
+            allowed_scopes.push(rule_scope);
+        }
+        Self::validate_message_template(rule_scope, &allowed_scopes, template, options)
     }
 }

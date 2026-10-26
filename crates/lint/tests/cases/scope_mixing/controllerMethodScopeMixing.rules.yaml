@@ -1,0 +1,9 @@
+lint:
+  rules:
+    - id: controller-method-length
+      severity: error
+      where:
+        all:
+          - class.name: endswith("Controller")
+          - function.lines: gt(3)
+      message: "Controller method ${function.name} in ${class.name} is too long"

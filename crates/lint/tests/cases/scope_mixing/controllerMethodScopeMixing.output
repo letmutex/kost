@@ -1,0 +1,1 @@
+6:5: [error] controllerMethodScopeMixing.rules.yaml:controller-method-length: Controller method longAction in UserController is too long
