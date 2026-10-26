@@ -30,13 +30,13 @@ pub enum PropertyKey {
     ClassKind,
     ClassConstructorParametersCount,
 
-    // Property scope
-    PropertyName,
-    PropertyNameLength,
-    PropertyLines,
-    PropertyType,
-    PropertyHasCustomGetter,
-    PropertyHasCustomSetter,
+    // Variable scope
+    VariableName,
+    VariableNameLength,
+    VariableLines,
+    VariableType,
+    VariableHasCustomGetter,
+    VariableHasCustomSetter,
 
     // Import scope
     ImportPath,
@@ -81,12 +81,12 @@ impl PropertyKey {
             | Self::ClassKind
             | Self::ClassConstructorParametersCount => Scope::Class,
 
-            Self::PropertyName
-            | Self::PropertyNameLength
-            | Self::PropertyLines
-            | Self::PropertyType
-            | Self::PropertyHasCustomGetter
-            | Self::PropertyHasCustomSetter => Scope::Property,
+            Self::VariableName
+            | Self::VariableNameLength
+            | Self::VariableLines
+            | Self::VariableType
+            | Self::VariableHasCustomGetter
+            | Self::VariableHasCustomSetter => Scope::Variable,
 
             Self::ImportPath | Self::ImportAlias | Self::ImportIsWildcard => Scope::Import,
 
@@ -138,12 +138,12 @@ impl PropertyKey {
                 Some(Self::ClassConstructorParametersCount)
             }
 
-            (Scope::Property, "name") => Some(Self::PropertyName),
-            (Scope::Property, "name.length") => Some(Self::PropertyNameLength),
-            (Scope::Property, "lines") => Some(Self::PropertyLines),
-            (Scope::Property, "type") => Some(Self::PropertyType),
-            (Scope::Property, "has_custom_getter") => Some(Self::PropertyHasCustomGetter),
-            (Scope::Property, "has_custom_setter") => Some(Self::PropertyHasCustomSetter),
+            (Scope::Variable, "name") => Some(Self::VariableName),
+            (Scope::Variable, "name.length") => Some(Self::VariableNameLength),
+            (Scope::Variable, "lines") => Some(Self::VariableLines),
+            (Scope::Variable, "type") => Some(Self::VariableType),
+            (Scope::Variable, "has_custom_getter") => Some(Self::VariableHasCustomGetter),
+            (Scope::Variable, "has_custom_setter") => Some(Self::VariableHasCustomSetter),
 
             (Scope::Import, "path") => Some(Self::ImportPath),
             (Scope::Import, "alias") => Some(Self::ImportAlias),
@@ -165,13 +165,13 @@ impl PropertyKey {
 
     pub fn field_name(&self) -> &'static str {
         match self {
-            Self::FunctionName | Self::ClassName | Self::PropertyName => "name",
-            Self::FunctionNameLength | Self::ClassNameLength | Self::PropertyNameLength => {
+            Self::FunctionName | Self::ClassName | Self::VariableName => "name",
+            Self::FunctionNameLength | Self::ClassNameLength | Self::VariableNameLength => {
                 "name.length"
             }
             Self::FunctionLines
             | Self::ClassLines
-            | Self::PropertyLines
+            | Self::VariableLines
             | Self::FileLines
             | Self::LambdaLines => "lines",
             Self::FunctionBodyLines => "body_lines",
@@ -188,9 +188,9 @@ impl PropertyKey {
             Self::ClassSupertypes => "supertypes",
             Self::ClassKind => "kind",
             Self::ClassConstructorParametersCount => "constructor_parameters_count",
-            Self::PropertyType => "type",
-            Self::PropertyHasCustomGetter => "has_custom_getter",
-            Self::PropertyHasCustomSetter => "has_custom_setter",
+            Self::VariableType => "type",
+            Self::VariableHasCustomGetter => "has_custom_getter",
+            Self::VariableHasCustomSetter => "has_custom_setter",
             Self::ImportPath => "path",
             Self::ImportAlias => "alias",
             Self::ImportIsWildcard => "is_wildcard",
@@ -209,15 +209,15 @@ impl PropertyKey {
             | Self::ClassName
             | Self::ClassVisibility
             | Self::ClassKind
-            | Self::PropertyName
-            | Self::PropertyType
+            | Self::VariableName
+            | Self::VariableType
             | Self::ImportPath
             | Self::ImportAlias
             | Self::FilePackage => "Str",
 
             Self::FunctionNameLength
             | Self::ClassNameLength
-            | Self::PropertyNameLength
+            | Self::VariableNameLength
             | Self::FunctionLines
             | Self::FunctionBodyLines
             | Self::FunctionParametersCount
@@ -227,7 +227,7 @@ impl PropertyKey {
             | Self::ClassMethodsCount
             | Self::ClassPropertiesCount
             | Self::ClassConstructorParametersCount
-            | Self::PropertyLines
+            | Self::VariableLines
             | Self::FileLines
             | Self::FileFunctionsCount
             | Self::FileImportsCount
@@ -236,8 +236,8 @@ impl PropertyKey {
             | Self::LambdaLines => "Int",
 
             Self::FunctionHasExpressionBody
-            | Self::PropertyHasCustomGetter
-            | Self::PropertyHasCustomSetter
+            | Self::VariableHasCustomGetter
+            | Self::VariableHasCustomSetter
             | Self::ImportIsWildcard => "Bool",
 
             Self::FunctionAnnotations | Self::ClassAnnotations | Self::ClassSupertypes => "StrList",

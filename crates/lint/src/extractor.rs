@@ -108,28 +108,28 @@ pub fn populate_class_properties(node: tree_sitter::Node, source: &[u8], ctx: &m
     }
 }
 
-pub fn populate_property_properties(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
+pub fn populate_variable_properties(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
     let needed = &ctx.registry.needed_properties;
 
-    if needed.contains(&PropertyKey::PropertyLines) {
+    if needed.contains(&PropertyKey::VariableLines) {
         let lines = (node.end_position().row - node.start_position().row + 1) as i64;
         ctx.scope_tracker
-            .insert_property(PropertyKey::PropertyLines, PropertyValue::Int(lines));
+            .insert_property(PropertyKey::VariableLines, PropertyValue::Int(lines));
     }
 
-    let needs_name = needed.contains(&PropertyKey::PropertyName);
-    let needs_len = needed.contains(&PropertyKey::PropertyNameLength);
+    let needs_name = needed.contains(&PropertyKey::VariableName);
+    let needs_len = needed.contains(&PropertyKey::VariableNameLength);
     if (needs_name || needs_len)
         && let Some(name) = find_child_identifier(node, source)
     {
         if needs_len {
             let len = identifier_clean_length(name.as_str());
             ctx.scope_tracker
-                .insert_property(PropertyKey::PropertyNameLength, PropertyValue::Int(len));
+                .insert_property(PropertyKey::VariableNameLength, PropertyValue::Int(len));
         }
         if needs_name {
             ctx.scope_tracker
-                .insert_property(PropertyKey::PropertyName, PropertyValue::Str(name));
+                .insert_property(PropertyKey::VariableName, PropertyValue::Str(name));
         }
     }
 }
@@ -268,9 +268,9 @@ pub fn enter_scope_if_matching(
             Some(Scope::Class)
         }
         "property_declaration" => {
-            ctx.scope_tracker.push(Scope::Property, range);
-            populate_property_properties(node, source, ctx);
-            Some(Scope::Property)
+            ctx.scope_tracker.push(Scope::Variable, range);
+            populate_variable_properties(node, source, ctx);
+            Some(Scope::Variable)
         }
         "lambda_literal" => {
             ctx.scope_tracker.push(Scope::Lambda, range);

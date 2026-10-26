@@ -141,7 +141,7 @@ pub enum Scope {
     File,
     Class,
     Function,
-    Property,
+    Variable,
     Lambda,
     Import,
 }
@@ -152,7 +152,7 @@ impl Scope {
             "file" => Some(Self::File),
             "class" => Some(Self::Class),
             "function" => Some(Self::Function),
-            "property" | "variable" => Some(Self::Property),
+            "variable" | "property" => Some(Self::Variable),
             "lambda" => Some(Self::Lambda),
             "import" => Some(Self::Import),
             _ => None,
@@ -164,7 +164,7 @@ impl Scope {
             Self::File => "file",
             Self::Class => "class",
             Self::Function => "function",
-            Self::Property => "property",
+            Self::Variable => "variable",
             Self::Lambda => "lambda",
             Self::Import => "import",
         }
@@ -173,7 +173,7 @@ impl Scope {
     /// Evaluates whether `self` can be a lexical ancestor of `descendant` in the AST hierarchy.
     ///
     /// The linter enforces a strict top-down acyclic scope hierarchy:
-    /// `File -> Class -> Function -> Property -> Lambda`
+    /// `File -> Class -> Function -> Variable -> Lambda`
     /// (with `File -> Import` as a disjoint leaf branch).
     ///
     /// To ensure deterministic target scope inference and avoid ambiguity cycles,
@@ -184,10 +184,10 @@ impl Scope {
             Self::File => true,
             Self::Class => matches!(
                 descendant,
-                Self::Class | Self::Function | Self::Property | Self::Lambda
+                Self::Class | Self::Function | Self::Variable | Self::Lambda
             ),
-            Self::Function => matches!(descendant, Self::Function | Self::Property | Self::Lambda),
-            Self::Property => matches!(descendant, Self::Property | Self::Lambda),
+            Self::Function => matches!(descendant, Self::Function | Self::Variable | Self::Lambda),
+            Self::Variable => matches!(descendant, Self::Variable | Self::Lambda),
             Self::Lambda => matches!(descendant, Self::Lambda),
             Self::Import => matches!(descendant, Self::Import),
         }

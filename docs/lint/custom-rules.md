@@ -171,16 +171,16 @@ Every condition in `where` inspects a property scoped to an AST element:
 | `function.has_expression_body` | `Bool` | `true` if defined with `= expr` instead of `{ ... }`. |
 | `function.return_type` | `Str` | Declared return type string. |
 
-### `property` Scope (also aliased as `variable`)
+### `variable` Scope
 
 | Property | Type | Description |
 | --- | --- | --- |
-| `property.name` / `variable.name` | `Str` | Property identifier. |
-| `property.name.length` / `variable.name.length` | `Int` | Character length of the property name (excluding backtick delimiters). |
-| `property.lines` / `variable.lines` | `Int` | Line count of the property declaration. |
-| `property.type` / `variable.type` | `Str` | Declared property type. |
-| `property.has_custom_getter` | `Bool` | Whether a custom `get()` accessor is defined. |
-| `property.has_custom_setter` | `Bool` | Whether a custom `set()` accessor is defined. |
+| `variable.name` | `Str` | Variable or property identifier. |
+| `variable.name.length` | `Int` | Character length of the variable name (excluding backtick delimiters). |
+| `variable.lines` | `Int` | Line count of the variable or property declaration. |
+| `variable.type` | `Str` | Declared variable type. |
+| `variable.has_custom_getter` | `Bool` | Whether a custom `get()` accessor is defined. |
+| `variable.has_custom_setter` | `Bool` | Whether a custom `set()` accessor is defined. |
 
 ### `import` Scope
 
