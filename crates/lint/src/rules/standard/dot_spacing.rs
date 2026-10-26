@@ -22,14 +22,14 @@ impl AstRule for DotSpacing {
         if let WhitespaceBefore::Spaces(n) = spaces_before(node, source)
             && n > 0
         {
-            let message = crate::concat_str!("Unexpected spacing before '", op, "'");
+            let message = common::concat_str!("Unexpected spacing before '", op, "'");
             ctx.report(node, message);
         }
 
         if let WhitespaceAfter::Spaces(n) = spaces_after(node, source)
             && n > 0
         {
-            let message = crate::concat_str!("Unexpected spacing after '", op, "'");
+            let message = common::concat_str!("Unexpected spacing after '", op, "'");
             ctx.report(node, message);
         }
     }

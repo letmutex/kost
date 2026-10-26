@@ -130,7 +130,7 @@ fn find_correlated_member<'a>(
         return None;
     }
 
-    let func_name = crate::concat_str!("get", capitalize_first(correlated_name));
+    let func_name = common::concat_str!("get", capitalize_first(correlated_name));
 
     if let Some(found) =
         search_body_for_correlated(class_body, node, correlated_name, &func_name, source)
@@ -219,6 +219,6 @@ fn capitalize_first(text: &str) -> String {
     let mut chars = text.chars();
     match chars.next() {
         None => String::new(),
-        Some(first) => crate::concat_str!(first.to_uppercase().to_string(), chars.as_str()),
+        Some(first) => common::concat_str!(first.to_uppercase().to_string(), chars.as_str()),
     }
 }

@@ -179,7 +179,7 @@ pub fn populate_import_properties(node: tree_sitter::Node, source: &[u8], ctx: &
 
     if needed.contains(&PropertyKey::ImportPath) {
         let path = if is_wildcard {
-            crate::concat_smol_str!(id_text, ".*")
+            common::concat_smol_str!(id_text, ".*")
         } else {
             SmolStr::new(id_text)
         };
@@ -242,7 +242,7 @@ fn find_annotation_type(node: tree_sitter::Node) -> Option<tree_sitter::Node> {
 fn push_annotation(annotations: &mut SmallVec<[SmolStr; 4]>, name: &str) {
     let name_smol = SmolStr::new(name);
     if !annotations.contains(&name_smol) {
-        let at_name = crate::concat_smol_str!("@", name);
+        let at_name = common::concat_smol_str!("@", name);
         annotations.push(name_smol);
         annotations.push(at_name);
     }

@@ -26,10 +26,10 @@ pub fn synthesize_class_members(
             id_range,
             DeclarationMetadata::new(
                 Some(
-                    crate::concat_str!("Generates a copy of this ", class_name, " instance.")
+                    common::concat_str!("Generates a copy of this ", class_name, " instance.")
                         .into(),
                 ),
-                Some(crate::concat_str!("fun copy(...): ", class_name).into()),
+                Some(common::concat_str!("fun copy(...): ", class_name).into()),
                 Some(SmolStr::new(class_name)),
                 false,
             ),
@@ -41,17 +41,17 @@ pub fn synthesize_class_members(
         for (name, sig, is_fn) in [
             (
                 "entries",
-                crate::concat_str!("val entries: EnumEntries<", class_name, ">"),
+                common::concat_str!("val entries: EnumEntries<", class_name, ">"),
                 false,
             ),
             (
                 "values",
-                crate::concat_str!("fun values(): Array<", class_name, ">"),
+                common::concat_str!("fun values(): Array<", class_name, ">"),
                 true,
             ),
             (
                 "valueOf",
-                crate::concat_str!("fun valueOf(value: String): ", class_name),
+                common::concat_str!("fun valueOf(value: String): ", class_name),
                 true,
             ),
         ] {
@@ -110,10 +110,10 @@ fn synthesize_data_class_components(
                             let comp_name = if (1..=COMMON_COMPONENT_NAMES.len()).contains(&index) {
                                 SmolStr::new_static(COMMON_COMPONENT_NAMES[index - 1])
                             } else {
-                                crate::concat_smol_str!("component", index.to_string())
+                                common::concat_smol_str!("component", index.to_string())
                             };
                             let sig =
-                                crate::concat_smol_str!("fun ", &comp_name, "(): ", param_type);
+                                common::concat_smol_str!("fun ", &comp_name, "(): ", param_type);
                             let range = node_to_range(&param);
                             results.push(DeclarationItem::new(
                                 comp_name,

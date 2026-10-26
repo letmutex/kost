@@ -100,7 +100,7 @@ impl TypeArg {
         if self.variance == Variance::Star {
             "*".to_string()
         } else {
-            crate::concat_str!(self.variance.to_string(), self.type_ref.to_short_string())
+            common::concat_str!(self.variance.to_string(), self.type_ref.to_short_string())
         }
     }
 }
@@ -164,9 +164,9 @@ impl KotlinType {
             Self::TypeParam(name) => name.to_string(),
             Self::Nullable(inner) => {
                 if inner.is_function() {
-                    crate::concat_str!("(", inner.to_short_string(), ")?")
+                    common::concat_str!("(", inner.to_short_string(), ")?")
                 } else {
-                    crate::concat_str!(inner.to_short_string(), "?")
+                    common::concat_str!(inner.to_short_string(), "?")
                 }
             }
             Self::Intersection(types) => types

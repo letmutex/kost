@@ -58,7 +58,7 @@ impl AstRule for NoUnusedImports {
 
         for (import_node, info) in imports {
             if unreferenced.contains(&info.symbol) {
-                let message = crate::concat_str!("Unused import: ", &info.full_path);
+                let message = common::concat_str!("Unused import: ", &info.full_path);
                 ctx.report(import_node, message);
             }
         }

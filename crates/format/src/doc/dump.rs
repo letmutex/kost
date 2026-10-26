@@ -2,23 +2,23 @@ use crate::doc::{Doc, IndentKind};
 
 fn dump_leaf(doc: &Doc<'_>, prefix: &str) -> Option<String> {
     match doc {
-        Doc::Text(s) => Some(crate::concat_str!(
+        Doc::Text(s) => Some(common::concat_str!(
             prefix,
             "Text(\"",
             s.escape_debug().to_string(),
             "\")\n"
         )),
-        Doc::Smol(s) => Some(crate::concat_str!(
+        Doc::Smol(s) => Some(common::concat_str!(
             prefix,
             "Smol(\"",
             s.escape_debug().to_string(),
             "\")\n"
         )),
-        Doc::Line => Some(crate::concat_str!(prefix, "Line\n")),
-        Doc::SoftLine => Some(crate::concat_str!(prefix, "SoftLine\n")),
-        Doc::HardLine => Some(crate::concat_str!(prefix, "HardLine\n")),
-        Doc::EmptyLine => Some(crate::concat_str!(prefix, "EmptyLine\n")),
-        Doc::LineSuffix(s) => Some(crate::concat_str!(
+        Doc::Line => Some(common::concat_str!(prefix, "Line\n")),
+        Doc::SoftLine => Some(common::concat_str!(prefix, "SoftLine\n")),
+        Doc::HardLine => Some(common::concat_str!(prefix, "HardLine\n")),
+        Doc::EmptyLine => Some(common::concat_str!(prefix, "EmptyLine\n")),
+        Doc::LineSuffix(s) => Some(common::concat_str!(
             prefix,
             "LineSuffix(\"",
             s.escape_debug().to_string(),
@@ -40,7 +40,7 @@ fn dump_branches(doc: &Doc<'_>, indent: usize, prefix: &str) -> Option<String> {
                 IndentKind::Block => "Block",
                 IndentKind::Continuation => "Continuation",
             };
-            Some(crate::concat_str!(
+            Some(common::concat_str!(
                 prefix,
                 "IndentIfBreak(id=",
                 id_str,
@@ -58,7 +58,7 @@ fn dump_branches(doc: &Doc<'_>, indent: usize, prefix: &str) -> Option<String> {
             flat,
         } => {
             let id_str = group_id.map_or(String::from("None"), |g| g.0.to_string());
-            Some(crate::concat_str!(
+            Some(common::concat_str!(
                 prefix,
                 "IfBreak(id=",
                 id_str,
@@ -77,7 +77,7 @@ fn dump_branches(doc: &Doc<'_>, indent: usize, prefix: &str) -> Option<String> {
             text,
             is_trailing,
             align_to_start_col,
-        } => Some(crate::concat_str!(
+        } => Some(common::concat_str!(
             prefix,
             "LineComment(trailing=",
             is_trailing.to_string(),
@@ -101,10 +101,10 @@ pub fn dump(doc: &Doc<'_>, indent: usize) -> String {
     }
     match doc {
         Doc::Indent(inner) => {
-            crate::concat_str!(prefix, "Indent(\n", dump(inner, indent + 2), prefix, ")\n")
+            common::concat_str!(prefix, "Indent(\n", dump(inner, indent + 2), prefix, ")\n")
         }
         Doc::ContinuationIndent(inner) => {
-            crate::concat_str!(
+            common::concat_str!(
                 prefix,
                 "ContinuationIndent(\n",
                 dump(inner, indent + 2),
@@ -114,10 +114,10 @@ pub fn dump(doc: &Doc<'_>, indent: usize) -> String {
         }
         Doc::Group { id, doc: inner } => {
             let id_str = match id {
-                Some(gid) => crate::concat_str!("Group#", gid.0.to_string()),
+                Some(gid) => common::concat_str!("Group#", gid.0.to_string()),
                 None => String::from("Group"),
             };
-            crate::concat_str!(
+            common::concat_str!(
                 prefix,
                 id_str,
                 "(\n",
@@ -127,7 +127,7 @@ pub fn dump(doc: &Doc<'_>, indent: usize) -> String {
             )
         }
         Doc::FitsFirstLine(inner) => {
-            crate::concat_str!(
+            common::concat_str!(
                 prefix,
                 "FitsFirstLine(\n",
                 dump(inner, indent + 2),
@@ -136,7 +136,7 @@ pub fn dump(doc: &Doc<'_>, indent: usize) -> String {
             )
         }
         Doc::PreserveTrailing(inner) => {
-            crate::concat_str!(
+            common::concat_str!(
                 prefix,
                 "PreserveTrailing(\n",
                 dump(inner, indent + 2),
@@ -145,7 +145,7 @@ pub fn dump(doc: &Doc<'_>, indent: usize) -> String {
             )
         }
         Doc::Concat(items) => {
-            let mut out = crate::concat_str!(prefix, "Concat([\n");
+            let mut out = common::concat_str!(prefix, "Concat([\n");
             for item in items {
                 out.push_str(&dump(item, indent + 2));
             }

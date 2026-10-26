@@ -136,7 +136,7 @@ fn find_sources_dir(sdk_root: &Path, api_level: u32, platform_name: &str) -> Opt
         return Some(exact);
     }
 
-    let api_name = crate::concat_str!("android-", api_level.to_string());
+    let api_name = common::concat_str!("android-", api_level.to_string());
     let api_dir = sources_base.join(api_name);
     if api_dir.is_dir() {
         return Some(api_dir);

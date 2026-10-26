@@ -16,7 +16,7 @@ pub fn descriptor_to_type(desc: &str) -> String {
             inner.rsplit('/').next().unwrap_or(inner).to_string()
         }
         _ if desc.starts_with('[') => {
-            crate::concat_str!("Array<", descriptor_to_type(&desc[1..]), ">")
+            common::concat_str!("Array<", descriptor_to_type(&desc[1..]), ">")
         }
         _ => desc.to_string(),
     }
@@ -57,15 +57,15 @@ pub fn method_descriptor_to_sig(desc: &str) -> String {
             }
         }
         let p_type = descriptor_to_type(&params_str[start..idx]);
-        params.push(crate::concat_str!("arg", p_num.to_string(), ": ", p_type));
+        params.push(common::concat_str!("arg", p_num.to_string(), ": ", p_type));
         p_num += 1;
     }
 
     let ret = descriptor_to_type(return_type_str);
     if ret == PrimitiveType::Unit.as_str() {
-        crate::concat_str!("(", params.join(", "), ")")
+        common::concat_str!("(", params.join(", "), ")")
     } else {
-        crate::concat_str!("(", params.join(", "), "): ", ret)
+        common::concat_str!("(", params.join(", "), "): ", ret)
     }
 }
 
@@ -101,7 +101,7 @@ pub fn extract_extension_info_from_desc(desc: &str) -> Option<(String, String)> 
         && let Some(primitive) = primitive_from_desc_tag(*first_byte)
     {
         let simple = primitive.as_str().to_string();
-        let qualified = crate::concat_str!("kotlin.", primitive.as_str());
+        let qualified = common::concat_str!("kotlin.", primitive.as_str());
         (qualified, simple, &params_str[1..])
     } else {
         return None;
@@ -128,16 +128,16 @@ pub fn extract_extension_info_from_desc(desc: &str) -> Option<(String, String)> 
             }
         }
         let p_type = descriptor_to_type(&rem_params_str[start..idx]);
-        params.push(crate::concat_str!("arg", p_num.to_string(), ": ", p_type));
+        params.push(common::concat_str!("arg", p_num.to_string(), ": ", p_type));
         p_num += 1;
     }
     let ret = descriptor_to_type(&desc[close + 1..]);
     let sig_suffix = if ret == PrimitiveType::Unit.as_str() {
-        crate::concat_str!("(", params.join(", "), ")")
+        common::concat_str!("(", params.join(", "), ")")
     } else {
-        crate::concat_str!("(", params.join(", "), "): ", ret)
+        common::concat_str!("(", params.join(", "), "): ", ret)
     };
-    let signature = crate::concat_str!(receiver_simple, ".", sig_suffix);
+    let signature = common::concat_str!(receiver_simple, ".", sig_suffix);
     Some((receiver_qualified, signature))
 }
 

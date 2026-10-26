@@ -28,7 +28,7 @@ pub(crate) fn collect_supertypes(
         {
             symbols
                 .class_supertypes
-                .entry(crate::concat_str!(p, ".", simple_name))
+                .entry(common::concat_str!(p, ".", simple_name))
                 .or_default()
                 .push(dot_super);
         }
@@ -66,7 +66,7 @@ pub(crate) fn apply_class_signature(
         let simple_super = simple_super.rsplit('.').next().unwrap_or(simple_super);
         let super_with_simple_name = if supertype.contains('<') {
             let args = &supertype[supertype.find('<').unwrap()..];
-            crate::concat_str!(simple_super, args)
+            common::concat_str!(simple_super, args)
         } else {
             simple_super.to_string()
         };
@@ -87,13 +87,13 @@ pub(crate) fn apply_class_signature(
             let dot_super = if supertype.contains('<') {
                 let bare = supertype.split('<').next().unwrap_or(&supertype);
                 let args = &supertype[supertype.find('<').unwrap()..];
-                crate::concat_str!(bare.replace('/', "."), args)
+                common::concat_str!(bare.replace('/', "."), args)
             } else {
                 supertype.replace('/', ".")
             };
             let full_entry = symbols
                 .class_supertypes
-                .entry(crate::concat_str!(p, ".", simple_class_name))
+                .entry(common::concat_str!(p, ".", simple_class_name))
                 .or_default();
             let raw_dot = dot_super.split('<').next().unwrap_or(&dot_super);
             if let Some(pos) = full_entry.iter().position(|s| s == raw_dot) {

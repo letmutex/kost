@@ -45,7 +45,7 @@ pub fn lower_package_header<'a>(
 }
 
 fn format_import_directive(entry: &ImportEntry) -> String {
-    let mut s = crate::concat_str!("import ", &entry.full_path);
+    let mut s = common::concat_str!("import ", &entry.full_path);
     if entry.is_wildcard {
         s.push_str(".*");
     }

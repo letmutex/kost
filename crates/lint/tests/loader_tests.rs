@@ -81,12 +81,12 @@ lint:
 #[test]
 fn test_load_string_detects_basename_collision_with_included_file() {
     let pid = std::process::id().to_string();
-    let temp_dir = std::env::temp_dir().join(lint::concat_str!("kost_test_collision_", &pid));
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_collision_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
     let sub_file = temp_dir.join("rules.yaml");
     std::fs::write(&sub_file, "lint:\n  rules: []\n").unwrap();
 
-    let yaml = lint::concat_str!(
+    let yaml = common::concat_str!(
         "lint:\n  includes:\n    - ",
         sub_file.to_str().unwrap(),
         "\n"
@@ -105,7 +105,7 @@ fn test_load_string_detects_basename_collision_with_included_file() {
 #[test]
 fn test_filesystem_dag_includes_and_circular_detection() {
     let pid = std::process::id().to_string();
-    let temp_dir = std::env::temp_dir().join(lint::concat_str!("kost_test_dag_", &pid));
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_dag_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let file_a = temp_dir.join("cycle_a.yaml");

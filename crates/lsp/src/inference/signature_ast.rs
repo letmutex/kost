@@ -15,7 +15,7 @@ pub fn parse_signature_from_ast(source: &str) -> Option<SignatureInfo> {
     if let Some(info) = parse_decl_from_source(clean) {
         return Some(info);
     }
-    let fun_wrapped = crate::concat_str!("fun ", clean);
+    let fun_wrapped = common::concat_str!("fun ", clean);
     parse_decl_from_source(&fun_wrapped)
 }
 

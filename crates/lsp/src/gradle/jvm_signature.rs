@@ -34,13 +34,13 @@ pub fn jvm_method_sig_to_kotlin(
     let tp_prefix = if method_sig.type_params.is_empty() {
         String::new()
     } else {
-        crate::concat_str!("<", method_sig.type_params.join(", "), "> ")
+        common::concat_str!("<", method_sig.type_params.join(", "), "> ")
     };
 
     let ret_suffix = if method_sig.return_type == "Unit" {
         String::new()
     } else {
-        crate::concat_str!(": ", method_sig.return_type)
+        common::concat_str!(": ", method_sig.return_type)
     };
 
     if is_extension && !method_sig.params.is_empty() {
@@ -50,9 +50,9 @@ pub fn jvm_method_sig_to_kotlin(
             .iter()
             .skip(1)
             .enumerate()
-            .map(|(i, p)| crate::concat_str!("arg", (i + 1).to_string(), ": ", p))
+            .map(|(i, p)| common::concat_str!("arg", (i + 1).to_string(), ": ", p))
             .collect();
-        let sig = crate::concat_str!(
+        let sig = common::concat_str!(
             "fun ",
             tp_prefix,
             receiver,
@@ -69,9 +69,9 @@ pub fn jvm_method_sig_to_kotlin(
             .params
             .iter()
             .enumerate()
-            .map(|(i, p)| crate::concat_str!("arg", (i + 1).to_string(), ": ", p))
+            .map(|(i, p)| common::concat_str!("arg", (i + 1).to_string(), ": ", p))
             .collect();
-        let sig = crate::concat_str!(
+        let sig = common::concat_str!(
             "fun ",
             tp_prefix,
             name,
@@ -134,7 +134,7 @@ impl<'a> JvmSigParser<'a> {
             b'D' => Some("Double".to_string()),
             b'[' => {
                 let inner = self.parse_type()?;
-                Some(crate::concat_str!("Array<", inner, ">"))
+                Some(common::concat_str!("Array<", inner, ">"))
             }
             b'T' => {
                 let start = self.pos;
@@ -157,10 +157,10 @@ impl<'a> JvmSigParser<'a> {
                 args.push("*".to_string());
             } else if self.consume(b'+') {
                 let arg = self.parse_type()?;
-                args.push(crate::concat_str!("out ", arg));
+                args.push(common::concat_str!("out ", arg));
             } else if self.consume(b'-') {
                 let arg = self.parse_type()?;
-                args.push(crate::concat_str!("in ", arg));
+                args.push(common::concat_str!("in ", arg));
             } else {
                 let arg = self.parse_type()?;
                 args.push(arg);
@@ -186,7 +186,7 @@ impl<'a> JvmSigParser<'a> {
         if self.consume(b'<') {
             let args = self.parse_type_args()?;
             if !args.is_empty() {
-                result = crate::concat_str!(result, "<", args.join(", "), ">");
+                result = common::concat_str!(result, "<", args.join(", "), ">");
             }
         }
 
@@ -205,7 +205,7 @@ impl<'a> JvmSigParser<'a> {
             if self.consume(b'<') {
                 let args = self.parse_type_args()?;
                 if !args.is_empty() {
-                    result = crate::concat_str!(result, "<", args.join(", "), ">");
+                    result = common::concat_str!(result, "<", args.join(", "), ">");
                 }
             }
         }
@@ -251,7 +251,7 @@ impl<'a> JvmSigParser<'a> {
             if bounds.is_empty() {
                 type_params.push(name);
             } else {
-                type_params.push(crate::concat_str!(name, " : ", bounds.join(" & ")));
+                type_params.push(common::concat_str!(name, " : ", bounds.join(" & ")));
             }
         }
         self.consume(b'>');

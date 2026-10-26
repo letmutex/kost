@@ -96,7 +96,7 @@ fn verify_member_target(
         && !pkg.is_empty()
         && !super::candidate::has_package_prefix(target_container, pkg)
     {
-        crate::concat_str!(pkg, ".", target_container)
+        common::concat_str!(pkg, ".", target_container)
     } else {
         target_container.to_string()
     };
@@ -183,7 +183,7 @@ fn verify_implicit_receiver_conformance(
         crate::syntax::scope_enclosing::collect_enclosing_classes(file_root, pos, source);
     for cls in &enclosing {
         let full = if let Some(pkg) = cand_pkg.filter(|p| !p.is_empty()) {
-            crate::concat_str!(pkg, ".", cls)
+            common::concat_str!(pkg, ".", cls)
         } else {
             cls.clone()
         };

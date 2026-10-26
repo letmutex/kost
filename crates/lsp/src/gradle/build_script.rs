@@ -101,11 +101,11 @@ fn extract_variables(content: &str, vars: &mut AHashMap<String, String>) {
 pub fn resolve_interpolated_string(input: &str, vars: &AHashMap<String, String>) -> String {
     let mut result = input.to_string();
     for (k, v) in vars {
-        let braced = crate::concat_str!("${", k, "}");
+        let braced = common::concat_str!("${", k, "}");
         if result.contains(&braced) {
             result = result.replace(&braced, v);
         }
-        let unbraced = crate::concat_str!("$", k);
+        let unbraced = common::concat_str!("$", k);
         if result.contains(&unbraced) {
             result = result.replace(&unbraced, v);
         }
@@ -182,7 +182,7 @@ fn extract_plugins(content: &str, vars: &AHashMap<String, String>, info: &mut Bu
             .map(|m| m.as_str().to_string())
             .or_else(|| {
                 cap.get(3)
-                    .map(|m| crate::concat_str!("org.jetbrains.kotlin.", m.as_str()))
+                    .map(|m| common::concat_str!("org.jetbrains.kotlin.", m.as_str()))
             });
 
         let version = cap
@@ -256,7 +256,7 @@ fn extract_concatenated_dependencies(
         if let (Some(prefix), Some(var_name)) = (cap.get(1), cap.get(2))
             && let Some(ver) = vars.get(var_name.as_str())
         {
-            let full = crate::concat_str!(prefix.as_str(), ver);
+            let full = common::concat_str!(prefix.as_str(), ver);
             if let Some(dep) = DependencyCoordinate::parse(&full) {
                 info.dependencies.push(dep);
             }

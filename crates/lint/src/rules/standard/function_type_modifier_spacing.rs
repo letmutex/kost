@@ -41,15 +41,15 @@ impl AstRule for FunctionTypeModifierSpacing {
         let mod_str = modifier.kind();
         match spaces_after(modifier, source) {
             WhitespaceAfter::Spaces(0) => {
-                let message = crate::concat_str!("Missing spacing after '", mod_str, "'");
+                let message = common::concat_str!("Missing spacing after '", mod_str, "'");
                 ctx.report(modifier, message);
             }
             WhitespaceAfter::Spaces(count) if count > 1 => {
-                let message = crate::concat_str!("Unexpected spacing after '", mod_str, "'");
+                let message = common::concat_str!("Unexpected spacing after '", mod_str, "'");
                 ctx.report(modifier, message);
             }
             WhitespaceAfter::EndOfLine { .. } => {
-                let message = crate::concat_str!("Unexpected spacing after '", mod_str, "'");
+                let message = common::concat_str!("Unexpected spacing after '", mod_str, "'");
                 ctx.report(modifier, message);
             }
             _ => {}

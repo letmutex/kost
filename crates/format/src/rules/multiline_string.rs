@@ -56,7 +56,7 @@ fn process_trim_margin_lines(
             if trimmed.starts_with('|') {
                 SmolStr::new(trimmed)
             } else {
-                SmolStr::new(crate::concat_str!("|", line))
+                SmolStr::new(common::concat_str!("|", line))
             }
         })
         .collect();

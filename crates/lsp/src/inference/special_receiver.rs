@@ -28,7 +28,7 @@ pub fn resolve_special_expression_receiver(
             super::ast_binary::infer_as_cast(ctx.index, ctx.current_url, as_node, clean)
     {
         ctx.tracer.record_step(|| {
-            crate::concat_str!("Cast target resolved to `", &cast_type.to_string(), "`")
+            common::concat_str!("Cast target resolved to `", &cast_type.to_string(), "`")
         });
         return Some(cast_type);
     }
@@ -42,7 +42,7 @@ pub fn resolve_special_expression_receiver(
         ctx.depth,
     ) {
         ctx.tracer
-            .record_step(|| crate::concat_str!("Scope keyword `", clean, "`"));
+            .record_step(|| common::concat_str!("Scope keyword `", clean, "`"));
         return Some(res);
     }
     None

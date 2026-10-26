@@ -85,8 +85,8 @@ impl DependencyCoordinate {
     pub fn kmp_candidate_names(&self) -> Vec<String> {
         let (base, _) = KmpTarget::from_artifact_name(&self.name);
         vec![
-            crate::concat_str!(base, "-desktop"),
-            crate::concat_str!(base, "-jvm"),
+            common::concat_str!(base, "-desktop"),
+            common::concat_str!(base, "-jvm"),
             base.to_string(),
         ]
     }
@@ -99,9 +99,9 @@ impl DependencyCoordinate {
             .map(|v| v.raw())
             .unwrap_or("unspecified");
         if is_sources {
-            crate::concat_str!(&self.name, "-", ver, "-sources.jar")
+            common::concat_str!(&self.name, "-", ver, "-sources.jar")
         } else {
-            crate::concat_str!(&self.name, "-", ver, ".", &self.extension)
+            common::concat_str!(&self.name, "-", ver, ".", &self.extension)
         }
     }
 }

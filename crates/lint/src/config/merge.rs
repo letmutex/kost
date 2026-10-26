@@ -165,7 +165,7 @@ impl RuleMerger {
                     file: current_file.to_string(),
                 })?;
 
-        let new_report_id = crate::concat_smol_str!(current_file, ":", base_name);
+        let new_report_id = common::concat_smol_str!(current_file, ":", base_name);
 
         match target_rule {
             MergedRule::Ast {
@@ -290,7 +290,7 @@ impl RuleMerger {
             });
         }
 
-        let full_id = crate::concat_smol_str!(current_file, ":", id_str);
+        let full_id = common::concat_smol_str!(current_file, ":", id_str);
         let options = RuleParser::parse_options(&full_id, &raw.options)?;
 
         let raw_where = raw

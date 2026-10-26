@@ -41,11 +41,11 @@ impl AstRule for KeywordSpacing {
 
         match spaces_after(node, source) {
             WhitespaceAfter::Spaces(0) => {
-                let message = crate::concat_str!("Missing spacing after '", op, "'");
+                let message = common::concat_str!("Missing spacing after '", op, "'");
                 ctx.report(node, message);
             }
             WhitespaceAfter::Spaces(n) if n > 1 => {
-                let message = crate::concat_str!("Unexpected spacing after '", op, "'");
+                let message = common::concat_str!("Unexpected spacing after '", op, "'");
                 ctx.report(node, message);
             }
             _ => {}

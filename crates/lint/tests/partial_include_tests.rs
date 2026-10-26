@@ -61,7 +61,7 @@ lint:
 #[test]
 fn test_partial_include_from_external_file() {
     let pid = std::process::id().to_string();
-    let temp_dir = std::env::temp_dir().join(lint::concat_str!("kost_test_partial_", &pid));
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_partial_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let shared_yaml = temp_dir.join("shared.yaml");
@@ -118,7 +118,7 @@ lint:
 #[test]
 fn test_inline_partial_include_from_external_file() {
     let pid = std::process::id().to_string();
-    let temp_dir = std::env::temp_dir().join(lint::concat_str!("kost_test_inline_file_", &pid));
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_inline_file_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let shared_yaml = temp_dir.join("shared.yaml");

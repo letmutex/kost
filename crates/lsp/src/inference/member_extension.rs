@@ -21,7 +21,7 @@ pub fn resolve_extension_members(
         Some(d) => d,
         None => {
             ctx.tracer.record_step(|| {
-                crate::concat_str!(
+                common::concat_str!(
                     "No extension candidates found named `",
                     call_info.callee,
                     "`"
@@ -49,7 +49,7 @@ pub fn resolve_extension_members(
         .collect();
     sort_by_overload_score(&mut matching, call_info, inferred_arg_types, ctx.index);
     ctx.tracer.record_step(|| {
-        crate::concat_str!(
+        common::concat_str!(
             "Found ",
             matching.len().to_string(),
             " extension candidate(s) for `",
@@ -106,7 +106,7 @@ fn is_valid_extension_receiver(
     };
     if !super::generics::is_receiver_compatible_typed(index, &actual_rec, decl_rec, &tps) {
         tracer.record_step(|| {
-            crate::concat_str!(
+            common::concat_str!(
                 "Skipped candidate `",
                 decl.name.as_str(),
                 "`: receiver `",
@@ -142,7 +142,7 @@ fn resolve_explicit_return_candidate(
     let qualified = qualify_type(ctx.index, url, &solved);
     let sig = decl.signature.as_deref().unwrap_or("");
     ctx.tracer.record_step(|| {
-        crate::concat_str!(
+        common::concat_str!(
             "Selected candidate `",
             decl.name.as_str(),
             "` (`",
@@ -203,7 +203,7 @@ fn try_resolve_extension_candidate(
         )
     {
         ctx.tracer.record_step(|| {
-            crate::concat_str!(
+            common::concat_str!(
                 "Selected candidate `",
                 decl.name.as_str(),
                 "` (`",
@@ -218,7 +218,7 @@ fn try_resolve_extension_candidate(
     }
     if decl.kind == SymbolKind::FUNCTION || decl.kind == SymbolKind::METHOD {
         ctx.tracer.record_step(|| {
-            crate::concat_str!(
+            common::concat_str!(
                 "Candidate `",
                 decl.name.as_str(),
                 "` (`",

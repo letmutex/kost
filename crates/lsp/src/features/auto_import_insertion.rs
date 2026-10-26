@@ -1,8 +1,8 @@
 use tower_lsp::lsp_types::Position;
 use tree_sitter::Node;
 
-use crate::concat_str;
 use crate::position::point_to_position;
+use common::concat_str;
 
 pub fn extract_import_path<'a>(node: Node<'a>, source: &'a str) -> Option<&'a str> {
     let mut cursor = node.walk();

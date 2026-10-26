@@ -5,14 +5,8 @@ use std::sync::Arc;
 use url::Url;
 
 use super::container::index_container_variants;
-use super::types::{DeclarationItem, DeclarationRef, FileSymbols};
-use tower_lsp::lsp_types::SymbolKind;
-
-fn is_type_alias_private(declarations: &[DeclarationItem], alias_name: &str) -> bool {
-    declarations.iter().any(|d| {
-        d.name.as_str() == alias_name && d.kind == SymbolKind::TYPE_PARAMETER && d.is_private
-    })
-}
+use super::is_type_alias_private;
+use super::types::{DeclarationRef, FileSymbols};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SegmentKey(pub SmolStr);

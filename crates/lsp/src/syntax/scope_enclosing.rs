@@ -66,7 +66,7 @@ pub fn collect_enclosing_classes(
             }
             full.push_str(seg);
             classes.insert(full.clone());
-            classes.insert(crate::concat_str!(&full, ".Companion"));
+            classes.insert(common::concat_str!(&full, ".Companion"));
         }
     }
 

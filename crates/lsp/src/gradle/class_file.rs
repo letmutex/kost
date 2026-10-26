@@ -147,7 +147,7 @@ fn add_class_declaration(
     file_symbols: &mut FileSymbols,
 ) {
     let default_range = Range::default();
-    let class_signature = crate::concat_str!(
+    let class_signature = common::concat_str!(
         if is_interface { "interface" } else { "open" },
         " class ",
         simple_name
@@ -196,7 +196,7 @@ fn collect_fields(
             let field_type = sig_attr
                 .and_then(parse_jvm_type_signature)
                 .unwrap_or_else(|| descriptor_to_type(desc));
-            let sig = crate::concat_str!("val ", name, ": ", field_type);
+            let sig = common::concat_str!("val ", name, ": ", field_type);
             symbols.declarations.push(DeclarationItem::new(
                 name,
                 SymbolKind::PROPERTY,
@@ -236,18 +236,18 @@ fn format_method_sig_and_container(
             let rec_simple = rec_sig.split('.').next().unwrap_or("");
             let suffix = rec_sig.split('.').nth(1).unwrap_or("()");
             (
-                crate::concat_str!("fun ", rec_simple, ".", name, suffix),
+                common::concat_str!("fun ", rec_simple, ".", name, suffix),
                 SmolStr::new(rec_qualified),
             )
         } else {
             (
-                crate::concat_str!("fun ", name, method_descriptor_to_sig(desc)),
+                common::concat_str!("fun ", name, method_descriptor_to_sig(desc)),
                 SmolStr::new(container),
             )
         }
     } else {
         (
-            crate::concat_str!("fun ", name, method_descriptor_to_sig(desc)),
+            common::concat_str!("fun ", name, method_descriptor_to_sig(desc)),
             SmolStr::new(container),
         )
     }

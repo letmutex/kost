@@ -1,6 +1,8 @@
 //! Built-in AST rule enforcing property naming conventions (Ktlint rule 77).
 
-use super::helpers::{find_property_identifier, has_modifier_named, next_code_sibling};
+use super::helpers::{
+    find_property_identifier, has_modifier_named, is_lower_camel_case, next_code_sibling,
+};
 use crate::context::LintCtx;
 use crate::rule::AstRule;
 use crate::util::is_kotlin_keyword;
@@ -133,13 +135,4 @@ fn is_screaming_snake_case(text: &str) -> bool {
     chars.all(|character| {
         character.is_ascii_uppercase() || character.is_ascii_digit() || character == '_'
     })
-}
-
-fn is_lower_camel_case(text: &str) -> bool {
-    let mut chars = text.chars();
-    match chars.next() {
-        Some(first) if first.is_ascii_lowercase() => {}
-        _ => return false,
-    }
-    chars.all(|character| character.is_ascii_alphanumeric())
 }

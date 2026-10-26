@@ -1,63 +1,6 @@
-//! Utility functions and string concatenation macros.
+//! Utility functions for AST inspection and linting.
 
 use smol_str::SmolStr;
-
-/// Helper function to convert any string-like reference into `&str`.
-#[inline(always)]
-pub fn as_str<T: ?Sized + AsRef<str>>(reference: &T) -> &str {
-    reference.as_ref()
-}
-
-/// Concatenates multiple string slices into a heap `String`.
-pub fn concat_str_slice(parts: &[&str]) -> String {
-    let total_length: usize = parts.iter().map(|string_slice| string_slice.len()).sum();
-    let mut result = String::with_capacity(total_length);
-    for part in parts {
-        result.push_str(part);
-    }
-    result
-}
-
-/// Concatenates multiple string slices into an inline `SmolStr` when possible.
-pub fn concat_smol_str_slice(parts: &[&str]) -> SmolStr {
-    let total_length: usize = parts.iter().map(|string_slice| string_slice.len()).sum();
-    if total_length <= 22 {
-        let mut buffer = [0u8; 22];
-        let mut offset = 0;
-        for part in parts {
-            let bytes = part.as_bytes();
-            buffer[offset..offset + bytes.len()].copy_from_slice(bytes);
-            offset += bytes.len();
-        }
-        let string_slice = match std::str::from_utf8(&buffer[..total_length]) {
-            Ok(valid) => valid,
-            Err(_) => unreachable!("Concatenation of valid UTF-8 slices is always valid UTF-8"),
-        };
-        SmolStr::new(string_slice)
-    } else {
-        let mut string = String::with_capacity(total_length);
-        for part in parts {
-            string.push_str(part);
-        }
-        SmolStr::from(string)
-    }
-}
-
-/// Concatenates string-like arguments into a `String` with a single allocation.
-#[macro_export]
-macro_rules! concat_str {
-    ($($part:expr),* $(,)?) => {
-        $crate::util::concat_str_slice(&[$($crate::util::as_str(&$part)),*])
-    };
-}
-
-/// Concatenates string-like arguments into a `SmolStr`.
-#[macro_export]
-macro_rules! concat_smol_str {
-    ($($part:expr),* $(,)?) => {
-        $crate::util::concat_smol_str_slice(&[$($crate::util::as_str(&$part)),*])
-    };
-}
 
 /// Finds a child identifier or variable identifier for an AST node.
 pub fn find_child_identifier(node: tree_sitter::Node, source: &[u8]) -> Option<SmolStr> {

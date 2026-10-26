@@ -55,11 +55,11 @@ impl AstRule for ImportOrdering {
             let import_key = (info.path.as_str(), info.is_wildcard, info.alias.as_deref());
             if !seen_imports.insert(import_key) {
                 let message = if info.is_wildcard {
-                    crate::concat_str!("Duplicate import: ", &info.path, ".*")
+                    common::concat_str!("Duplicate import: ", &info.path, ".*")
                 } else if let Some(alias) = &info.alias {
-                    crate::concat_str!("Duplicate import: ", &info.path, " as ", alias)
+                    common::concat_str!("Duplicate import: ", &info.path, " as ", alias)
                 } else {
-                    crate::concat_str!("Duplicate import: ", &info.path)
+                    common::concat_str!("Duplicate import: ", &info.path)
                 };
                 ctx.report(*import_node, message);
                 continue;

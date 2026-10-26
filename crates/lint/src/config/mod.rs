@@ -88,7 +88,7 @@ impl ConfigLoader {
             VIRTUAL_STANDARD => {
                 let mut merger = RuleMerger::new();
                 for id in crate::rules::standard::standard_ast_rule_ids() {
-                    let full_id = crate::concat_smol_str!("standard:", *id);
+                    let full_id = common::concat_smol_str!("standard:", *id);
                     merger.insert_ast(full_id, Severity::Warning);
                 }
                 merger.into_exported()
@@ -118,7 +118,7 @@ impl ConfigLoader {
         })?;
 
         for raw in lint.rules {
-            let full_id = crate::concat_smol_str!(scope, ":", &raw.id);
+            let full_id = common::concat_smol_str!(scope, ":", &raw.id);
             let options = RuleParser::parse_options(&full_id, &raw.options)?;
             let raw_where = raw
                 .where_clause

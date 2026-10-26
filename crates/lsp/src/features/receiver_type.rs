@@ -64,7 +64,7 @@ pub fn collect_type_containers(index: &WorkspaceIndex, type_name: &str) -> Vec<S
     };
 
     add_candidate(clean_type.to_string());
-    add_candidate(crate::concat_str!(clean_type, ".Companion"));
+    add_candidate(common::concat_str!(clean_type, ".Companion"));
 
     let package_prefix = clean_type.rsplit_once('.').map(|(pkg, _)| pkg);
     for super_type in index.get_all_supertypes(clean_type) {
@@ -72,16 +72,16 @@ pub fn collect_type_containers(index: &WorkspaceIndex, type_name: &str) -> Vec<S
         if let Some(prefix) = package_prefix {
             if clean_super.contains('.') {
                 add_candidate(clean_super.to_string());
-                add_candidate(crate::concat_str!(clean_super, ".Companion"));
+                add_candidate(common::concat_str!(clean_super, ".Companion"));
             } else {
-                add_candidate(crate::concat_str!(prefix, ".", clean_super));
-                add_candidate(crate::concat_str!(prefix, ".", clean_super, ".Companion"));
+                add_candidate(common::concat_str!(prefix, ".", clean_super));
+                add_candidate(common::concat_str!(prefix, ".", clean_super, ".Companion"));
                 add_candidate(clean_super.to_string());
-                add_candidate(crate::concat_str!(clean_super, ".Companion"));
+                add_candidate(common::concat_str!(clean_super, ".Companion"));
             }
         } else {
             add_candidate(clean_super.to_string());
-            add_candidate(crate::concat_str!(clean_super, ".Companion"));
+            add_candidate(common::concat_str!(clean_super, ".Companion"));
         }
     }
 
@@ -96,7 +96,7 @@ pub fn collect_type_containers(index: &WorkspaceIndex, type_name: &str) -> Vec<S
             if std_interface.conforms_primitive(primitive) {
                 let std_name = std_interface.as_str();
                 add_candidate(std_name.to_string());
-                add_candidate(crate::concat_str!("kotlin.", std_name));
+                add_candidate(common::concat_str!("kotlin.", std_name));
             }
         }
     }
@@ -104,7 +104,7 @@ pub fn collect_type_containers(index: &WorkspaceIndex, type_name: &str) -> Vec<S
     if let Some(decls) = index.container_to_decls.get(clean_type) {
         for (_, decl) in decls {
             if decl.kind == SymbolKind::OBJECT {
-                add_candidate(crate::concat_str!(clean_type, ".", decl.name));
+                add_candidate(common::concat_str!(clean_type, ".", decl.name));
             }
         }
     }

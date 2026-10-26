@@ -63,7 +63,7 @@ impl AstRule for BinaryExpressionWrapping {
 
         if op_node.start_position().row < right_node.start_position().row {
             let operator_text = op_node.utf8_text(source).unwrap_or(op_node.kind());
-            let message = crate::concat_str!("Line must not end with \"", operator_text, "\"");
+            let message = common::concat_str!("Line must not end with \"", operator_text, "\"");
             ctx.report(op_node, message);
         }
     }

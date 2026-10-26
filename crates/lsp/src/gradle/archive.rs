@@ -68,7 +68,7 @@ impl ArchiveIndexer {
             pending_entries
                 .into_par_iter()
                 .filter_map(|entry| {
-                    let synthetic_url = crate::concat_str!(entry.url_prefix, entry.name);
+                    let synthetic_url = common::concat_str!(entry.url_prefix, entry.name);
                     let url = Url::parse(&synthetic_url).ok()?;
                     let symbols = match entry.payload {
                         EntryPayload::Source(content) => {
@@ -127,7 +127,7 @@ impl ArchiveIndexer {
                     if entry.read_to_end(&mut inner_bytes).is_ok() {
                         let inner_cursor = Cursor::new(inner_bytes);
                         if let Ok(mut inner_zip) = ZipArchive::new(inner_cursor) {
-                            let inner_archive_base = crate::concat_str!(archive_str, "!/", name);
+                            let inner_archive_base = common::concat_str!(archive_str, "!/", name);
                             let url_prefix = compute_url_prefix(&inner_archive_base);
                             pending.extend(Self::extract_zip_entries(&mut inner_zip, &url_prefix));
                         }
@@ -187,8 +187,8 @@ impl ArchiveIndexer {
 fn compute_url_prefix(archive_uri_base: &str) -> SmolStr {
     let clean_base = archive_uri_base.trim_start_matches('/');
     if clean_base.contains("://") {
-        crate::concat_smol_str!("jar:", clean_base, "!/")
+        common::concat_smol_str!("jar:", clean_base, "!/")
     } else {
-        crate::concat_smol_str!("jar:file:///", clean_base, "!/")
+        common::concat_smol_str!("jar:file:///", clean_base, "!/")
     }
 }

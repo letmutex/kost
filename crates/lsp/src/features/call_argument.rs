@@ -97,7 +97,7 @@ fn collect_parameters_from_decl(
                 label: name.to_string(),
                 kind: Some(CompletionItemKind::PROPERTY),
                 detail: sig,
-                insert_text: Some(crate::concat_str!(name, " = $0")),
+                insert_text: Some(common::concat_str!(name, " = $0")),
                 insert_text_format: Some(InsertTextFormat::SNIPPET),
                 ..Default::default()
             });

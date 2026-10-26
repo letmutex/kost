@@ -262,7 +262,7 @@ impl WorkspaceIndex {
     }
 }
 
-fn is_type_alias_private(declarations: &[DeclarationItem], alias_name: &str) -> bool {
+pub(crate) fn is_type_alias_private(declarations: &[DeclarationItem], alias_name: &str) -> bool {
     declarations.iter().any(|d| {
         d.name.as_str() == alias_name && d.kind == SymbolKind::TYPE_PARAMETER && d.is_private
     })

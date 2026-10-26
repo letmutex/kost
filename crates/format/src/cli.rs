@@ -110,7 +110,7 @@ fn run_stdin(
                     render_smart_diffs(&mut std::io::stdout(), tier, &unformatted, colorize)
                         .map_err(|err| err.to_string())?;
                     let elapsed_str = common::format_elapsed(start_time.elapsed());
-                    return Err(crate::concat_str!(
+                    return Err(common::concat_str!(
                         "Standard input is not formatted (in ",
                         &elapsed_str,
                         ")"
@@ -119,7 +119,7 @@ fn run_stdin(
             }
             Err(err @ crate::error::FormatError::ParseError { .. }) => {
                 let err_str = err.to_string();
-                let err_msg = crate::concat_str!("Error checking ", display_path, ": ", &err_str);
+                let err_msg = common::concat_str!("Error checking ", display_path, ": ", &err_str);
                 if reject_parse_errors {
                     return Err(err_msg);
                 }
@@ -185,7 +185,7 @@ fn format_file_inplace(
         Err(err) => {
             let path_str = path.display().to_string();
             let err_str = err.to_string();
-            return InplaceOutcome::Error(crate::concat_str!(
+            return InplaceOutcome::Error(common::concat_str!(
                 "Error reading ",
                 &path_str,
                 ": ",
@@ -200,7 +200,7 @@ fn format_file_inplace(
             Err(err) => {
                 let path_str = path.display().to_string();
                 let err_str = err.to_string();
-                InplaceOutcome::Error(crate::concat_str!(
+                InplaceOutcome::Error(common::concat_str!(
                     "Error writing ",
                     &path_str,
                     ": ",
@@ -212,7 +212,7 @@ fn format_file_inplace(
         Err(err) => {
             let path_str = path.display().to_string();
             let err_str = err.to_string();
-            InplaceOutcome::Error(crate::concat_str!(
+            InplaceOutcome::Error(common::concat_str!(
                 "Error formatting ",
                 &path_str,
                 ": ",
@@ -248,7 +248,7 @@ fn run_inplace_mode(
 
     if error_count > 0 {
         let errors_string = error_count.to_string();
-        Err(crate::concat_str!(
+        Err(common::concat_str!(
             "Formatting completed with ",
             &errors_string,
             " error(s)"

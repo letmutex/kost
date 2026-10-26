@@ -30,9 +30,9 @@ pub fn declaration_to_completion_item(decl: &DeclarationItem) -> CompletionItem 
                 .unwrap_or(true)
         });
         Some(if has_params {
-            crate::concat_str!(decl.name, "($0)")
+            common::concat_str!(decl.name, "($0)")
         } else {
-            crate::concat_str!(decl.name, "()")
+            common::concat_str!(decl.name, "()")
         })
     } else {
         Some(decl.name.to_string())
@@ -156,7 +156,7 @@ pub fn decl_completion_key(decl: &DeclarationItem) -> String {
     ) && let Some(sig) = &decl.signature
     {
         if !sig.contains('\n') {
-            return crate::concat_str!(decl.name, ":", sig.trim());
+            return common::concat_str!(decl.name, ":", sig.trim());
         }
         let mut key = String::with_capacity(decl.name.len() + 1 + sig.len());
         key.push_str(&decl.name);
@@ -195,7 +195,7 @@ impl<'a> CandidateContext<'a> {
 
     pub fn make_key(&self, base: &str) -> String {
         if let Some(pkg) = self.auto_import_pkg {
-            crate::concat_str!(base, ":", pkg)
+            common::concat_str!(base, ":", pkg)
         } else {
             base.to_string()
         }

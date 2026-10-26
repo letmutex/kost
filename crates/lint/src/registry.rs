@@ -93,7 +93,7 @@ impl RuleRegistryBuilder {
         let mut needs_file_exclusions = false;
 
         for rule in self.ast_rules {
-            let full_id = crate::concat_smol_str!("standard:", rule.id());
+            let full_id = common::concat_smol_str!("standard:", rule.id());
             let severity = self
                 .severity_overrides
                 .get(&full_id)

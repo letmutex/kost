@@ -36,12 +36,12 @@ fn check_prefix_expression(node: tree_sitter::Node, source: &[u8], ctx: &mut Lin
     match spaces_after(operator_node, source) {
         WhitespaceAfter::Spaces(count) if count > 0 => {
             let op_str = operator_node.kind();
-            let message = crate::concat_str!("Unexpected spacing after '", op_str, "'");
+            let message = common::concat_str!("Unexpected spacing after '", op_str, "'");
             ctx.report(operator_node, message);
         }
         WhitespaceAfter::EndOfLine { .. } => {
             let op_str = operator_node.kind();
-            let message = crate::concat_str!("Unexpected spacing after '", op_str, "'");
+            let message = common::concat_str!("Unexpected spacing after '", op_str, "'");
             ctx.report(operator_node, message);
         }
         _ => {}
@@ -63,12 +63,12 @@ fn check_postfix_expression(node: tree_sitter::Node, source: &[u8], ctx: &mut Li
     match spaces_before(operator_node, source) {
         WhitespaceBefore::Spaces(count) if count > 0 => {
             let op_str = operator_node.kind();
-            let message = crate::concat_str!("Unexpected spacing before '", op_str, "'");
+            let message = common::concat_str!("Unexpected spacing before '", op_str, "'");
             ctx.report(operator_node, message);
         }
         WhitespaceBefore::StartOfLine => {
             let op_str = operator_node.kind();
-            let message = crate::concat_str!("Unexpected spacing before '", op_str, "'");
+            let message = common::concat_str!("Unexpected spacing before '", op_str, "'");
             ctx.report(operator_node, message);
         }
         _ => {}

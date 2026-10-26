@@ -90,7 +90,7 @@ pub fn verify_token_conservation(original: &str, formatted: &str) -> Result<(), 
     // If imports were removed/reordered, token count may differ slightly,
     // but in general fixtures without unused imports should conserve tokens.
     if orig_tokens.len() != fmt_tokens.len() && !original.contains("import ") {
-        return Err(crate::concat_str!(
+        return Err(common::concat_str!(
             "Token count mismatch: original has ",
             orig_tokens.len().to_string(),
             ", formatted has ",

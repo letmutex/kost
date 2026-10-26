@@ -56,7 +56,7 @@ pub fn parse_type_signature_with_params(sig: &str, type_params: &[&str]) -> Opti
     }
 
     // Wrap into synthetic typealias declaration for universal Tree-sitter parsing
-    let wrapped = crate::concat_str!("typealias _T = ", clean);
+    let wrapped = common::concat_str!("typealias _T = ", clean);
     let tree = with_parser(|p| p.parse(&wrapped))?;
     let root = tree.root_node();
     if root.has_error() {

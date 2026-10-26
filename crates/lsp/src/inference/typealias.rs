@@ -67,7 +67,7 @@ fn expand_alias_target(
             return target_ty.substitute(&bindings).to_string();
         }
     }
-    crate::concat_str!(target, "<", type_args.join(", "), ">")
+    common::concat_str!(target, "<", type_args.join(", "), ">")
 }
 
 fn resolve_file_alias_or_import(
@@ -88,7 +88,7 @@ fn resolve_file_alias_or_import(
             return Some(if args.is_empty() {
                 imported.to_string()
             } else {
-                crate::concat_str!(imported, "<", args.join(", "), ">")
+                common::concat_str!(imported, "<", args.join(", "), ">")
             });
         }
     }
@@ -163,11 +163,11 @@ pub fn resolve_type_alias_or_import(
     let final_name = if current_args.is_empty() {
         current_base
     } else {
-        crate::concat_str!(current_base, "<", current_args.join(", "), ">")
+        common::concat_str!(current_base, "<", current_args.join(", "), ">")
     };
 
     if is_nullable && !final_name.ends_with('?') {
-        crate::concat_str!(final_name, "?")
+        common::concat_str!(final_name, "?")
     } else {
         final_name
     }

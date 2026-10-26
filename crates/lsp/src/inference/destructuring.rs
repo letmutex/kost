@@ -115,11 +115,11 @@ fn resolve_component_on_type(
     let comp_call: &str = if comp_idx < COMMON_COMPONENT_CALLS.len() {
         COMMON_COMPONENT_CALLS[comp_idx]
     } else {
-        fallback_call = crate::concat_str!("component", (comp_idx + 1).to_string(), "()");
+        fallback_call = common::concat_str!("component", (comp_idx + 1).to_string(), "()");
         &fallback_call
     };
     ctx.tracer.record_step(|| {
-        crate::concat_str!(
+        common::concat_str!(
             "Resolving destructuring operator `",
             comp_call,
             "` on `",

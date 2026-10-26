@@ -155,7 +155,7 @@ impl<'a> ConstraintSystem<'a> {
         if let Some(expected_type) = self.parse_with_params(&param_type_str) {
             self.add_lambda_return_constraint_typed(&expected_type, &actual_type)
         } else if let Some(ret_str) =
-            super::generics::extract_functional_return_type(&param_type_str)
+            crate::syntax::signature::extract_functional_return_type(&param_type_str)
         {
             if let Some(expected_ret) = self.parse_with_params(&ret_str) {
                 if expected_ret == KotlinType::UNIT {

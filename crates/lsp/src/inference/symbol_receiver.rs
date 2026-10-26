@@ -22,7 +22,7 @@ pub fn resolve_named_symbol_receiver(
         ctx.tracer,
     ) {
         ctx.tracer
-            .record_step(|| crate::concat_str!("Resolved local symbol `", clean, "`"));
+            .record_step(|| common::concat_str!("Resolved local symbol `", clean, "`"));
         return Some(local_type);
     }
 
@@ -42,7 +42,7 @@ pub fn resolve_named_symbol_receiver(
         resolve_type_by_imports_or_package(ctx.index, ctx.current_url, clean, &is_visible)
     {
         ctx.tracer.record_step(|| {
-            crate::concat_str!(
+            common::concat_str!(
                 "Resolved symbol `",
                 clean,
                 "` via imports or package to `",
@@ -78,7 +78,7 @@ fn resolve_from_declarations(
             ret.and_then(|s| {
                 let full = resolve_full_type_name(index, url.as_ref(), &s);
                 tracer.record_step(|| {
-                    crate::concat_str!(
+                    common::concat_str!(
                         "Resolved declaration `",
                         clean,
                         "` with return type `",
@@ -94,7 +94,7 @@ fn resolve_from_declarations(
 
 fn resolve_builtin_primitive(clean: &str, tracer: &mut Tracer) -> Option<KotlinType> {
     crate::inference::model::PrimitiveType::from_name(clean).map(|prim| {
-        tracer.record_step(|| crate::concat_str!("Resolved built-in primitive `", clean, "`"));
+        tracer.record_step(|| common::concat_str!("Resolved built-in primitive `", clean, "`"));
         if prim == crate::inference::model::PrimitiveType::Nothing {
             KotlinType::Nothing
         } else {

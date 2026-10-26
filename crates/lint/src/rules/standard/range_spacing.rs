@@ -21,11 +21,11 @@ impl AstRule for RangeSpacing {
 
         match spaces_before(node, source) {
             WhitespaceBefore::Spaces(count) if count > 0 => {
-                let message = crate::concat_str!("Unexpected spacing before '", operator, "'");
+                let message = common::concat_str!("Unexpected spacing before '", operator, "'");
                 ctx.report(node, message);
             }
             WhitespaceBefore::StartOfLine => {
-                let message = crate::concat_str!("Unexpected spacing before '", operator, "'");
+                let message = common::concat_str!("Unexpected spacing before '", operator, "'");
                 ctx.report(node, message);
             }
             _ => {}
@@ -33,11 +33,11 @@ impl AstRule for RangeSpacing {
 
         match spaces_after(node, source) {
             WhitespaceAfter::Spaces(count) if count > 0 => {
-                let message = crate::concat_str!("Unexpected spacing after '", operator, "'");
+                let message = common::concat_str!("Unexpected spacing after '", operator, "'");
                 ctx.report(node, message);
             }
             WhitespaceAfter::EndOfLine { .. } => {
-                let message = crate::concat_str!("Unexpected spacing after '", operator, "'");
+                let message = common::concat_str!("Unexpected spacing after '", operator, "'");
                 ctx.report(node, message);
             }
             _ => {}

@@ -27,7 +27,7 @@ pub fn lower_parameter<'a>(
             }
             "val" | "var" | "binding_pattern_kind" => {
                 let kw = ctx.node_text(&child);
-                prefix_docs.push(Doc::smol(crate::concat_smol_str!(kw, " ")));
+                prefix_docs.push(Doc::smol(common::concat_smol_str!(kw, " ")));
             }
             ":" => in_colon = true,
             "=" => is_after_equals = true,

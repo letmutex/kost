@@ -23,7 +23,7 @@ pub fn index_container_variants(
         && !p.is_empty()
         && !container.starts_with(p)
     {
-        add_key(crate::concat_smol_str!(p, ".", container));
+        add_key(common::concat_smol_str!(p, ".", container));
     }
 
     let base = container
@@ -37,7 +37,7 @@ pub fn index_container_variants(
             && !p.is_empty()
             && !base.starts_with(p)
         {
-            add_key(crate::concat_smol_str!(p, ".", base));
+            add_key(common::concat_smol_str!(p, ".", base));
         }
     }
 
@@ -75,7 +75,7 @@ pub fn remove_container_variants(
         && !p.is_empty()
         && !container.starts_with(p)
     {
-        let full = crate::concat_str!(p, ".", container);
+        let full = common::concat_str!(p, ".", container);
         remove_from(&full);
     }
     let base = container
@@ -89,7 +89,7 @@ pub fn remove_container_variants(
             && !p.is_empty()
             && !base.starts_with(p)
         {
-            let full = crate::concat_str!(p, ".", base);
+            let full = common::concat_str!(p, ".", base);
             remove_from(&full);
         }
     }

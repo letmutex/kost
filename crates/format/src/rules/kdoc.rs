@@ -286,7 +286,7 @@ pub fn format_kdoc(comment: &str, max_width: usize) -> Doc<'static> {
         && paragraphs[0].kind == KDocKind::Text
         && paragraphs[0].combined_text.len() + 7 <= max_width
     {
-        return Doc::smol(crate::concat_smol_str!(
+        return Doc::smol(common::concat_smol_str!(
             "/** ",
             paragraphs[0].combined_text.as_str(),
             " */"

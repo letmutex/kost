@@ -55,7 +55,7 @@ fn is_decl_or_container_private(
                 return true;
             }
             expected_parent = Some(match expected_parent {
-                Some(parent) => crate::concat_str!(parent, ".", segment),
+                Some(parent) => common::concat_str!(parent, ".", segment),
                 None => segment.to_string(),
             });
         }
@@ -94,7 +94,7 @@ fn check_is_extension_target(
 
     decl_opt
         .and_then(|decl| decl.signature.as_deref())
-        .is_some_and(|sig| sig.contains(&crate::concat_str!(".", query.symbol_name)))
+        .is_some_and(|sig| sig.contains(&common::concat_str!(".", query.symbol_name)))
 }
 
 pub fn resolve_reference_target(query: &ReferenceQuery<'_>) -> Option<ReferenceTarget> {

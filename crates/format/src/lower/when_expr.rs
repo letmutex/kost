@@ -91,7 +91,7 @@ pub fn lower_when_subject<'a>(
             inner_docs.push(Doc::text(" = "));
         } else if kind == "val" || kind == "var" {
             let kw = ctx.node_text(&child);
-            inner_docs.push(Doc::smol(crate::concat_smol_str!(kw, " ")));
+            inner_docs.push(Doc::smol(common::concat_smol_str!(kw, " ")));
         } else {
             inner_docs.push(lower_fn(child, ctx));
         }

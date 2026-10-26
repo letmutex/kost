@@ -1,4 +1,4 @@
-use lsp::inference::generics::extract_type_arguments_list;
+use lsp::syntax::signature::extract_type_arguments_list;
 use lsp::syntax::signature::{
     extract_functional_input_types, extract_functional_return_type, find_param_colon,
     find_parameter_list_bounds, parse_signature_type_params, parse_single_param,

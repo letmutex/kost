@@ -60,7 +60,7 @@ pub fn is_import_header_matching_target(
         if clean.is_empty() {
             target_pkg.to_string()
         } else if !target_pkg.is_empty() && !has_package_prefix(clean, target_pkg) {
-            crate::concat_str!(target_pkg, ".", clean)
+            common::concat_str!(target_pkg, ".", clean)
         } else {
             clean.to_string()
         }
@@ -180,7 +180,7 @@ pub(super) fn iter_overload_declarations<'a>(
         if target_pkg.is_empty() || has_package_prefix(c, target_pkg) {
             c.to_string()
         } else {
-            crate::concat_str!(target_pkg, ".", c)
+            common::concat_str!(target_pkg, ".", c)
         }
     });
 
@@ -212,7 +212,7 @@ pub(super) fn iter_overload_declarations<'a>(
                 let decl_full = if decl_pkg.is_empty() || has_package_prefix(dc, decl_pkg) {
                     dc.to_string()
                 } else {
-                    crate::concat_str!(decl_pkg, ".", dc)
+                    common::concat_str!(decl_pkg, ".", dc)
                 };
                 super::hierarchy::is_in_container_hierarchy(index, &decl_full, tf)
                     || super::hierarchy::is_in_container_hierarchy(index, tf, &decl_full)

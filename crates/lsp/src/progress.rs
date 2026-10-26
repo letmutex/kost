@@ -6,7 +6,7 @@ use tower_lsp::lsp_types::{
     notification::Progress, request::WorkDoneProgressCreate,
 };
 
-use crate::concat_str;
+use common::concat_str;
 
 static PROGRESS_TOKEN_COUNTER: AtomicU64 = AtomicU64::new(1);
 

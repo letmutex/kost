@@ -59,7 +59,7 @@ impl AstRule for ChainMethodContinuation {
 
                 if !is_valid_start {
                     let message =
-                        crate::concat_str!("Expected newline before '", operator_text, "'");
+                        common::concat_str!("Expected newline before '", operator_text, "'");
                     ctx.report(operator_node, message);
                 }
 
@@ -68,7 +68,7 @@ impl AstRule for ChainMethodContinuation {
                     WhitespaceAfter::EndOfLine { .. }
                 ) {
                     let message =
-                        crate::concat_str!("Unexpected newline after '", operator_text, "'");
+                        common::concat_str!("Unexpected newline after '", operator_text, "'");
                     ctx.report(operator_node, message);
                 }
             }

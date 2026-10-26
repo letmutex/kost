@@ -142,7 +142,7 @@ pub fn resolve_local_receiver_traced(
     } else {
         found_node
     };
-    tracer.record_step(|| crate::concat_str!("Found local declaration `", clean, "`"));
+    tracer.record_step(|| common::concat_str!("Found local declaration `", clean, "`"));
     let ctx = InferenceContext::new(index, current_url, pos, source, root, depth, tracer);
     infer_decl_node_type(&decl_node, clean, ctx)
 }
@@ -174,10 +174,10 @@ fn infer_annotated_decl_type(
     tracer: &mut Tracer,
 ) -> Option<KotlinType> {
     let t = extract_type_annotation(decl_node, source)?;
-    tracer.record_step(|| crate::concat_str!("Explicit type annotation `", t, "`"));
+    tracer.record_step(|| common::concat_str!("Explicit type annotation `", t, "`"));
     let raw_type = super::typealias::resolve_type_alias_or_import(index, current_url, t);
     let full = resolve_full_type_name(index, current_url, &raw_type);
-    tracer.record_step(|| crate::concat_str!("Resolved type to `", &full, "`"));
+    tracer.record_step(|| common::concat_str!("Resolved type to `", &full, "`"));
     super::types::parse_type_signature(&full)
 }
 
@@ -190,7 +190,7 @@ fn infer_property_decl_type(
         && init_expr != clean
     {
         ctx.tracer
-            .record_step(|| crate::concat_str!("Evaluating initializer `", init_expr, "`"));
+            .record_step(|| common::concat_str!("Evaluating initializer `", init_expr, "`"));
         if let Some(t) = infer_initializer_type(decl_node, init_expr, ctx.reborrow()) {
             return Some(t);
         }
@@ -210,7 +210,7 @@ fn infer_property_decl_type(
     }
     if let Some(t) = extract_instantiated_type(decl_node, ctx.source) {
         ctx.tracer
-            .record_step(|| crate::concat_str!("Found instantiated type `", t, "`"));
+            .record_step(|| common::concat_str!("Found instantiated type `", t, "`"));
         let raw_type =
             super::typealias::resolve_type_alias_or_import(ctx.index, ctx.current_url, t);
         let full = resolve_full_type_name(ctx.index, ctx.current_url, &raw_type);

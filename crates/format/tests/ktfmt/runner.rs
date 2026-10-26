@@ -254,7 +254,7 @@ fn verify_variant_passes(input: &str, input_path: &Path) -> Result<(), CaseFailu
         .unwrap_or_default();
 
     for variant in TEST_VARIANTS {
-        let variant_name = format::concat_str!(file_stem, ".", variant.suffix, ".output");
+        let variant_name = common::concat_str!(file_stem, ".", variant.suffix, ".output");
         let variant_path = input_path.with_file_name(variant_name);
         if !variant_path.exists() {
             continue;

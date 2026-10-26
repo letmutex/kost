@@ -50,7 +50,7 @@ impl AstRule for Filename {
         if top_classes.len() == 1 && !has_other_top_level_declarations {
             let (class_name, class_node) = &top_classes[0];
             if !is_matching_filename(normalized_stem, class_name) {
-                let message = crate::concat_str!(
+                let message = common::concat_str!(
                     "File '",
                     file_name,
                     "' contains a single class and should be named '",
@@ -61,7 +61,7 @@ impl AstRule for Filename {
             }
         } else if !is_pascal_case(normalized_stem) {
             let message =
-                crate::concat_str!("File '", file_name, "' should be named in PascalCase");
+                common::concat_str!("File '", file_name, "' should be named in PascalCase");
             ctx.report(node, message);
         }
     }

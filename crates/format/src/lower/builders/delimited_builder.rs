@@ -98,7 +98,7 @@ impl<'a> DelimitedListBuilder<'a> {
             "val" | "var" | "binding_pattern_kind" => {
                 let kw = ctx.node_text(&child);
                 self.current_docs
-                    .push(Doc::smol(crate::concat_smol_str!(kw, " ")));
+                    .push(Doc::smol(common::concat_smol_str!(kw, " ")));
             }
             _ => self.current_docs.push(lower_fn(child, ctx)),
         }

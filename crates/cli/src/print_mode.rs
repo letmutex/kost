@@ -1,5 +1,7 @@
 //! Presentation mode for diagnostics and diff reporting across multiple files.
 
+use crate::error::CliError;
+
 /// Presentation mode for output formatting and diagnostic reporting across multiple files.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum PrintMode {
@@ -24,5 +26,17 @@ impl PrintMode {
             "collapsed" => Some(Self::Collapsed),
             _ => None,
         }
+    }
+
+    /// Parses a command line option value string into a `PrintMode`.
+    pub fn parse_option(option_name: &str, raw_value: &str) -> Result<Self, CliError> {
+        let trimmed = raw_value.trim();
+        if trimmed.is_empty() {
+            return Err(CliError::MissingOptionValue(option_name.to_string()));
+        }
+        Self::from_identifier(trimmed).ok_or_else(|| CliError::InvalidOptionValue {
+            option: option_name.to_string(),
+            value: raw_value.to_string(),
+        })
     }
 }

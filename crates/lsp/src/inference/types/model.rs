@@ -252,7 +252,7 @@ impl KotlinType {
     #[inline]
     pub fn to_companion_key(&self) -> SmolStr {
         let base = self.base_name();
-        crate::concat_smol_str!(base, ".Companion")
+        common::concat_smol_str!(base, ".Companion")
     }
 
     #[inline]

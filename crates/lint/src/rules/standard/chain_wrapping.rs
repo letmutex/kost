@@ -38,7 +38,7 @@ impl AstRule for ChainWrapping {
 
         if is_trailing {
             let operator_text = node.utf8_text(source).unwrap_or(node.kind());
-            let message = crate::concat_str!("Line must not end with \"", operator_text, "\"");
+            let message = common::concat_str!("Line must not end with \"", operator_text, "\"");
             ctx.report(node, message);
         }
     }

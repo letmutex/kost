@@ -38,7 +38,7 @@ pub fn check_file(
         Err(err) => {
             let path_str = path.display().to_string();
             let err_str = err.to_string();
-            return CheckOutcome::Error(crate::concat_str!(
+            return CheckOutcome::Error(common::concat_str!(
                 "Error reading ",
                 &path_str,
                 ": ",
@@ -66,7 +66,7 @@ pub fn check_file(
         },
         Err(FormatError::InternalError(err_str)) => {
             let path_str = path.display().to_string();
-            CheckOutcome::Error(crate::concat_str!(
+            CheckOutcome::Error(common::concat_str!(
                 "Error checking ",
                 &path_str,
                 ": ",
@@ -135,7 +135,7 @@ fn build_check_result(
         let errors_string = blocking_error_count.to_string();
         let count_string = unformatted_count.to_string();
         let elapsed_str = common::format_elapsed(duration);
-        Err(crate::concat_str!(
+        Err(common::concat_str!(
             "Formatting check failed: ",
             &count_string,
             " file(s) need formatting and ",
@@ -147,7 +147,7 @@ fn build_check_result(
     } else if blocking_error_count > 0 {
         let errors_string = blocking_error_count.to_string();
         let elapsed_str = common::format_elapsed(duration);
-        Err(crate::concat_str!(
+        Err(common::concat_str!(
             "Formatting check failed with ",
             &errors_string,
             " error(s) (in ",
@@ -157,7 +157,7 @@ fn build_check_result(
     } else if unformatted_count > 0 {
         let count_string = unformatted_count.to_string();
         let elapsed_str = common::format_elapsed(duration);
-        Err(crate::concat_str!(
+        Err(common::concat_str!(
             "Formatting check failed: ",
             &count_string,
             " file(s) need formatting (in ",

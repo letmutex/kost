@@ -93,7 +93,7 @@ fn resolve_it_from_lambda_call(
             let res = params[0].clone();
             if let Some(lbl) = label {
                 ctx.tracer.record_step(|| {
-                    crate::concat_str!("Solved enclosing call `", lbl.as_str(), "`")
+                    common::concat_str!("Solved enclosing call `", lbl.as_str(), "`")
                 });
             }
             return LambdaCallItResult::Resolved(res);

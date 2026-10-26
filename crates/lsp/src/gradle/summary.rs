@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::time::Duration;
 
-use crate::concat_str;
 use crate::config::IndexingLogLevel;
 use crate::gradle::archive::ArchiveProcessingMetric;
 use crate::gradle::cache_resolver::ResolvedArtifact;
+use common::concat_str;
 
 /// Summary of an indexing run across Gradle build files, dependencies, and archives.
 #[derive(Debug, Clone, Default)]

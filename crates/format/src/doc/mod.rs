@@ -173,7 +173,7 @@ impl<'a> Doc<'a> {
             && !rest.starts_with('/')
             && !rest.is_empty()
         {
-            crate::concat_smol_str!("// ", rest)
+            common::concat_smol_str!("// ", rest)
         } else if trimmed.len() == raw.len() {
             raw
         } else {

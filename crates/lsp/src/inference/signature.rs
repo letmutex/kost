@@ -1,3 +1,4 @@
+use crate::syntax::ast_extra::strip_enclosing_parens;
 use smol_str::SmolStr;
 
 use crate::inference::types::{KotlinType, parse_type_signature_with_params};
@@ -145,33 +146,6 @@ fn find_top_level_arrow(type_str: &str) -> Option<usize> {
         idx += 1;
     }
     None
-}
-
-fn strip_enclosing_parens(mut text: &str) -> &str {
-    text = text.trim();
-    while text.starts_with('(') && text.ends_with(')') {
-        let mut depth = 0;
-        let mut matched = false;
-        for (idx, ch) in text.char_indices() {
-            if ch == '(' {
-                depth += 1;
-            } else if ch == ')' {
-                depth -= 1;
-                if depth == 0 {
-                    if idx == text.len() - 1 {
-                        matched = true;
-                    }
-                    break;
-                }
-            }
-        }
-        if matched {
-            text = text[1..text.len() - 1].trim();
-        } else {
-            break;
-        }
-    }
-    text
 }
 
 fn find_final_param_list_open(text: &str) -> Option<usize> {

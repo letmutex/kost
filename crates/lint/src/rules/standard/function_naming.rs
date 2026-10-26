@@ -1,6 +1,6 @@
 //! Built-in AST rule enforcing function naming conventions (Ktlint rule 76).
 
-use super::helpers::{find_function_identifier, find_root_node};
+use super::helpers::{find_function_identifier, find_root_node, is_lower_camel_case};
 use crate::context::LintCtx;
 use crate::rule::AstRule;
 use crate::util::is_kotlin_keyword;
@@ -26,7 +26,7 @@ impl AstRule for FunctionNaming {
             return;
         };
 
-        if is_valid_function_name(text) {
+        if is_lower_camel_case(text) {
             return;
         }
 
@@ -187,15 +187,6 @@ fn extract_user_type_node(node: tree_sitter::Node) -> Option<tree_sitter::Node> 
         return node.children(&mut cursor).find(|c| c.kind() == "user_type");
     }
     None
-}
-
-fn is_valid_function_name(text: &str) -> bool {
-    let mut chars = text.chars();
-    match chars.next() {
-        Some(first) if first.is_ascii_lowercase() => {}
-        _ => return false,
-    }
-    chars.all(|character| character.is_ascii_alphanumeric())
 }
 
 fn is_valid_test_function_name(text: &str) -> bool {

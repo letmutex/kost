@@ -22,9 +22,9 @@ pub fn format_selected_member(decl: &DeclarationItem, detail: &str, origin: &str
     let sig_info = decl
         .signature
         .as_deref()
-        .map(|s| crate::concat_str!(" (`", s, "`)"))
+        .map(|s| common::concat_str!(" (`", s, "`)"))
         .unwrap_or_default();
-    crate::concat_str!(
+    common::concat_str!(
         "Selected container member `",
         decl.name.as_str(),
         "`",
@@ -45,14 +45,14 @@ pub fn format_candidate_score(
 ) -> String {
     match score_overload_candidate_parsed(decl, is_src, parsed_args, inferred_types, index) {
         Some(s) if s.named_matches > 0 => {
-            crate::concat_str!(
+            common::concat_str!(
                 "score: match=",
                 s.type_matches.to_string(),
                 ", named=",
                 s.named_matches.to_string()
             )
         }
-        Some(s) => crate::concat_str!("score: match=", s.type_matches.to_string()),
+        Some(s) => common::concat_str!("score: match=", s.type_matches.to_string()),
         None => "score: none".to_string(),
     }
 }
@@ -79,12 +79,12 @@ pub fn record_ranked_candidates(
         let sig = decl.signature.as_deref().unwrap_or(decl.name.as_str());
         let origin = super::trace::format_origin(url);
         tracer.record_step(|| {
-            crate::concat_str!("Candidate [", score_str, "]: `", sig, "` ", origin)
+            common::concat_str!("Candidate [", score_str, "]: `", sig, "` ", origin)
         });
     }
     if matching.len() > 5 {
         tracer.record_step(|| {
-            crate::concat_str!(
+            common::concat_str!(
                 "... and ",
                 (matching.len() - 5).to_string(),
                 " more candidate(s)"

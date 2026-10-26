@@ -15,7 +15,6 @@ pub mod rules;
 pub mod smart_diff;
 pub mod style;
 pub mod trivia;
-pub mod util;
 pub mod verbatim;
 
 pub use cli::run;

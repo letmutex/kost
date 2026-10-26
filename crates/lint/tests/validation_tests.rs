@@ -187,7 +187,7 @@ lint:
 #[test]
 fn test_option_override_rejects_invalid_regex_pattern() {
     let pid = std::process::id().to_string();
-    let temp_dir = std::env::temp_dir().join(lint::concat_str!("kost_test_regex_", &pid));
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_regex_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let base_file = temp_dir.join("base.yaml");

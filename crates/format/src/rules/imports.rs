@@ -69,11 +69,11 @@ impl ImportEntry {
     pub fn canonical_key(&self) -> String {
         let clean_path = self.full_path.replace('`', "");
         let clean_alias = match &self.alias {
-            Some(a) => crate::concat_str!("as ", &a.replace('`', "")),
+            Some(a) => common::concat_str!("as ", &a.replace('`', "")),
             None => "null".to_string(),
         };
         let wildcard_part = if self.is_wildcard { "*" } else { "" };
-        crate::concat_str!(&clean_path, " ", &clean_alias, " ", wildcard_part)
+        common::concat_str!(&clean_path, " ", &clean_alias, " ", wildcard_part)
     }
 }
 

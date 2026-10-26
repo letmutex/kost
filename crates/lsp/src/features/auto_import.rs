@@ -6,8 +6,8 @@ pub use super::auto_import_insertion::{
     collect_header_nodes, detect_newline, extract_import_path, find_ast_import_insertion,
     insert_after_header, insert_into_import_headers,
 };
-use crate::concat_str;
 use crate::indexer::FileSymbols;
+use common::concat_str;
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AutoImportData {

@@ -42,11 +42,11 @@ impl AstRule for OpSpacing {
         match spaces_before(node, source) {
             WhitespaceBefore::StartOfLine => {}
             WhitespaceBefore::Spaces(0) => {
-                let message = crate::concat_str!("Missing spacing before '", op, "'");
+                let message = common::concat_str!("Missing spacing before '", op, "'");
                 ctx.report(node, message);
             }
             WhitespaceBefore::Spaces(n) if n > 1 => {
-                let message = crate::concat_str!("Unexpected spacing before '", op, "'");
+                let message = common::concat_str!("Unexpected spacing before '", op, "'");
                 ctx.report(node, message);
             }
             _ => {}
@@ -54,15 +54,15 @@ impl AstRule for OpSpacing {
 
         match spaces_after(node, source) {
             WhitespaceAfter::EndOfLine { trailing_spaces } if trailing_spaces > 0 => {
-                let message = crate::concat_str!("Unexpected spacing after '", op, "'");
+                let message = common::concat_str!("Unexpected spacing after '", op, "'");
                 ctx.report(node, message);
             }
             WhitespaceAfter::Spaces(0) => {
-                let message = crate::concat_str!("Missing spacing after '", op, "'");
+                let message = common::concat_str!("Missing spacing after '", op, "'");
                 ctx.report(node, message);
             }
             WhitespaceAfter::Spaces(n) if n > 1 => {
-                let message = crate::concat_str!("Unexpected spacing after '", op, "'");
+                let message = common::concat_str!("Unexpected spacing after '", op, "'");
                 ctx.report(node, message);
             }
             _ => {}

@@ -70,3 +70,67 @@ pub fn format_elapsed(duration: std::time::Duration) -> String {
         format!("{:.2}s", duration.as_secs_f64())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use smol_str::SmolStr;
+
+    #[test]
+    fn test_concat_str_with_various_string_types() {
+        let prefix: &str = "com";
+        let dot = String::from(".");
+        let name: SmolStr = SmolStr::new("example");
+        let result = concat_str!(prefix, dot, name, ".", "User");
+        assert_eq!(result, "com.example.User");
+    }
+
+    #[test]
+    fn test_concat_str_empty_and_single_part() {
+        let empty = concat_str!();
+        assert_eq!(empty, "");
+
+        let single = concat_str!("hello");
+        assert_eq!(single, "hello");
+
+        let trailing = concat_str!("a", "b",);
+        assert_eq!(trailing, "ab");
+    }
+
+    #[test]
+    fn test_concat_smol_str_inline_capacity_boundary() {
+        // Exactly 22 bytes (max inline storage on 64-bit systems)
+        let part1 = "12345678901";
+        let part2 = "12345678901";
+        let res22 = concat_smol_str!(part1, part2);
+        assert_eq!(res22.len(), 22);
+        assert_eq!(res22.as_str(), "1234567890112345678901");
+
+        // 23 bytes (exceeds 22 bytes, uses heap storage)
+        let part3 = "123456789012";
+        let res23 = concat_smol_str!(part1, part3);
+        assert_eq!(res23.len(), 23);
+        assert_eq!(res23.as_str(), "12345678901123456789012");
+    }
+
+    #[test]
+    fn test_concat_smol_str_heap_fallback_long_string() {
+        let long_pkg = "androidx.compose.foundation.layout";
+        let sep = ".";
+        let class_name = "BoxScopeInstance";
+        let result = concat_smol_str!(long_pkg, sep, class_name);
+        assert_eq!(
+            result.as_str(),
+            "androidx.compose.foundation.layout.BoxScopeInstance"
+        );
+        assert!(result.len() > 22);
+    }
+
+    #[test]
+    fn test_concat_smol_str_with_mixed_string_types() {
+        let pkg: &str = "kotlin";
+        let mid = String::from(".collections.");
+        let cls: SmolStr = SmolStr::new("List");
+        let result = concat_smol_str!(pkg, mid, cls);
+        assert_eq!(result.as_str(), "kotlin.collections.List");
+    }
+}

@@ -78,7 +78,7 @@ fn resolve_constructor_full_name(
             .get(u.as_ref())
             .and_then(|f| f.package_name.as_deref());
         full = match pkg {
-            Some(p) => crate::concat_str!(p, ".", d.name),
+            Some(p) => common::concat_str!(p, ".", d.name),
             None => d.name.to_string(),
         };
     }
@@ -128,7 +128,7 @@ pub fn find_constructor_return_type(
 
     if !call_info.explicit_type_args.is_empty() {
         let parameterized =
-            crate::concat_str!(full, "<", call_info.explicit_type_args.join(", "), ">");
+            common::concat_str!(full, "<", call_info.explicit_type_args.join(", "), ">");
         return KotlinType::parse(&parameterized);
     }
 
@@ -178,7 +178,7 @@ fn infer_generic_constructor_return_type(
             } else if let Some(sig) = decl.signature.as_deref() {
                 let type_params = extract_generic_type_params(sig);
                 if !type_params.is_empty() && !call_info.value_args.is_empty() {
-                    let template = crate::concat_str!(full, "<", type_params.join(", "), ">");
+                    let template = common::concat_str!(full, "<", type_params.join(", "), ">");
                     let solved =
                         solve_call_generic_return_type(ctx.sub(), sig, &template, None, call_info);
                     return Some(solved);

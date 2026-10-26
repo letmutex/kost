@@ -81,7 +81,7 @@ lint:
 #[test]
 fn test_ambiguous_unqualified_rule_import_fails() {
     let pid = std::process::id().to_string();
-    let temp_dir = std::env::temp_dir().join(lint::concat_str!("kost_test_ambig_", &pid));
+    let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_ambig_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let shared_yaml = temp_dir.join("shared.yaml");

@@ -183,7 +183,7 @@ fn handle_infix_declaration(
     ));
     let next_container = container
         .as_ref()
-        .map(|p| crate::concat_str!(p, ".", name))
+        .map(|p| common::concat_str!(p, ".", name))
         .unwrap_or_else(|| name.to_string());
     collect_declarations(body_node, source, Some(next_container), file_symbols);
     true
@@ -243,7 +243,7 @@ fn collect_declarations(
         if should_recurse {
             let next_container = container
                 .as_ref()
-                .map(|p| crate::concat_str!(p, ".", name))
+                .map(|p| common::concat_str!(p, ".", name))
                 .unwrap_or_else(|| name.to_string());
             collect_declarations(decl_node, source, Some(next_container), file_symbols);
         }

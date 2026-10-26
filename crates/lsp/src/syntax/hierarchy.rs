@@ -43,7 +43,7 @@ fn format_supertype_name(text: &str, simple: &str) -> String {
     if let (Some(a), Some(c)) = (text.find('<'), text.rfind('>'))
         && c > a
     {
-        return crate::concat_str!(simple, &text[a..=c]);
+        return common::concat_str!(simple, &text[a..=c]);
     }
     simple.to_string()
 }
@@ -152,7 +152,7 @@ pub fn handle_declaration_extensions(
                 .collect();
             file_symbols
                 .class_supertypes
-                .insert(crate::concat_str!(pkg, ".", name), q_supers);
+                .insert(common::concat_str!(pkg, ".", name), q_supers);
         }
     } else if dk == "type_alias"
         && let Some(target) = extract_type_alias_target(decl_node, source)
@@ -187,7 +187,7 @@ pub fn resolve_extension_container(
         })
         .or_else(|| {
             pkg.filter(|p| !p.is_empty())
-                .map(|p| crate::concat_str!(p, ".", clean))
+                .map(|p| common::concat_str!(p, ".", clean))
         })
         .unwrap_or_else(|| clean.to_string())
 }

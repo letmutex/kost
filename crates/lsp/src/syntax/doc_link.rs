@@ -75,7 +75,7 @@ fn try_render_bracket_link(text: &str, i: usize, len: usize) -> Option<(String, 
             let rendered = if label.starts_with('`') && label.ends_with('`') && label.len() >= 2 {
                 label.to_string()
             } else {
-                crate::concat_str!("`", label, "`")
+                common::concat_str!("`", label, "`")
             };
             return Some((rendered, end));
         }
@@ -90,7 +90,7 @@ fn try_render_bracket_link(text: &str, i: usize, len: usize) -> Option<(String, 
     let rendered = if content.starts_with('`') && content.ends_with('`') && content.len() >= 2 {
         content.to_string()
     } else {
-        crate::concat_str!("`", content, "`")
+        common::concat_str!("`", content, "`")
     };
     Some((rendered, close_idx + 1))
 }

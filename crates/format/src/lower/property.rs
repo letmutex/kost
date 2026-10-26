@@ -64,7 +64,7 @@ fn parse_property_decl_parts<'a>(
                 );
             }
             "val" | "var" | "binding_pattern_kind" => {
-                parts.header_docs.push(Doc::smol(crate::concat_smol_str!(
+                parts.header_docs.push(Doc::smol(common::concat_smol_str!(
                     ctx.node_text(&child),
                     " "
                 )));

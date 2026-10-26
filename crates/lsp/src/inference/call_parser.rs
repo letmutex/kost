@@ -1,4 +1,4 @@
-use super::generics::split_type_arguments;
+use crate::syntax::signature::split_type_arguments;
 
 /// Call info extracted from an expression string (e.g. `listOf<Int>(1, 2)` or `foo.bar(x)`)
 #[derive(Debug, Clone)]

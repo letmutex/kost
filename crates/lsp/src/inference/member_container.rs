@@ -32,7 +32,7 @@ pub fn resolve_container_members(
                 continue;
             }
             ctx.tracer.record_step(|| {
-                crate::concat_str!(
+                common::concat_str!(
                     "Found ",
                     matching.len().to_string(),
                     " container candidate(s) for `",
@@ -66,7 +66,7 @@ pub fn resolve_container_members(
         }
     }
     ctx.tracer.record_step(|| {
-        crate::concat_str!(
+        common::concat_str!(
             "No container members found for `",
             member_name,
             "` on `",
@@ -90,10 +90,10 @@ fn resolve_container_constructor_decl(
         .next()
         .unwrap_or(container_type)
         .trim();
-    let full = crate::concat_str!(bare, ".", decl.name);
+    let full = common::concat_str!(bare, ".", decl.name);
     if !call_info.explicit_type_args.is_empty() {
         let parameterized =
-            crate::concat_str!(full, "<", call_info.explicit_type_args.join(", "), ">");
+            common::concat_str!(full, "<", call_info.explicit_type_args.join(", "), ">");
         return super::types::parse_type_signature(&parameterized);
     }
     let type_params = if let Some(sig_info) = super::signature::SignatureInfo::from_decl(decl) {
@@ -106,7 +106,7 @@ fn resolve_container_constructor_decl(
         super::generics::extract_generic_type_params(sig)
     };
     if !type_params.is_empty() && !call_info.value_args.is_empty() {
-        let template = crate::concat_str!(full, "<", type_params.join(", "), ">");
+        let template = common::concat_str!(full, "<", type_params.join(", "), ">");
         let solved = super::call::solve_call_generic_return_type_traced(
             ctx,
             sig,
@@ -231,7 +231,7 @@ fn resolve_single_container_decl(
         ctx.tracer.record_step(|| {
             format_selected_member(
                 decl,
-                &crate::concat_str!("-> `", inferred.to_string(), "`"),
+                &common::concat_str!("-> `", inferred.to_string(), "`"),
                 &origin,
             )
         });
@@ -241,7 +241,7 @@ fn resolve_single_container_decl(
         ctx.tracer.record_step(|| {
             format_selected_member(
                 decl,
-                &crate::concat_str!("(inferred from source: `", inferred.to_string(), "`)"),
+                &common::concat_str!("(inferred from source: `", inferred.to_string(), "`)"),
                 &origin,
             )
         });
@@ -281,9 +281,9 @@ fn resolve_container_symbol_decl(
         if !super::qualification::is_declaration_visible(index, current_url, url, decl) {
             return None;
         }
-        let full = crate::concat_str!(container_str, ".", decl.name);
+        let full = common::concat_str!(container_str, ".", decl.name);
         tracer.record_step(|| {
-            format_selected_member(decl, &crate::concat_str!("-> `", &full, "`"), origin)
+            format_selected_member(decl, &common::concat_str!("-> `", &full, "`"), origin)
         });
         return super::types::parse_type_signature(&full);
     }
@@ -291,7 +291,7 @@ fn resolve_container_symbol_decl(
         tracer.record_step(|| {
             format_selected_member(
                 decl,
-                &crate::concat_str!("-> `", container_str, "`"),
+                &common::concat_str!("-> `", container_str, "`"),
                 origin,
             )
         });

@@ -80,7 +80,7 @@ pub fn format_source(
         let point = err_node.start_position();
         return Err(FormatError::ParseError {
             position: Position::new(point.row + 1, point.column + 1),
-            message: crate::concat_str!("Syntax error near '", err_node.kind(), "'"),
+            message: common::concat_str!("Syntax error near '", err_node.kind(), "'"),
         });
     }
 

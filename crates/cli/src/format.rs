@@ -112,7 +112,7 @@ impl FormatArgs {
             } else if let Some(val) =
                 crate::parse_value_option(argument, "--print-mode", &mut argument_iterator)?
             {
-                print_mode = parse_print_mode_value("--print-mode", &val)?;
+                print_mode = PrintMode::parse_option("--print-mode", &val)?;
             } else if argument.starts_with('-') && argument != "-" {
                 return Err(CliError::UnknownOption(argument.to_string()));
             } else {
@@ -140,17 +140,6 @@ fn parse_style_value(option_name: &str, raw_value: &str) -> Result<FormatStyle, 
         return Err(CliError::MissingOptionValue(option_name.to_string()));
     }
     FormatStyle::from_identifier(trimmed).ok_or_else(|| CliError::InvalidOptionValue {
-        option: option_name.to_string(),
-        value: raw_value.to_string(),
-    })
-}
-
-fn parse_print_mode_value(option_name: &str, raw_value: &str) -> Result<PrintMode, CliError> {
-    let trimmed = raw_value.trim();
-    if trimmed.is_empty() {
-        return Err(CliError::MissingOptionValue(option_name.to_string()));
-    }
-    PrintMode::from_identifier(trimmed).ok_or_else(|| CliError::InvalidOptionValue {
         option: option_name.to_string(),
         value: raw_value.to_string(),
     })

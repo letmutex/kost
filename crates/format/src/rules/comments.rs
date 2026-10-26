@@ -18,7 +18,7 @@ pub fn normalize_line_comment(
         && !rest.starts_with('/')
         && !rest.is_empty()
     {
-        crate::concat_smol_str!("// ", rest)
+        common::concat_smol_str!("// ", rest)
     } else {
         SmolStr::new(trimmed)
     };
@@ -45,7 +45,7 @@ pub fn normalize_line_comment(
                 cur_chars += 1 + word_chars;
             } else {
                 lines.push(SmolStr::new(&cur_line));
-                cur_line = crate::concat_str!("// ", word);
+                cur_line = common::concat_str!("// ", word);
                 cur_chars = 3 + word_chars;
             }
         }
@@ -71,7 +71,7 @@ pub fn try_append_to_trailing_line_comment(
             ..
         } => {
             let stripped = additional_text.trim_start_matches('/').trim_start();
-            *text = crate::concat_smol_str!(text.as_str(), " ", stripped);
+            *text = common::concat_smol_str!(text.as_str(), " ", stripped);
             true
         }
         crate::doc::Doc::Concat(items) => {

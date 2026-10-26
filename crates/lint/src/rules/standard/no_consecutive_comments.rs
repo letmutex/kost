@@ -75,14 +75,14 @@ fn evaluate_consecutive_comments(
     ctx: &mut LintCtx,
 ) {
     if previous == CommentType::Kdoc && current == CommentType::Kdoc {
-        let msg = crate::concat_str!(
+        let msg = common::concat_str!(
             current.description(),
             " may not be preceded by ",
             previous.description()
         );
         ctx.report(node, msg);
     } else if previous == CommentType::Kdoc && current != CommentType::Kdoc {
-        let msg = crate::concat_str!(
+        let msg = common::concat_str!(
             current.description(),
             " may not be preceded by ",
             previous.description(),
@@ -91,7 +91,7 @@ fn evaluate_consecutive_comments(
         ctx.report(node, msg);
     } else if previous == CommentType::Block && current == CommentType::Block {
         if newlines <= 1 {
-            let msg = crate::concat_str!(
+            let msg = common::concat_str!(
                 current.description(),
                 " may not be preceded by ",
                 previous.description()
@@ -103,7 +103,7 @@ fn evaluate_consecutive_comments(
     } else if previous != current && newlines > 1 {
         // Allowed when separated by a blank line
     } else {
-        let msg = crate::concat_str!(
+        let msg = common::concat_str!(
             current.description(),
             " may not be preceded by ",
             previous.description(),

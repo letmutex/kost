@@ -70,7 +70,7 @@ pub(crate) fn collect_container_type_params(
                     cd.container_name
                         .as_deref()
                         .map(|cn| {
-                            crate::concat_str!(cn, ".", cd.name) == container || cn == container
+                            common::concat_str!(cn, ".", cd.name) == container || cn == container
                         })
                         .unwrap_or(false)
                 })

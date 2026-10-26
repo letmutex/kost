@@ -48,7 +48,7 @@ impl AstRule for NoEmptyFile {
                 .as_deref()
                 .and_then(|p| Path::new(p).file_name().and_then(|s| s.to_str()))
                 .unwrap_or("file");
-            let message = crate::concat_str!("File '", file_name, "' should not be empty");
+            let message = common::concat_str!("File '", file_name, "' should not be empty");
             ctx.report(node, message);
         }
     }

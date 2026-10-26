@@ -74,7 +74,7 @@ pub fn resolve_infix_expression(
         &mut Tracer::Noop,
     );
 
-    let member_call = crate::concat_str!(op_name, "(", right_text, ")");
+    let member_call = common::concat_str!(op_name, "(", right_text, ")");
     let call_info = CallInfo {
         callee: op_name,
         explicit_type_args: Vec::new(),
@@ -121,7 +121,7 @@ pub fn infer_infix_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinTy
             .or_else(|| super::expression::resolve_single_receiver(ctx.ctx.sub(), right_text))
     });
 
-    let member_call = crate::concat_str!(op_name, "(", right_text, ")");
+    let member_call = common::concat_str!(op_name, "(", right_text, ")");
     let call_info = CallInfo {
         callee: op_name,
         explicit_type_args: Vec::new(),

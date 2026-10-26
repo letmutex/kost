@@ -91,7 +91,7 @@ pub fn extract_functional_input_types(func_type: &str) -> Vec<String> {
     if clean.is_empty() {
         return Vec::new();
     }
-    let wrapped = crate::concat_str!("typealias _T = ", clean);
+    let wrapped = common::concat_str!("typealias _T = ", clean);
     let tree = match crate::syntax::parser::with_parser(|p| p.parse(&wrapped)) {
         Some(t) => t,
         None => return Vec::new(),
@@ -187,7 +187,7 @@ pub fn extract_functional_return_type(param_type: &str) -> Option<String> {
     if clean.is_empty() {
         return None;
     }
-    let wrapped = crate::concat_str!("typealias _T = ", clean);
+    let wrapped = common::concat_str!("typealias _T = ", clean);
     let tree = crate::syntax::parser::with_parser(|p| p.parse(&wrapped))?;
     let root = tree.root_node();
     let fn_node = find_function_type_node(&root)?;

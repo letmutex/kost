@@ -83,7 +83,7 @@ impl AstRule for NoFullyQualifiedTypeNames {
 
         ctx.report_range(
             target_range,
-            crate::concat_str!(
+            common::concat_str!(
                 "Fully qualified type name '",
                 &clean_name,
                 "' should not be used"

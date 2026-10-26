@@ -68,13 +68,13 @@ fn format_kdoc_tag_line(cleaned: &str) -> String {
         let param = param.trim_matches(|c| c == '[' || c == ']');
         let desc = render_kdoc_links(desc.trim());
         if desc.is_empty() {
-            crate::concat_str!("* **@param** `", param, "`")
+            common::concat_str!("* **@param** `", param, "`")
         } else {
-            crate::concat_str!("* **@param** `", param, "` — ", &desc)
+            common::concat_str!("* **@param** `", param, "` — ", &desc)
         }
     } else if let Some(rest) = trimmed_start.strip_prefix("@return") {
         let desc = render_kdoc_links(rest.trim());
-        crate::concat_str!("* **@return** — ", &desc)
+        common::concat_str!("* **@return** — ", &desc)
     } else if let Some(rest) = trimmed_start.strip_prefix("@throws") {
         let (exc, desc) = rest
             .trim()
@@ -83,18 +83,18 @@ fn format_kdoc_tag_line(cleaned: &str) -> String {
         let exc = exc.trim_matches(|c| c == '[' || c == ']');
         let desc = render_kdoc_links(desc.trim());
         if desc.is_empty() {
-            crate::concat_str!("* **@throws** `", exc, "`")
+            common::concat_str!("* **@throws** `", exc, "`")
         } else {
-            crate::concat_str!("* **@throws** `", exc, "` — ", &desc)
+            common::concat_str!("* **@throws** `", exc, "` — ", &desc)
         }
     } else if let Some(rest) = trimmed_start.strip_prefix("@see") {
         let rendered = render_kdoc_links(rest.trim());
         let final_val = if rendered.starts_with('`') && rendered.ends_with('`') {
             rendered
         } else {
-            crate::concat_str!("`", &rendered, "`")
+            common::concat_str!("`", &rendered, "`")
         };
-        crate::concat_str!("* **@see** ", &final_val)
+        common::concat_str!("* **@see** ", &final_val)
     } else {
         render_kdoc_links(cleaned)
     }

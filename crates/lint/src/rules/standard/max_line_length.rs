@@ -76,7 +76,7 @@ fn scan_line_lengths(
                 let message = if max_len == DEFAULT_MAX_LINE_LENGTH {
                     "Exceeded max line length (140)".to_string()
                 } else {
-                    crate::concat_str!("Exceeded max line length (", &max_len.to_string(), ")")
+                    common::concat_str!("Exceeded max line length (", &max_len.to_string(), ")")
                 };
                 ctx.report_range(
                     TextRange::new(

@@ -26,12 +26,12 @@ fn format_qualified_decl(
     clean: &str,
 ) -> String {
     let container_prefix = container
-        .map(|c| crate::concat_str!(c, "."))
+        .map(|c| common::concat_str!(c, "."))
         .unwrap_or_default();
     if let Some(p) = pkg {
-        crate::concat_str!(p, ".", container_prefix, clean)
+        common::concat_str!(p, ".", container_prefix, clean)
     } else {
-        crate::concat_str!(container_prefix, clean)
+        common::concat_str!(container_prefix, clean)
     }
 }
 
@@ -141,7 +141,7 @@ pub fn resolve_full_type_name(
     let is_nullable = clean.ends_with('?');
     let unnull = clean.trim_end_matches('?').trim();
     let (base, generic_suffix) = match unnull.split_once('<') {
-        Some((b, g)) => (b.trim(), Some(crate::concat_str!("<", g))),
+        Some((b, g)) => (b.trim(), Some(common::concat_str!("<", g))),
         None => (unnull, None),
     };
 
@@ -150,11 +150,11 @@ pub fn resolve_full_type_name(
 
     if PrimitiveType::from_name(target).is_some() {
         let with_gen = match generic_suffix {
-            Some(g) => crate::concat_str!(target, g),
+            Some(g) => common::concat_str!(target, g),
             None => target.to_string(),
         };
         return if is_nullable && !with_gen.ends_with('?') {
-            crate::concat_str!(with_gen, "?")
+            common::concat_str!(with_gen, "?")
         } else {
             with_gen
         };
@@ -165,7 +165,7 @@ pub fn resolve_full_type_name(
         if let Some(resolved_first) =
             resolve_type_by_imports_or_package(index, current_url, first, &is_visible)
         {
-            crate::concat_str!(resolved_first.as_str(), ".", rest)
+            common::concat_str!(resolved_first.as_str(), ".", rest)
         } else {
             target.to_string()
         }
@@ -175,11 +175,11 @@ pub fn resolve_full_type_name(
     };
 
     let with_gen = match generic_suffix {
-        Some(g) => crate::concat_str!(resolved_base, g),
+        Some(g) => common::concat_str!(resolved_base, g),
         None => resolved_base,
     };
     if is_nullable && !with_gen.ends_with('?') {
-        crate::concat_str!(with_gen, "?")
+        common::concat_str!(with_gen, "?")
     } else {
         with_gen
     }
@@ -252,18 +252,18 @@ fn matches_import(import: &ImportItem, decl_pkg: Option<&str>, decl: &Declaratio
                 return true;
             }
             if let Some(ref c) = decl.container_name {
-                let target_container_path = crate::concat_str!(dp, ".", c);
+                let target_container_path = common::concat_str!(dp, ".", c);
                 if star_path == target_container_path {
                     return true;
                 }
             }
         }
     } else if let Some(dp) = decl_pkg {
-        if !is_nested_type && import.path == crate::concat_str!(dp, ".", decl.name.as_str()) {
+        if !is_nested_type && import.path == common::concat_str!(dp, ".", decl.name.as_str()) {
             return true;
         }
         if let Some(ref c) = decl.container_name {
-            let target_path = crate::concat_str!(dp, ".", c, ".", decl.name.as_str());
+            let target_path = common::concat_str!(dp, ".", c, ".", decl.name.as_str());
             if import.path == target_path {
                 return true;
             }
@@ -301,7 +301,7 @@ pub fn match_qualified_class(
                 == Some(pkg)
     });
     if is_match {
-        tracer.record_step(|| crate::concat_str!("Matched qualified class `", clean, "`"));
+        tracer.record_step(|| common::concat_str!("Matched qualified class `", clean, "`"));
         crate::inference::types::parse_type_signature(clean)
     } else {
         None

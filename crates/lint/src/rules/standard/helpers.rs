@@ -83,3 +83,13 @@ pub fn prev_code_sibling(node: tree_sitter::Node) -> Option<tree_sitter::Node> {
     }
     None
 }
+
+/// Checks whether an identifier string is formatted in lowerCamelCase (starts with lowercase ASCII, alphanumeric only).
+pub fn is_lower_camel_case(text: &str) -> bool {
+    let mut chars = text.chars();
+    match chars.next() {
+        Some(first) if first.is_ascii_lowercase() => {}
+        _ => return false,
+    }
+    chars.all(|character| character.is_ascii_alphanumeric())
+}

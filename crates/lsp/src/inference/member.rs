@@ -46,7 +46,7 @@ pub fn resolve_member_type_kt_depth_traced(
     let clean = member_expr.trim();
     if super::lambda_call::is_call_with_lambda(clean) {
         let container_str = container_type.to_string();
-        let target = crate::concat_str!(clean, " on ", container_str);
+        let target = common::concat_str!(clean, " on ", container_str);
         ctx.tracer.enter_scope("MemberCall", &target);
         let res = super::lambda_call::resolve_higher_order_call(
             ctx.reborrow(),
@@ -92,7 +92,7 @@ pub fn resolve_member_call_info_depth_traced(
     inferred_arg_types: &[Option<KotlinType>],
 ) -> Option<KotlinType> {
     let container_str = container_type.to_string();
-    let target = crate::concat_str!(member_expr, " on ", container_str);
+    let target = common::concat_str!(member_expr, " on ", container_str);
     ctx.tracer.enter_scope("MemberCall", &target);
 
     record_evaluated_arguments(ctx.tracer, call_info, inferred_arg_types);
@@ -146,10 +146,10 @@ fn record_evaluated_arguments(
                         .as_ref()
                         .map(|t| t.to_string())
                         .unwrap_or_else(|| "?".to_string());
-                    crate::concat_str!("`", arg, "` -> `", ty_str, "`")
+                    common::concat_str!("`", arg, "` -> `", ty_str, "`")
                 })
                 .collect();
-            crate::concat_str!("Evaluated arguments: [", formatted.join(", "), "]")
+            common::concat_str!("Evaluated arguments: [", formatted.join(", "), "]")
         });
     }
 }

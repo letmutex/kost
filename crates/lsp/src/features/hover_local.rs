@@ -157,7 +157,7 @@ fn adjust_local_sig_and_doc(
         } else {
             "val "
         };
-        *sig = Some(crate::concat_str!(prefix, s));
+        *sig = Some(common::concat_str!(prefix, s));
     }
     if doc.is_none()
         && let Some(parent) = find_enclosing_constructor_or_func(local_node)
@@ -257,7 +257,7 @@ pub fn format_implicit_it_hover(
     let inferred_type = inferred_type?;
     let type_str =
         format_inferred_it_type_string(&inferred_type, index, current_url, type_infer_opt);
-    let sig = crate::concat_str!("val it: ", type_str);
+    let sig = common::concat_str!("val it: ", type_str);
     let mut markdown = format_markdown_hover(None, Some(&sig), None);
     if let Some(trace) = trace_md {
         markdown.push_str(&trace);
@@ -279,7 +279,7 @@ fn format_inferred_it_type_string(
                 &inferred_type.to_string(),
             );
             if inferred_type.is_nullable() && !full.ends_with('?') {
-                crate::concat_str!(full, "?")
+                common::concat_str!(full, "?")
             } else {
                 full
             }
@@ -287,7 +287,7 @@ fn format_inferred_it_type_string(
         _ => {
             let short = inferred_type.to_short_string();
             if inferred_type.is_nullable() && !short.ends_with('?') {
-                crate::concat_str!(short, "?")
+                common::concat_str!(short, "?")
             } else {
                 short
             }

@@ -1,5 +1,6 @@
 //! Built-in AST rule enforcing property wrapping (Ktlint rule 62).
 
+use super::helpers::{next_code_sibling, prev_code_sibling};
 use crate::context::LintCtx;
 use crate::rule::AstRule;
 
@@ -114,32 +115,4 @@ fn is_braced_accessor(node: tree_sitter::Node) -> bool {
         }
     }
     false
-}
-
-fn prev_code_sibling(node: tree_sitter::Node) -> Option<tree_sitter::Node> {
-    let mut curr = node.prev_named_sibling();
-    while let Some(sibling) = curr {
-        if !matches!(
-            sibling.kind(),
-            "comment" | "line_comment" | "multiline_comment"
-        ) {
-            return Some(sibling);
-        }
-        curr = sibling.prev_named_sibling();
-    }
-    None
-}
-
-fn next_code_sibling(node: tree_sitter::Node) -> Option<tree_sitter::Node> {
-    let mut curr = node.next_named_sibling();
-    while let Some(sibling) = curr {
-        if !matches!(
-            sibling.kind(),
-            "comment" | "line_comment" | "multiline_comment"
-        ) {
-            return Some(sibling);
-        }
-        curr = sibling.next_named_sibling();
-    }
-    None
 }

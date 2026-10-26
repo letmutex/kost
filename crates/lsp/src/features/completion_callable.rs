@@ -11,12 +11,12 @@ use super::completion_item::{
     starts_with_ignore_ascii_case,
 };
 use super::receiver_type::{collect_type_containers, resolve_receiver_type};
-use crate::concat_str;
 use crate::indexer::{DeclarationItem, WorkspaceIndex, is_source_url};
 use crate::parser::find_node_at_position;
 use crate::syntax::scope::{
     collect_enclosing_classes, collect_local_scope_symbols, find_enclosing_class_name,
 };
+use common::concat_str;
 
 const MAX_COMPLETIONS: usize = 1000;
 

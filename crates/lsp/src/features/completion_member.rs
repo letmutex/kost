@@ -3,10 +3,10 @@ use tree_sitter::Node;
 
 use super::completion_item::{CompletionCandidateTracker, contains_ignore_ascii_case};
 use super::receiver_type::{collect_type_containers, resolve_receiver_type};
-use crate::concat_str;
 use crate::indexer::{DeclarationItem, WorkspaceIndex, is_source_url};
 use crate::parser::find_node_at_position;
 use crate::syntax::scope::find_enclosing_class_name;
+use common::concat_str;
 
 pub fn find_member_completions(
     index: &WorkspaceIndex,

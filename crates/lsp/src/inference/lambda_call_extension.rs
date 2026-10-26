@@ -33,11 +33,11 @@ fn build_skolem_env(
     let mut skolem_bindings = AHashMap::default();
     let mut skolem_bounds = AHashMap::default();
     for param in tps_sub {
-        let skolem_name = crate::concat_smol_str!("$Skolem_", prefix_sub, "_", param.name);
+        let skolem_name = common::concat_smol_str!("$Skolem_", prefix_sub, "_", param.name);
         skolem_bindings.insert(param.name.clone(), KotlinType::simple_class(skolem_name));
     }
     for param in tps_sub {
-        let skolem_name = crate::concat_smol_str!("$Skolem_", prefix_sub, "_", param.name);
+        let skolem_name = common::concat_smol_str!("$Skolem_", prefix_sub, "_", param.name);
         if !param.bounds.is_empty() {
             let subst_bounds: Vec<_> = param
                 .bounds

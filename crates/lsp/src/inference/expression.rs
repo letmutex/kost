@@ -150,7 +150,7 @@ fn resolve_special_or_call_receiver(
     }
     if super::lambda_call::is_call_with_lambda(clean) {
         ctx.tracer
-            .record_step(|| crate::concat_str!("Call with lambda `", clean, "`"));
+            .record_step(|| common::concat_str!("Call with lambda `", clean, "`"));
         if let Some(call_type) =
             super::lambda_call::resolve_higher_order_call(ctx.reborrow(), None, clean)
         {
@@ -186,7 +186,7 @@ fn resolve_special_or_call_receiver(
     );
     if let Some(ref infix_type) = res {
         ctx.tracer.record_step(|| {
-            crate::concat_str!(
+            common::concat_str!(
                 "Infix expression `",
                 clean,
                 "` resolved to `",

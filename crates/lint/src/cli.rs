@@ -91,7 +91,7 @@ pub fn run(args: &[String]) -> Result<(), String> {
 
 fn format_lint_summary(total_violations: usize, elapsed_str: &str) -> String {
     let violations_str = total_violations.to_string();
-    crate::concat_str!(
+    common::concat_str!(
         "Lint completed with ",
         &violations_str,
         " issue(s) (in ",
@@ -113,7 +113,7 @@ fn collect_reports(
                 Ok(file_bytes) => file_bytes,
                 Err(err) => {
                     let err_str = err.to_string();
-                    return Err(crate::concat_str!(
+                    return Err(common::concat_str!(
                         "Error reading ",
                         &path_str,
                         ": ",

@@ -26,7 +26,7 @@ impl AstRule for ModifierOrder {
             };
 
             if rank < highest_rank {
-                let message = crate::concat_str!(
+                let message = common::concat_str!(
                     "Modifier '",
                     name,
                     "' should appear before '",

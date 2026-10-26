@@ -118,7 +118,7 @@ fn infer_arithmetic_operator(
             _ => "plus",
         };
         let right_text = ctx.node_text(right_node)?;
-        let member_call = crate::concat_str!(method_name, "(", right_text, ")");
+        let member_call = common::concat_str!(method_name, "(", right_text, ")");
         super::member::resolve_member_type_depth_traced(ctx.ctx.sub(), left_base, &member_call)
     }
 }

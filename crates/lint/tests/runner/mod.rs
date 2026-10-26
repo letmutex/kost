@@ -113,12 +113,12 @@ fn resolve_rules_path(input_path: &Path) -> Option<PathBuf> {
     let stem = input_path.file_stem()?.to_str()?;
     let file_name = input_path.file_name()?.to_str()?;
 
-    let candidate_stem = parent.join(lint::concat_str!(stem, ".rules.yaml"));
+    let candidate_stem = parent.join(common::concat_str!(stem, ".rules.yaml"));
     if candidate_stem.is_file() {
         return Some(candidate_stem);
     }
 
-    let candidate_full = parent.join(lint::concat_str!(file_name, ".rules.yaml"));
+    let candidate_full = parent.join(common::concat_str!(file_name, ".rules.yaml"));
     if candidate_full.is_file() {
         return Some(candidate_full);
     }
@@ -131,12 +131,12 @@ fn resolve_output_path(input_path: &Path) -> Option<PathBuf> {
     let stem = input_path.file_stem()?.to_str()?;
     let file_name = input_path.file_name()?.to_str()?;
 
-    let candidate_stem = parent.join(lint::concat_str!(stem, ".output"));
+    let candidate_stem = parent.join(common::concat_str!(stem, ".output"));
     if candidate_stem.is_file() {
         return Some(candidate_stem);
     }
 
-    let candidate_full = parent.join(lint::concat_str!(file_name, ".output"));
+    let candidate_full = parent.join(common::concat_str!(file_name, ".output"));
     if candidate_full.is_file() {
         return Some(candidate_full);
     }
@@ -148,7 +148,7 @@ fn resolve_output_path(input_path: &Path) -> Option<PathBuf> {
 pub fn format_diagnostic(diagnostic: &Diagnostic) -> String {
     let line_str = diagnostic.range.start_line.to_string();
     let col_str = diagnostic.range.start_col.to_string();
-    lint::concat_str!(
+    common::concat_str!(
         &line_str,
         ":",
         &col_str,
