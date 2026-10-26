@@ -1,6 +1,6 @@
 # Kost
 
-Fast JVM-free Kotlin static linter, formatter, and language server.
+Fast JVM-free Kotlin linter, formatter, and language server.
 
 ## Highlights
 
@@ -8,7 +8,7 @@ Fast JVM-free Kotlin static linter, formatter, and language server.
 - Fast and memory efficient
 - [ktlint](https://github.com/ktlint/ktlint) compatible linter
 - [ktfmt](https://github.com/Kotlin/ktfmt) compatible formatter
-- Index project sources, kotlin stdlib, gradle dependencies, and android jar automatically
+- Language server indexes project sources, kotlin stdlib, gradle dependencies, and android jar automatically
 
 ## Installations
 
