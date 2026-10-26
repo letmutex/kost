@@ -1,4 +1,4 @@
-//! Configuration loading, include graph resolution, and rule merging.
+//! Configuration loading, import graph resolution, and rule merging.
 
 pub mod error;
 pub mod merge;
@@ -13,7 +13,7 @@ use crate::config::error::ConfigError;
 pub use crate::config::merge::RuleMerger;
 use crate::config::parser::RuleParser;
 pub use crate::config::ruleset::{ExportedRuleset, MergedRule, RuleLookup};
-use crate::config::schema::{ConfigFile, RawInclude};
+use crate::config::schema::{ConfigFile, RawImport};
 use crate::registry::RuleRegistry;
 use crate::rule::StatRule;
 use crate::types::{Severity, WherePolicy};
@@ -26,8 +26,8 @@ const STAT_YAML: &str = include_str!("../rules/stat.yaml");
 const VIRTUAL_STANDARD: &str = "standard";
 const VIRTUAL_STATISTICS: &str = "statistics";
 
-/// Parses an inline include string, checking if it is a qualified rule import like `<target>:<rule>`.
-pub fn parse_qualified_include(s: &str) -> Option<(&str, &str)> {
+/// Parses an inline import string, checking if it is a qualified rule import like `<target>:<rule>`.
+pub fn parse_qualified_import(s: &str) -> Option<(&str, &str)> {
     let (target, rule) = s.rsplit_once(':')?;
     if target.is_empty() || rule.is_empty() {
         return None;
@@ -42,7 +42,7 @@ pub fn parse_qualified_include(s: &str) -> Option<(&str, &str)> {
     Some((target, rule))
 }
 
-/// Configuration loader that resolves include DAGs and merges rule overrides.
+/// Configuration loader that resolves import DAGs and merges rule overrides.
 pub struct ConfigLoader {
     memoized_files: AHashMap<PathBuf, ExportedRuleset>,
     known_basenames: AHashMap<String, PathBuf>,
@@ -69,7 +69,7 @@ impl ConfigLoader {
     pub fn load_file(path: &Path) -> Result<RuleRegistry, ConfigError> {
         let mut loader = Self::new();
         let exported = loader.get_or_load_file(path)?;
-        Ok(exported.into_registry())
+        exported.into_registry()
     }
 
     pub fn load_string(content: &str, file_name: &str) -> Result<RuleRegistry, ConfigError> {
@@ -78,7 +78,7 @@ impl ConfigLoader {
             .known_basenames
             .insert(file_name.to_string(), PathBuf::from(file_name));
         let exported = loader.parse_and_evaluate(content, file_name, None)?;
-        Ok(exported.into_registry())
+        exported.into_registry()
     }
 
     fn get_or_load_virtual(&mut self, scope: &'static str) -> Result<ExportedRuleset, ConfigError> {
@@ -199,7 +199,7 @@ impl ConfigLoader {
         if self.visited_chain.contains(&file_name) {
             let mut chain = self.visited_chain.clone();
             chain.push(file_name);
-            return Err(ConfigError::CircularInclude {
+            return Err(ConfigError::CircularImport {
                 chain: chain.join(" -> "),
             });
         }
@@ -243,33 +243,35 @@ impl ConfigLoader {
 
         let mut local_merger = RuleMerger::new();
 
-        for raw_include in lint.includes {
-            self.process_include(raw_include, &mut local_merger, base_dir)?;
+        for raw_import in lint.imports {
+            self.process_import(raw_import, &mut local_merger, base_dir)?;
         }
 
         for raw_rule in lint.rules {
             local_merger.process_entry(raw_rule, file_name)?;
         }
 
-        Ok(local_merger.into_exported())
+        let mut exported = local_merger.into_exported();
+        exported.ignore = lint.ignore;
+        Ok(exported)
     }
 
-    fn process_include(
+    fn process_import(
         &mut self,
-        raw_include: RawInclude,
+        raw_import: RawImport,
         target_merger: &mut RuleMerger,
         base_dir: Option<&Path>,
     ) -> Result<(), ConfigError> {
-        let (target, rules) = match raw_include {
-            RawInclude::Simple(s) => match parse_qualified_include(&s) {
+        let (target, rules) = match raw_import {
+            RawImport::Simple(s) => match parse_qualified_import(&s) {
                 Some((target_str, rule_str)) => {
                     (target_str.to_string(), Some(vec![rule_str.to_string()]))
                 }
                 None => (s, None),
             },
-            RawInclude::Structured { path, rules } => {
+            RawImport::Structured { path, rules } => {
                 if rules.is_empty() {
-                    return Err(ConfigError::EmptyIncludeRules { target: path });
+                    return Err(ConfigError::EmptyImportRules { target: path });
                 }
                 (path, Some(rules))
             }
@@ -301,14 +303,14 @@ impl ConfigLoader {
                     let (id, rule) = match exported.find_rule(&rule_name) {
                         RuleLookup::Found(id, rule) => (id, rule),
                         RuleLookup::Ambiguous(candidates) => {
-                            return Err(ConfigError::AmbiguousIncludedRule {
+                            return Err(ConfigError::AmbiguousImportedRule {
                                 target: target.clone(),
                                 rule: rule_name.clone(),
                                 candidates: candidates.join(", "),
                             });
                         }
                         RuleLookup::NotFound => {
-                            return Err(ConfigError::UnknownIncludedRule {
+                            return Err(ConfigError::UnknownImportedRule {
                                 target: target.clone(),
                                 rule: rule_name.clone(),
                             });

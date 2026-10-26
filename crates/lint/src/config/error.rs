@@ -1,4 +1,4 @@
-//! Error types for configuration parsing, validation, and include resolution.
+//! Error types for configuration parsing, validation, and import resolution.
 
 use thiserror::Error;
 
@@ -8,7 +8,7 @@ pub enum ConfigError {
     InvalidIdFormat { id: String, reason: &'static str },
 
     #[error(
-        "Rule '{id}' cannot be overridden in '{file}': rule does not exist in any included ruleset"
+        "Rule '{id}' cannot be overridden in '{file}': rule does not exist in any imported ruleset"
     )]
     UnknownRuleOverride { id: String, file: String },
 
@@ -114,8 +114,8 @@ pub enum ConfigError {
     #[error("Missing required 'lint:' section in configuration file '{file}'")]
     MissingLintSection { file: String },
 
-    #[error("Circular include detected: {chain}")]
-    CircularInclude { chain: String },
+    #[error("Circular import detected: {chain}")]
+    CircularImport { chain: String },
 
     #[error(
         "Ambiguous rule scope '{filename}': both '{first_path}' and '{second_path}' share this filename. Rename one configuration file to ensure distinct rule scopes"
@@ -141,17 +141,20 @@ pub enum ConfigError {
     },
 
     #[error("Rule '{rule}' is not defined in target '{target}'")]
-    UnknownIncludedRule { target: String, rule: String },
+    UnknownImportedRule { target: String, rule: String },
 
-    #[error("Empty 'rules: []' selection list for included target '{target}'")]
-    EmptyIncludeRules { target: String },
+    #[error("Empty 'rules: []' selection list for imported target '{target}'")]
+    EmptyImportRules { target: String },
 
     #[error(
         "Rule '{rule}' in target '{target}' is ambiguous: matches multiple exported rules: {candidates}. Use a fully-qualified rule ID instead"
     )]
-    AmbiguousIncludedRule {
+    AmbiguousImportedRule {
         target: String,
         rule: String,
         candidates: String,
     },
+
+    #[error("Invalid glob pattern in lint.ignore '{pattern}': {reason}")]
+    InvalidIgnorePattern { pattern: String, reason: String },
 }

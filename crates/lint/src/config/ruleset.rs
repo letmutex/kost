@@ -1,5 +1,6 @@
 //! Exported ruleset and rule lookup models.
 
+use crate::config::error::ConfigError;
 use crate::registry::{RuleRegistry, RuleRegistryBuilder};
 use crate::rule::StatRule;
 use crate::types::Severity;
@@ -18,7 +19,7 @@ pub enum MergedRule {
     Stat(Box<StatRule>),
 }
 
-/// Result of looking up an included rule by identifier.
+/// Result of looking up an imported rule by identifier.
 #[derive(Debug)]
 pub enum RuleLookup<'a> {
     Found(&'a SmolStr, &'a MergedRule),
@@ -30,6 +31,7 @@ pub enum RuleLookup<'a> {
 #[derive(Clone, Default)]
 pub struct ExportedRuleset {
     pub rules: IndexMap<SmolStr, MergedRule>,
+    pub ignore: Vec<String>,
 }
 
 impl ExportedRuleset {
@@ -55,8 +57,24 @@ impl ExportedRuleset {
         }
     }
 
-    pub fn into_registry(self) -> RuleRegistry {
+    pub fn into_registry(self) -> Result<RuleRegistry, ConfigError> {
         let mut builder = RuleRegistryBuilder::new();
+        for pattern in self.ignore {
+            if pattern.trim().is_empty() {
+                return Err(ConfigError::InvalidIgnorePattern {
+                    pattern,
+                    reason: "ignore pattern cannot be empty".to_string(),
+                });
+            }
+            let regex = common::editorconfig::compile_glob(&pattern).map_err(|reason| {
+                ConfigError::InvalidIgnorePattern {
+                    pattern: pattern.clone(),
+                    reason,
+                }
+            })?;
+            builder.add_ignore_pattern(regex);
+        }
+
         for (id, rule) in self.rules {
             match rule {
                 MergedRule::Ast {
@@ -83,6 +101,6 @@ impl ExportedRuleset {
                 }
             }
         }
-        builder.build()
+        Ok(builder.build())
     }
 }

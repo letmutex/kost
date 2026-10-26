@@ -1,4 +1,4 @@
-//! Tests for include graph resolution, virtual rulesets, and DAG loader invariants.
+//! Tests for import graph resolution, virtual rulesets, ignore patterns, and DAG loader invariants.
 
 use lint::config::ConfigLoader;
 use lint::config::error::ConfigError;
@@ -15,32 +15,32 @@ lint:
 "#;
     let registry = ConfigLoader::load_string(yaml, "kost.yaml").expect("Valid empty config");
     assert!(registry.stat_dispatch.is_empty());
-    // AST dispatch is empty when standard is not in includes
+    // AST dispatch is empty when standard is not in imports
     assert!(registry.ast_dispatch.is_empty());
 }
 
 #[test]
-fn test_including_standard_loads_ast_rules() {
+fn test_importing_standard_loads_ast_rules() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - standard
 
 "#;
-    let registry = ConfigLoader::load_string(yaml, "kost.yaml").expect("Valid standard include");
+    let registry = ConfigLoader::load_string(yaml, "kost.yaml").expect("Valid standard import");
     // Semicolon AST rule is active
     assert!(registry.ast_dispatch.contains_key(";"));
 }
 
 #[test]
-fn test_including_statistics_loads_stat_rules() {
+fn test_importing_statistics_loads_stat_rules() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - statistics
 
 "#;
-    let registry = ConfigLoader::load_string(yaml, "kost.yaml").expect("Valid statistics include");
+    let registry = ConfigLoader::load_string(yaml, "kost.yaml").expect("Valid statistics import");
     // Function statistical rules are active
     assert!(
         registry
@@ -58,7 +58,7 @@ lint:
 fn test_virtual_ruleset_memoization_preserves_overrides() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - statistics
     - statistics
   rules:
@@ -79,7 +79,7 @@ lint:
 }
 
 #[test]
-fn test_load_string_detects_basename_collision_with_included_file() {
+fn test_load_string_detects_basename_collision_with_imported_file() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_collision_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -87,7 +87,7 @@ fn test_load_string_detects_basename_collision_with_included_file() {
     std::fs::write(&sub_file, "lint:\n  rules: []\n").unwrap();
 
     let yaml = common::concat_str!(
-        "lint:\n  includes:\n    - ",
+        "lint:\n  imports:\n    - ",
         sub_file.to_str().unwrap(),
         "\n"
     );
@@ -103,22 +103,22 @@ fn test_load_string_detects_basename_collision_with_included_file() {
 }
 
 #[test]
-fn test_filesystem_dag_includes_and_circular_detection() {
+fn test_filesystem_dag_imports_and_circular_detection() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_dag_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
 
     let file_a = temp_dir.join("cycle_a.yaml");
     let file_b = temp_dir.join("cycle_b.yaml");
-    std::fs::write(&file_a, "lint:\n  includes:\n    - cycle_b.yaml\n").unwrap();
-    std::fs::write(&file_b, "lint:\n  includes:\n    - cycle_a.yaml\n").unwrap();
+    std::fs::write(&file_a, "lint:\n  imports:\n    - cycle_b.yaml\n").unwrap();
+    std::fs::write(&file_b, "lint:\n  imports:\n    - cycle_a.yaml\n").unwrap();
 
     let err = ConfigLoader::load_file(&file_a).unwrap_err();
     match err {
-        ConfigError::CircularInclude { chain } => {
+        ConfigError::CircularImport { chain } => {
             assert!(chain.contains("cycle_a.yaml") && chain.contains("cycle_b.yaml"));
         }
-        other => panic!("Expected CircularInclude, got: {:?}", other),
+        other => panic!("Expected CircularImport, got: {:?}", other),
     }
 
     let _ = std::fs::remove_dir_all(&temp_dir);
@@ -230,6 +230,23 @@ lint:
         }
         other => panic!(
             "Expected Yaml error for unknown field under lint:, got: {:?}",
+            other
+        ),
+    }
+
+    let yaml_legacy_includes = r#"
+lint:
+  includes:
+    - standard
+"#;
+    let err_includes = ConfigLoader::load_string(yaml_legacy_includes, "kost.yaml").unwrap_err();
+    match err_includes {
+        ConfigError::Yaml { source, .. } => {
+            let msg = source.to_string();
+            assert!(msg.contains("unknown field `includes`"));
+        }
+        other => panic!(
+            "Expected Yaml error for legacy includes under lint:, got: {:?}",
             other
         ),
     }

@@ -1,3 +1,3 @@
 lint:
-  includes:
+  imports:
     - "standard:type-argument-list-spacing"

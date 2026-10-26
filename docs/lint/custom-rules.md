@@ -8,12 +8,18 @@ Create a `kost.yml` in the root of your project:
 
 ```yaml
 lint:
-  # Included rulesets or files
-  includes:
+  # Imported rulesets or files
+  imports:
     - standard
     - statistics
     - ./rules/team-conventions.yaml
     - standard:no-wildcard-imports
+
+  # Ignored file paths or patterns (optional)
+  ignore:
+    - "**/build/**"
+    - "**/generated/**"
+    - "**/*.generated.kt"
 
   # Rule overrides or custom definitions
   rules:
@@ -33,15 +39,15 @@ lint:
       message: "Class '${class.name}' has ${class.methods_count} methods (limit: ${options.max_methods})"
 ```
 
-## Including Rules and Rulesets
+## Importing Rules and Rulesets
 
-The `includes` section supports several include styles:
+The `imports` section supports several import styles:
 
 ### Full Ruleset or File
 
 ```yaml
 lint:
-  includes:
+  imports:
     - standard                  # Built-in standard ruleset
     - statistics                # Built-in statistics ruleset
     - ./rules/architecture.yaml # Local YAML file (relative to current file)
@@ -53,7 +59,7 @@ Import a single rule from another ruleset or file:
 
 ```yaml
 lint:
-  includes:
+  imports:
     - standard:no-semi
     - statistics:long-function
     - ./rules/shared.yaml:enforce-immutability
@@ -63,16 +69,32 @@ lint:
 
 ```yaml
 lint:
-  includes:
+  imports:
     - path: ./rules/shared.yaml
       rules:
         - disallow-raw-types
         - ban-blocking-calls
 ```
 
+## Ignoring Files and Paths
+
+Use `ignore` under `lint:` to exclude specific directories, files, or glob patterns:
+
+```yaml
+lint:
+  imports:
+    - standard
+  ignore:
+    - "**/build/**"
+    - "**/generated/**"
+    - "**/*.generated.kt"
+```
+
+Any files matching an `ignore` pattern will be excluded from linting without being read or parsed. Both single string and list formats are supported.
+
 ## Overriding Existing Rules
 
-To modify a built-in rule or an included rule, specify its fully-qualified ID containing a colon (`<scope>:<name>`):
+To modify a built-in rule or an imported rule, specify its fully-qualified ID containing a colon (`<scope>:<name>`):
 
 ### Overriding AST Rules
 
@@ -80,7 +102,7 @@ For compiled standard AST rules (e.g., `standard:no-semi`), you can adjust the d
 
 ```yaml
 lint:
-  includes:
+  imports:
     - standard
   rules:
     # Promote a warning to an error
@@ -100,7 +122,7 @@ For metric rules (such as `statistics:long-function`), you can override severiti
 
 ```yaml
 lint:
-  includes:
+  imports:
     - statistics
   rules:
     - id: statistics:long-function

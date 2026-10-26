@@ -175,7 +175,7 @@ In `kost.yml`:
 
 ```yaml
 lint:
-  includes:
+  imports:
     - standard
     - statistics
 ```

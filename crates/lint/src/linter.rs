@@ -21,7 +21,7 @@ impl Linter {
     /// This constructor is 100% in-memory and filesystem-free.
     pub fn standard() -> Self {
         let registry = ConfigLoader::load_string(
-            "lint:\n  includes:\n    - standard\n",
+            "lint:\n  imports:\n    - standard\n",
             "virtual:standard.yaml",
         )
         .expect("Virtual standard ruleset must always construct cleanly");
@@ -46,7 +46,7 @@ impl Linter {
             return Ok(Self::standard());
         }
 
-        let mut yaml = String::from("lint:\n  includes:\n");
+        let mut yaml = String::from("lint:\n  imports:\n");
         for ruleset in valid_rulesets {
             let sanitized = ruleset
                 .replace('\\', "\\\\")
@@ -81,6 +81,11 @@ impl Linter {
     /// Returns a reference to the active `RuleRegistry`.
     pub fn registry(&self) -> &RuleRegistry {
         &self.registry
+    }
+
+    /// Returns true if the specified file path matches any pattern in `lint.ignore`.
+    pub fn is_path_ignored(&self, path: &str) -> bool {
+        self.registry.is_path_ignored(path)
     }
 
     /// Lints source bytes without an explicit file path.

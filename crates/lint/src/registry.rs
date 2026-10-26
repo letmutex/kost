@@ -23,11 +23,28 @@ pub struct RuleRegistry {
     pub needed_properties: AHashSet<PropertyKey>,
     /// Whether any active AST rule requires file-level exclusion ranges
     pub needs_file_exclusions: bool,
+    /// Compiled glob patterns from lint.ignore to exclude paths
+    pub ignore_patterns: Vec<regex::Regex>,
 }
 
 impl RuleRegistry {
     pub fn builder() -> RuleRegistryBuilder {
         RuleRegistryBuilder::new()
+    }
+
+    /// Checks if a file path is ignored by any configured ignore pattern.
+    pub fn is_path_ignored(&self, path: &str) -> bool {
+        if self.ignore_patterns.is_empty() {
+            return false;
+        }
+        let clean_owned;
+        let clean = if path.contains('\\') {
+            clean_owned = path.replace('\\', "/");
+            clean_owned.strip_prefix("./").unwrap_or(&clean_owned)
+        } else {
+            path.strip_prefix("./").unwrap_or(path)
+        };
+        self.ignore_patterns.iter().any(|re| re.is_match(clean))
     }
 }
 
@@ -37,6 +54,7 @@ pub struct RuleRegistryBuilder {
     stat_rules: Vec<StatRule>,
     severity_overrides: AHashMap<SmolStr, Severity>,
     report_id_overrides: AHashMap<SmolStr, SmolStr>,
+    ignore_patterns: Vec<regex::Regex>,
 }
 
 impl Default for RuleRegistryBuilder {
@@ -52,6 +70,7 @@ impl RuleRegistryBuilder {
             stat_rules: Vec::new(),
             severity_overrides: AHashMap::new(),
             report_id_overrides: AHashMap::new(),
+            ignore_patterns: Vec::new(),
         }
     }
 
@@ -81,6 +100,11 @@ impl RuleRegistryBuilder {
     ) -> &mut Self {
         self.report_id_overrides
             .insert(rule_id.into(), report_id.into());
+        self
+    }
+
+    pub fn add_ignore_pattern(&mut self, pattern: regex::Regex) -> &mut Self {
+        self.ignore_patterns.push(pattern);
         self
     }
 
@@ -144,6 +168,7 @@ impl RuleRegistryBuilder {
             stat_dispatch,
             needed_properties,
             needs_file_exclusions,
+            ignore_patterns: self.ignore_patterns,
         }
     }
 }
@@ -188,6 +213,7 @@ impl std::fmt::Debug for RuleRegistry {
             .field("stat_dispatch", &self.stat_dispatch)
             .field("needed_properties", &self.needed_properties)
             .field("needs_file_exclusions", &self.needs_file_exclusions)
+            .field("ignore_patterns_count", &self.ignore_patterns.len())
             .finish()
     }
 }

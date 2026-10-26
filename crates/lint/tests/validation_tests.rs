@@ -207,7 +207,7 @@ lint:
     let override_file = temp_dir.join("override.yaml");
     let override_yaml = r#"
 lint:
-  includes:
+  imports:
     - base.yaml
   rules:
     - id: base.yaml:custom-rule

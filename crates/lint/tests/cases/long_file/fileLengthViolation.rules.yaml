@@ -1,5 +1,5 @@
 lint:
-  includes:
+  imports:
     - statistics
   rules:
     - id: statistics:long-file

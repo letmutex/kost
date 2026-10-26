@@ -7,7 +7,7 @@ use lint::registry::RuleRegistry;
 use lint::types::Diagnostic;
 use lint::walker::lint_source_with_path;
 
-const DEFAULT_RUNNER_YAML: &str = "lint:\n  includes:\n    - standard\n    - statistics\n";
+const DEFAULT_RUNNER_YAML: &str = "lint:\n  imports:\n    - standard\n    - statistics\n";
 
 /// Structured test failure record for aggregated diagnostics.
 #[derive(Debug, Clone, PartialEq, Eq)]

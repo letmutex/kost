@@ -1,14 +1,14 @@
-//! Tests for error handling and validation during include resolution (unknown rules, empty rules, ambiguous imports, and path parsing).
+//! Tests for error handling and validation during import resolution (unknown rules, empty rules, ambiguous imports, and path parsing).
 
 use lint::config::ConfigLoader;
 use lint::config::error::ConfigError;
-use lint::config::parse_qualified_include;
+use lint::config::parse_qualified_import;
 
 #[test]
-fn test_fail_fast_on_unknown_rule_in_structured_include() {
+fn test_fail_fast_on_unknown_rule_in_structured_import() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - path: standard
       rules:
         - non-existent-rule
@@ -16,29 +16,29 @@ lint:
 "#;
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
-        ConfigError::UnknownIncludedRule { target, rule } => {
+        ConfigError::UnknownImportedRule { target, rule } => {
             assert_eq!(target, "standard");
             assert_eq!(rule, "non-existent-rule");
         }
-        other => panic!("Expected UnknownIncludedRule, got: {:?}", other),
+        other => panic!("Expected UnknownImportedRule, got: {:?}", other),
     }
 }
 
 #[test]
-fn test_fail_fast_on_unknown_rule_in_inline_include() {
+fn test_fail_fast_on_unknown_rule_in_inline_import() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - standard:unknown-rule
 
 "#;
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
-        ConfigError::UnknownIncludedRule { target, rule } => {
+        ConfigError::UnknownImportedRule { target, rule } => {
             assert_eq!(target, "standard");
             assert_eq!(rule, "unknown-rule");
         }
-        other => panic!("Expected UnknownIncludedRule, got: {:?}", other),
+        other => panic!("Expected UnknownImportedRule, got: {:?}", other),
     }
 }
 
@@ -46,35 +46,35 @@ lint:
 fn test_fail_fast_on_empty_rules_list() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - path: standard
       rules: []
 
 "#;
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
-        ConfigError::EmptyIncludeRules { target } => {
+        ConfigError::EmptyImportRules { target } => {
             assert_eq!(target, "standard");
         }
-        other => panic!("Expected EmptyIncludeRules, got: {:?}", other),
+        other => panic!("Expected EmptyImportRules, got: {:?}", other),
     }
 }
 
 #[test]
-fn test_inline_include_non_kebab_case_fails_with_unknown_rule() {
+fn test_inline_import_non_kebab_case_fails_with_unknown_rule() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - standard:no_semi
 
 "#;
     let err = ConfigLoader::load_string(yaml, "kost.yaml").unwrap_err();
     match err {
-        ConfigError::UnknownIncludedRule { target, rule } => {
+        ConfigError::UnknownImportedRule { target, rule } => {
             assert_eq!(target, "standard");
             assert_eq!(rule, "no_semi");
         }
-        other => panic!("Expected UnknownIncludedRule, got: {:?}", other),
+        other => panic!("Expected UnknownImportedRule, got: {:?}", other),
     }
 }
 
@@ -89,7 +89,7 @@ fn test_ambiguous_unqualified_rule_import_fails() {
         &shared_yaml,
         r#"
 lint:
-  includes:
+  imports:
     - standard
   rules:
     - id: no-semi
@@ -107,7 +107,7 @@ lint:
         &main_yaml,
         r#"
 lint:
-  includes:
+  imports:
     - path: shared.yaml
       rules:
         - no-semi
@@ -118,7 +118,7 @@ lint:
 
     let err = ConfigLoader::load_file(&main_yaml).unwrap_err();
     match err {
-        ConfigError::AmbiguousIncludedRule {
+        ConfigError::AmbiguousImportedRule {
             target,
             rule,
             candidates,
@@ -128,30 +128,30 @@ lint:
             assert!(candidates.contains("standard:no-semi"));
             assert!(candidates.contains("shared.yaml:no-semi"));
         }
-        other => panic!("Expected AmbiguousIncludedRule, got: {:?}", other),
+        other => panic!("Expected AmbiguousImportedRule, got: {:?}", other),
     }
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
 
 #[test]
-fn test_qualified_include_parser_distinguishes_windows_paths_and_rules() {
-    assert_eq!(parse_qualified_include(r"C:\rules\shared.yaml"), None);
-    assert_eq!(parse_qualified_include("C:/rules/shared.yaml"), None);
+fn test_qualified_import_parser_distinguishes_windows_paths_and_rules() {
+    assert_eq!(parse_qualified_import(r"C:\rules\shared.yaml"), None);
+    assert_eq!(parse_qualified_import("C:/rules/shared.yaml"), None);
     assert_eq!(
-        parse_qualified_include(r"C:\rules\shared.yaml:my-rule"),
+        parse_qualified_import(r"C:\rules\shared.yaml:my-rule"),
         Some((r"C:\rules\shared.yaml", "my-rule"))
     );
     assert_eq!(
-        parse_qualified_include("C:/rules/shared.yaml:my-rule"),
+        parse_qualified_import("C:/rules/shared.yaml:my-rule"),
         Some(("C:/rules/shared.yaml", "my-rule"))
     );
     assert_eq!(
-        parse_qualified_include("standard:no-semi"),
+        parse_qualified_import("standard:no-semi"),
         Some(("standard", "no-semi"))
     );
-    assert_eq!(parse_qualified_include("shared.yaml"), None);
-    assert_eq!(parse_qualified_include(":"), None);
-    assert_eq!(parse_qualified_include("standard:"), None);
-    assert_eq!(parse_qualified_include(":no-semi"), None);
+    assert_eq!(parse_qualified_import("shared.yaml"), None);
+    assert_eq!(parse_qualified_import(":"), None);
+    assert_eq!(parse_qualified_import("standard:"), None);
+    assert_eq!(parse_qualified_import(":no-semi"), None);
 }

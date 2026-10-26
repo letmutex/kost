@@ -1,5 +1,5 @@
 lint:
-  includes:
+  imports:
     - standard
   rules:
     - id: standard:no-semi

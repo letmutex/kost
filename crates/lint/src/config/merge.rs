@@ -29,6 +29,7 @@ impl RuleMerger {
     pub fn into_exported(self) -> ExportedRuleset {
         ExportedRuleset {
             rules: self.rules_map,
+            ignore: Vec::new(),
         }
     }
 

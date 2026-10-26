@@ -5,7 +5,7 @@ use cli::{LintArgs, render_lint_help};
 use common::resolve_target_files;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use std::io::{Read, Write};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Executes the `lint` command given CLI arguments.
 pub fn run(args: &[String]) -> Result<(), String> {
@@ -42,27 +42,13 @@ pub fn run(args: &[String]) -> Result<(), String> {
         );
     }
 
-    let target_files = resolve_target_files(&parsed_args.targets).map_err(|err| err.to_string())?;
-
+    let target_files = resolve_active_targets(&linter, &parsed_args.targets)?;
     if target_files.is_empty() {
-        if !parsed_args.targets.is_empty() {
-            return Err("No matching Kotlin source files found for specified targets".to_string());
-        }
         return Ok(());
     }
 
     let (reports, read_errors) = collect_reports(&linter, resolver.as_ref(), &target_files);
-    let violated_count = reports.len();
-
-    if violated_count > 0 {
-        let colorize = common::should_colorize_stdout();
-        let tier = crate::smart_lint::resolve_display_tier(parsed_args.print_mode, violated_count);
-        let stdout = std::io::stdout();
-        let mut writer = std::io::BufWriter::new(stdout.lock());
-        crate::smart_lint::render_smart_lint_reports(&mut writer, tier, &reports, colorize)
-            .map_err(|err| err.to_string())?;
-        writer.flush().map_err(|err| err.to_string())?;
-    }
+    render_reports(parsed_args.print_mode, &reports)?;
 
     let error_count: usize = reports
         .iter()
@@ -87,6 +73,34 @@ pub fn run(args: &[String]) -> Result<(), String> {
     } else {
         Ok(())
     }
+}
+
+fn resolve_active_targets(linter: &Linter, inputs: &[String]) -> Result<Vec<PathBuf>, String> {
+    let files = resolve_target_files(inputs).map_err(|err| err.to_string())?;
+    if files.is_empty() && !inputs.is_empty() {
+        return Err("No matching Kotlin source files found for specified targets".to_string());
+    }
+    let filtered: Vec<_> = files
+        .into_iter()
+        .filter(|path| !linter.is_path_ignored(&path.to_string_lossy()))
+        .collect();
+    Ok(filtered)
+}
+
+fn render_reports(
+    mode: cli::PrintMode,
+    reports: &[crate::linter::LintReport],
+) -> Result<(), String> {
+    if reports.is_empty() {
+        return Ok(());
+    }
+    let colorize = common::should_colorize_stdout();
+    let tier = crate::smart_lint::resolve_display_tier(mode, reports.len());
+    let stdout = std::io::stdout();
+    let mut writer = std::io::BufWriter::new(stdout.lock());
+    crate::smart_lint::render_smart_lint_reports(&mut writer, tier, reports, colorize)
+        .map_err(|err| err.to_string())?;
+    writer.flush().map_err(|err| err.to_string())
 }
 
 fn format_lint_summary(total_violations: usize, elapsed_str: &str) -> String {
@@ -188,6 +202,10 @@ fn run_stdin(
         .map_err(|err| err.to_string())?;
 
     let virtual_path = stdin_path.unwrap_or("<stdin>");
+    if virtual_path != "<stdin>" && linter.is_path_ignored(virtual_path) {
+        return Ok(());
+    }
+
     let editorconfig =
         resolver.map(|config_resolver| config_resolver.resolve_for_path(Path::new(virtual_path)));
     let report =
@@ -227,7 +245,7 @@ fn run_stdin(
 
 #[cfg(test)]
 mod tests {
-    use super::{Path, resolve_linter, run};
+    use super::{Linter, Path, resolve_active_targets, resolve_linter, run};
 
     #[test]
     fn test_resolve_linter_default_standard() {
@@ -286,5 +304,40 @@ mod tests {
         let result = run(&[non_kotlin_file.to_string_lossy().to_string()]);
         let err = result.expect_err("Should fail when explicit target has no Kotlin files");
         assert!(err.contains("No matching Kotlin source files"));
+    }
+
+    #[test]
+    fn test_cli_ignores_files_matching_config_ignore() {
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/cases/no_semi/duplicateSemicolonsSameLine.kt");
+        let yaml = r#"
+lint:
+  imports:
+    - standard
+  ignore:
+    - "**/duplicateSemicolonsSameLine.kt"
+"#;
+        let registry = crate::config::ConfigLoader::load_string(yaml, "kost.yaml").unwrap();
+        let linter = Linter::from_registry(registry);
+        assert!(linter.is_path_ignored(&fixture_path.to_string_lossy()));
+    }
+
+    #[test]
+    fn test_resolve_active_targets_succeeds_when_all_targets_are_ignored() {
+        let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("tests/cases/no_semi/duplicateSemicolonsSameLine.kt");
+        let yaml = r#"
+lint:
+  imports:
+    - standard
+  ignore:
+    - "**/duplicateSemicolonsSameLine.kt"
+"#;
+        let registry = crate::config::ConfigLoader::load_string(yaml, "kost.yaml").unwrap();
+        let linter = Linter::from_registry(registry);
+        let targets = [fixture_path.to_string_lossy().to_string()];
+        let resolved = resolve_active_targets(&linter, &targets)
+            .expect("Should succeed when all targets are ignored");
+        assert!(resolved.is_empty());
     }
 }

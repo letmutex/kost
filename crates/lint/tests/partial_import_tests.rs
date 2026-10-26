@@ -1,4 +1,4 @@
-//! Tests for partial includes, inline qualified rule imports, and structured selection lists.
+//! Tests for partial imports, inline qualified rule imports, and structured selection lists.
 
 use lint::config::ConfigLoader;
 
@@ -6,7 +6,7 @@ use lint::config::ConfigLoader;
 fn test_inline_partial_include_from_standard_ast() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - standard:no-semi
 
 "#;
@@ -20,7 +20,7 @@ lint:
 fn test_inline_partial_include_from_statistics() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - statistics:long-function
 
 "#;
@@ -38,7 +38,7 @@ lint:
 fn test_structured_partial_include_from_standard_and_statistics() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - path: standard
       rules:
         - no-semi
@@ -90,7 +90,7 @@ lint:
         &main_yaml,
         r#"
 lint:
-  includes:
+  imports:
     - path: shared.yaml
       rules:
         - custom-one
@@ -142,7 +142,7 @@ lint:
         &main_yaml,
         r#"
 lint:
-  includes:
+  imports:
     - ./shared.yaml:custom-rule
 
 "#,
@@ -163,7 +163,7 @@ lint:
 fn test_excluding_rule_via_severity_none_override() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - path: standard
       rules:
         - no-semi
@@ -193,7 +193,7 @@ fn test_standard_ast_rule_constructibility_bijection() {
 fn test_excluding_stat_rule_via_severity_none_override() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - path: statistics
       rules:
         - long-function

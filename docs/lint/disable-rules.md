@@ -6,7 +6,7 @@ Kost provides four primary ways to disable rules or suppress violations:
 | --- | --- | --- |
 | **In-Code Annotations** | File, declaration, or line | `@Suppress("ktlint:standard:no-semi")` |
 | **EditorConfig** | Project or path pattern | `ktlint_standard_no-semi = disabled` |
-| **Config File (`kost.yml`)** | Project-wide | `severity: none` or selective `includes` |
+| **Config File (`kost.yml`)** | Project-wide or path patterns | `severity: none`, `ignore`, or selective `imports` |
 | **CLI Flags** | Command execution | `kost lint --rulesets statistics` |
 
 ## 1. In-Code Annotations (`@Suppress`)
@@ -52,20 +52,33 @@ ktlint_standard_function-naming = disabled
 
 ```yaml
 lint:
-  includes:
+  imports:
     - standard
   rules:
     - id: standard:no-semi
       severity: none
 ```
 
-### Selective Rule Inclusion
+### Ignore Files and Paths
 
-Include only desired rules rather than importing the entire ruleset:
+Exclude specific directories, files, or glob patterns from linting using `ignore`:
 
 ```yaml
 lint:
-  includes:
+  imports:
+    - standard
+  ignore:
+    - "**/build/**"
+    - "**/generated/**"
+```
+
+### Selective Rule Importing
+
+Import only desired rules rather than importing the entire ruleset:
+
+```yaml
+lint:
+  imports:
     - standard:no-wildcard-imports
     - standard:package-name
     - statistics:long-function

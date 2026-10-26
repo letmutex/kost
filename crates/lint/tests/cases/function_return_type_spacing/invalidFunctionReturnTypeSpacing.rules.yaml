@@ -1,5 +1,5 @@
 lint:
-  includes:
+  imports:
     - path: standard
       rules:
         - function-return-type-spacing

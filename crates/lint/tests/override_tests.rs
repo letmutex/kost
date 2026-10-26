@@ -7,7 +7,7 @@ use lint::config::error::ConfigError;
 fn test_overriding_nonexistent_rule_fails() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - standard
   rules:
     - id: standard:non-existent-rule
@@ -27,7 +27,7 @@ lint:
 fn test_ast_rule_override_rejects_where_clause() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - standard
   rules:
     - id: standard:no-semi
@@ -48,7 +48,7 @@ lint:
 fn test_ast_rule_override_rejects_options() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - standard
   rules:
     - id: standard:no-semi
@@ -69,7 +69,7 @@ lint:
 fn test_stat_rule_override_allows_where_when_permitted() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - statistics
   rules:
     - id: statistics:long-function
@@ -98,7 +98,7 @@ lint:
 fn test_stat_rule_override_rejects_undeclared_option() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - statistics
   rules:
     - id: statistics:long-function
@@ -123,7 +123,7 @@ lint:
 fn test_stat_rule_override_rejects_type_mismatched_option() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - statistics
   rules:
     - id: statistics:long-function
@@ -152,7 +152,7 @@ lint:
 fn test_override_rejects_allow_where_override() {
     let yaml = r#"
 lint:
-  includes:
+  imports:
     - statistics
   rules:
     - id: statistics:long-function
