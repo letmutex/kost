@@ -4,7 +4,7 @@ lint:
       severity: warning
       allow_where_override: true
       options:
-        max_lines: 60
+        max_lines: 80
       where:
         function.lines: gt(options.max_lines)
       message: "Function '${function.name}' is ${function.lines} lines (limit: ${options.max_lines})"
@@ -27,7 +27,7 @@ lint:
         function.parameters_count: gt(options.max_params)
       message: "Function '${function.name}' has ${function.parameters_count} parameters (limit: ${options.max_params})"
 
-    - id: class-name-length
+    - id: long-class-name
       severity: warning
       allow_where_override: true
       options:
@@ -38,11 +38,11 @@ lint:
           - class.name: not(has(" "))
       message: "Class '${class.name}' name length is ${class.name.length} (limit: ${options.max_length})"
 
-    - id: function-name-length
+    - id: long-function-name
       severity: warning
       allow_where_override: true
       options:
-        max_length: 30
+        max_length: 40
       where:
         all:
           - function.name.length: gt(options.max_length)
@@ -50,18 +50,18 @@ lint:
           - function.annotations: not(has("@Test"))
       message: "Function '${function.name}' name length is ${function.name.length} (limit: ${options.max_length})"
 
-    - id: variable-name-length
+    - id: long-variable-name
       severity: warning
       allow_where_override: true
       options:
-        max_length: 30
+        max_length: 40
       where:
         all:
           - variable.name.length: gt(options.max_length)
           - variable.name: not(has(" "))
       message: "Variable '${variable.name}' name length is ${variable.name.length} (limit: ${options.max_length})"
 
-    - id: file-length
+    - id: long-file
       severity: warning
       allow_where_override: true
       options:
@@ -70,11 +70,11 @@ lint:
         file.lines: gt(options.max_lines)
       message: "File is ${file.lines} lines (limit: ${options.max_lines})"
 
-    - id: too-many-functions
+    - id: too-many-file-functions
       severity: warning
       allow_where_override: true
       options:
-        max_functions: 15
+        max_functions: 20
       where:
         file.functions_count: gt(options.max_functions)
       message: "File has ${file.functions_count} functions (limit: ${options.max_functions})"

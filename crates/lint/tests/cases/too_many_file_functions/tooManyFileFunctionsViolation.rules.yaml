@@ -2,6 +2,6 @@ lint:
   includes:
     - statistics
   rules:
-    - id: statistics:too-many-functions
+    - id: statistics:too-many-file-functions
       options:
         max_functions: 2

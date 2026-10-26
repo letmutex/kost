@@ -1,1 +1,0 @@
-1:1: [warning] statistics:variable-name-length: Variable 'excessivelyLongVariableNameThatExceedsThirtyCharacters' name length is 54 (limit: 30)

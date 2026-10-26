@@ -2,6 +2,6 @@ lint:
   includes:
     - statistics
   rules:
-    - id: statistics:file-length
+    - id: statistics:long-file
       options:
         max_lines: 3

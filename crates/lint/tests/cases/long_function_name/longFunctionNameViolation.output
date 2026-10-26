@@ -1,0 +1,1 @@
+1:1: [warning] statistics:long-function-name: Function 'calculateTotalWithDiscountsAndTaxesViolated' name length is 43 (limit: 40)
