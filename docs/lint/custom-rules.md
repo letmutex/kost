@@ -118,7 +118,7 @@ Supported severity levels are `error`, `warning`, and `none` (disables the rule)
 
 ### Overriding Statistic Rules
 
-For metric rules (such as `statistics:long-function`), you can override severities, options, where clauses (if allowed), and messages:
+For metric rules (such as `statistics:long-function`), you can override severities, options, where clauses (if allowed), report targets, and messages:
 
 ```yaml
 lint:
@@ -129,6 +129,9 @@ lint:
       severity: error
       options:
         max_lines: 100
+      report_at:
+        - function.name
+        - function.end
       message: "Function '${function.name}' exceeds maximum permitted size of ${options.max_lines} lines"
 ```
 
@@ -145,6 +148,7 @@ Custom rules are declared with an unqualified kebab-case ID (without colons).
 | `allow_where_override` | Boolean | No | Whether consumers can override the `where` condition (default: `true`). |
 | `options` | Mapping | No | Declared configuration options (`Int`, `Float`, `Str`, `Bool`, `StrList`). |
 | `where` | Mapping | Yes | Condition expression evaluated against AST properties. |
+| `report_at` | String, List of Strings | No | Explicit target anchor(s) for diagnostic reporting (e.g. `function.name` or `[function.name, function.end]`). |
 | `message` | String | Yes | Diagnostic message template supporting variable placeholders. |
 
 ## Scopes and Properties
@@ -253,6 +257,39 @@ Message strings interpolate variable placeholders:
 - `${<scope>.<property>}`: Access any property within the rule's active scope (e.g. `${function.name}`).
 - `${options.<key>}`: Access declared option values (e.g. `${options.max_lines}`).
 
+## Reporting Locations (`report_at`)
+
+By default, statistical and custom rules report violations at the enclosing declaration's scope boundary. The `report_at` field allows pinpointing one or more exact target anchors within the AST element to render in diagnostic messages and snippet displays.
+
+`report_at` accepts either a single string target or a list of target strings:
+
+```yaml
+# Single reporting target
+report_at: function.name
+
+# Multiple reporting targets
+report_at:
+  - function.name
+  - function.end
+```
+
+### Available Report Targets
+
+| Target | Scope | Description |
+| --- | --- | --- |
+| `file.start` | `file` | The start of the file (`1:1`). |
+| `file.end` | `file` | The trailing position of the file. |
+| `file.max_indent_spaces_at` | `file` | Exact line and column where maximum indent depth occurs. |
+| `class.name` | `class` | The identifier token of the class, interface, or object. |
+| `class.start` | `class` | Start boundary of the class declaration header. |
+| `class.end` | `class` | Closing brace `}` of the class body. |
+| `function.name` | `function` | The identifier token of the function. |
+| `function.start` | `function` | Start boundary of the function declaration (`fun` keyword). |
+| `function.end` | `function` | Closing brace `}` or termination of the function. |
+| `variable.name` | `variable` | The identifier token of the property or variable. |
+| `variable.start` | `variable` | Start boundary of the declaration (`val` or `var`). |
+| `variable.end` | `variable` | End boundary of the variable declaration. |
+
 ## Examples
 
 ### 1. Restricting Forbidden Imports
@@ -280,6 +317,7 @@ lint:
         max_params: 6
       where:
         class.constructor_parameters_count: gt(options.max_params)
+      report_at: class.name
       message: "Class '${class.name}' has ${class.constructor_parameters_count} constructor parameters (limit: ${options.max_params})"
 ```
 

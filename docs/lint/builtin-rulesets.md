@@ -180,7 +180,7 @@ lint:
     - statistics
 ```
 
-For customizing thresholds and options on these rules, see [Custom Rules](custom-rules.md).
+For customizing thresholds, report targets, and options on these rules, see [Custom Rules](custom-rules.md).
 
 ## See Also
 
