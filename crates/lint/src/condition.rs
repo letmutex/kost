@@ -98,6 +98,16 @@ impl Condition {
         keys
     }
 
+    #[inline]
+    pub fn has_property(&self, key: PropertyKey) -> bool {
+        match self {
+            Self::All(conditions) | Self::Any(conditions) => {
+                conditions.iter().any(|condition| condition.property == key)
+            }
+            Self::Single(condition) => condition.property == key,
+        }
+    }
+
     pub fn update_options(
         &mut self,
         rule_id: &str,

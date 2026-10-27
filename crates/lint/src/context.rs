@@ -6,6 +6,7 @@ use crate::suppression::SuppressionLocator;
 use crate::types::{
     CommentType, Diagnostic, PropertyKey, PropertyValue, Scope, Severity, TextRange,
 };
+use smallvec::SmallVec;
 use smol_str::SmolStr;
 
 /// A frame on the scope stack representing an open lexical boundary.
@@ -14,6 +15,7 @@ pub struct ScopeFrame {
     pub scope: Scope,
     pub range: TextRange,
     pub properties: PropertyBag,
+    pub property_ranges: SmallVec<[(PropertyKey, TextRange); 2]>,
 }
 
 impl ScopeFrame {
@@ -22,7 +24,15 @@ impl ScopeFrame {
             scope,
             range,
             properties: PropertyBag::new(),
+            property_ranges: SmallVec::new(),
         }
+    }
+
+    pub fn get_property_range(&self, key: PropertyKey) -> Option<TextRange> {
+        self.property_ranges
+            .iter()
+            .find(|(k, _)| *k == key)
+            .map(|(_, range)| *range)
     }
 }
 
@@ -92,6 +102,7 @@ pub struct LintCtx<'a> {
     pub active_severity: Severity,
     pub active_ignores_suppressions: bool,
     pub max_indent_spaces: i64,
+    pub max_indent_range: Option<TextRange>,
     pub file_functions_count: i64,
     pub last_indent_row: isize,
     pub file_path: Option<SmolStr>,
@@ -124,6 +135,7 @@ impl<'a> LintCtx<'a> {
             active_severity: Severity::Warning,
             active_ignores_suppressions: false,
             max_indent_spaces: 0,
+            max_indent_range: None,
             file_functions_count: 0,
             last_indent_row: -1,
             file_path: None,

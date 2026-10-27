@@ -64,6 +64,11 @@ pub fn lint_source_with_path_and_config(
                 PropertyKey::FileMaxIndentSpaces,
                 PropertyValue::Int(ctx.max_indent_spaces),
             );
+            if let Some(range) = ctx.max_indent_range {
+                file_frame
+                    .property_ranges
+                    .push((PropertyKey::FileMaxIndentSpaces, range));
+            }
         }
         if ctx
             .registry
@@ -221,9 +226,20 @@ fn evaluate_scope_stat_rules(scope: &Scope, frame: &ScopeFrame, ctx: &mut LintCt
         };
         for rule in rules {
             if rule.condition.matches(&resolver, rule.options.as_ref()) {
+                let target_range = if frame.property_ranges.is_empty() {
+                    frame.range
+                } else {
+                    frame
+                        .property_ranges
+                        .iter()
+                        .find(|(key, _)| rule.condition.has_property(*key))
+                        .map(|(_, range)| *range)
+                        .unwrap_or(frame.range)
+                };
+
                 if ctx
                     .suppression_locator
-                    .is_suppressed(&rule.report_id, &frame.range)
+                    .is_suppressed(&rule.report_id, &target_range)
                 {
                     continue;
                 }
@@ -231,7 +247,7 @@ fn evaluate_scope_stat_rules(scope: &Scope, frame: &ScopeFrame, ctx: &mut LintCt
                 ctx.diagnostics.push(Diagnostic {
                     rule_id: rule.report_id.clone(),
                     severity: rule.severity,
-                    range: frame.range,
+                    range: target_range,
                     message,
                 });
             }
@@ -253,6 +269,8 @@ fn update_max_indent_if_needed(node: tree_sitter::Node, source: &[u8], ctx: &mut
         let indent = crate::util::compute_line_indent(source, node.start_byte());
         if indent > ctx.max_indent_spaces {
             ctx.max_indent_spaces = indent;
+            let line = (row + 1) as u32;
+            ctx.max_indent_range = Some(TextRange::new(line, 1, line, (indent + 1) as u32));
         }
         ctx.last_indent_row = row;
     }
