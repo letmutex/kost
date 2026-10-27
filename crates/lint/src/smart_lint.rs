@@ -213,6 +213,7 @@ pub fn render_diagnostic<W: Write>(
     path: Option<&str>,
     colorize: bool,
 ) -> std::io::Result<()> {
+    let primary_range = diagnostic.primary_range();
     if colorize {
         if let Some(file_path) = path {
             write!(writer, "{file_path}{DIM}:{RESET}")?;
@@ -220,7 +221,7 @@ pub fn render_diagnostic<W: Write>(
         write!(
             writer,
             "{YELLOW}{}{RESET}{DIM}:{RESET}{YELLOW}{}{RESET}{DIM}:{RESET} ",
-            diagnostic.range.start_line, diagnostic.range.start_col,
+            primary_range.start_line, primary_range.start_col,
         )?;
         let sev_color = diagnostic.severity.color().unwrap_or(RESET);
         writeln!(
@@ -237,8 +238,8 @@ pub fn render_diagnostic<W: Write>(
         writeln!(
             writer,
             "{}:{}: [{}] {} ({})",
-            diagnostic.range.start_line,
-            diagnostic.range.start_col,
+            primary_range.start_line,
+            primary_range.start_col,
             diagnostic.rule_id.as_str(),
             diagnostic.message.as_str(),
             diagnostic.severity.as_str(),

@@ -152,6 +152,12 @@ impl ConfigLoader {
                 .and_then(Severity::parse)
                 .unwrap_or(Severity::Warning);
 
+            let report_targets = validate::validate_and_compile_report_targets(
+                &full_id,
+                raw.report_at.as_deref(),
+                &condition,
+            )?;
+
             let stat_rule = StatRule {
                 id: full_id.clone(),
                 report_id: full_id.clone(),
@@ -159,6 +165,7 @@ impl ConfigLoader {
                 scope: rule_scope,
                 options,
                 condition,
+                report_targets,
                 message_template: SmolStr::new(message_str),
                 where_policy: policy,
             };

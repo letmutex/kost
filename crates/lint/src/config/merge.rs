@@ -5,6 +5,7 @@ use crate::config::options;
 use crate::config::parser::{RuleParser, is_valid_kebab_case};
 pub use crate::config::ruleset::{ExportedRuleset, MergedRule, RuleLookup};
 use crate::config::schema::RawRule;
+use crate::config::validate;
 use crate::rule::StatRule;
 use crate::types::{Severity, WherePolicy};
 use indexmap::IndexMap;
@@ -94,7 +95,11 @@ impl RuleMerger {
                 report_id,
                 ..
             } => {
-                if raw.where_clause.is_some() || raw.options.is_some() || raw.message.is_some() {
+                if raw.where_clause.is_some()
+                    || raw.options.is_some()
+                    || raw.message.is_some()
+                    || raw.report_at.is_some()
+                {
                     return Err(ConfigError::InvalidAstOverride { id: raw.id });
                 }
                 if let Some(sev_str) = raw.severity.as_deref() {
@@ -161,6 +166,27 @@ impl RuleMerger {
                 stat.options.as_ref(),
             )?;
             stat.message_template = SmolStr::new(new_msg);
+        }
+
+        if let Some(raw_report_at) = raw.report_at.as_deref() {
+            let compiled_targets = validate::validate_and_compile_report_targets(
+                full_id,
+                Some(raw_report_at),
+                &stat.condition,
+            )?;
+            stat.report_targets = compiled_targets;
+        } else if !stat.report_targets.is_empty() {
+            let participating = stat.condition.participating_scopes();
+            for target in &stat.report_targets {
+                let target_scope = target.scope();
+                if !participating.contains(&target_scope) {
+                    return Err(ConfigError::InvalidReportTargetScope {
+                        rule_id: full_id.to_string(),
+                        target: target.as_str().to_string(),
+                        target_scope: target_scope.as_str(),
+                    });
+                }
+            }
         }
 
         stat.report_id = new_report_id;
@@ -254,6 +280,12 @@ impl RuleMerger {
 
         let policy = WherePolicy::from_allow_bool(raw.allow_where_override.unwrap_or(true));
 
+        let report_targets = validate::validate_and_compile_report_targets(
+            &full_id,
+            raw.report_at.as_deref(),
+            &condition,
+        )?;
+
         let stat_rule = StatRule {
             id: full_id.clone(),
             report_id: full_id.clone(),
@@ -261,6 +293,7 @@ impl RuleMerger {
             scope: rule_scope,
             options,
             condition,
+            report_targets,
             message_template: SmolStr::new(message_str),
             where_policy: policy,
         };

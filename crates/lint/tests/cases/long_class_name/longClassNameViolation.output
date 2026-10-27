@@ -1,1 +1,1 @@
-1:1: [warning] statistics:long-class-name: Class 'ExtremelyLongClassNameExceedingAllowedLengthForClassDeclaration' name length is 63 (limit: 40)
+1:7: [warning] statistics:long-class-name: Class 'ExtremelyLongClassNameExceedingAllowedLengthForClassDeclaration' name length is 63 (limit: 40)

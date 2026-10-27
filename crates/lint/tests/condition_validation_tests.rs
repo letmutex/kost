@@ -208,3 +208,79 @@ lint:
     }
     assert!(error_message.contains("kost.yaml:bad-option-key"));
 }
+
+#[test]
+fn test_report_at_unknown_target_rejected() {
+    let yaml = r#"
+lint:
+  rules:
+    - id: bad-target
+      where:
+        function.lines: gt(50)
+      report_at: function.unknown_anchor
+      message: "Error"
+"#;
+    let err = ConfigLoader::load_string(yaml, "test.yaml").unwrap_err();
+    match err {
+        ConfigError::UnknownReportTarget { rule_id, target } => {
+            assert_eq!(rule_id, "test.yaml:bad-target");
+            assert_eq!(target, "function.unknown_anchor");
+        }
+        other => panic!("Expected UnknownReportTarget, got: {other:?}"),
+    }
+}
+
+#[test]
+fn test_report_at_scope_mismatch_rejected() {
+    let yaml = r#"
+lint:
+  rules:
+    - id: mismatched-scope
+      where:
+        file.max_indent_spaces: gt(8)
+      report_at: function.name
+      message: "Error"
+"#;
+    let err = ConfigLoader::load_string(yaml, "test.yaml").unwrap_err();
+    match err {
+        ConfigError::InvalidReportTargetScope {
+            rule_id,
+            target,
+            target_scope,
+        } => {
+            assert_eq!(rule_id, "test.yaml:mismatched-scope");
+            assert_eq!(target, "function.name");
+            assert_eq!(target_scope, "function");
+        }
+        other => panic!("Expected InvalidReportTargetScope, got: {other:?}"),
+    }
+}
+
+#[test]
+fn test_report_at_multi_target_execution_and_format() {
+    let yaml = r#"
+lint:
+  rules:
+    - id: multiline-func
+      where:
+        function.lines: gt(1)
+      report_at:
+        - function.start
+        - function.end
+      message: "Multiline function"
+"#;
+    let registry = ConfigLoader::load_string(yaml, "custom.yaml").unwrap();
+    let code = "fun hello() {\n    val a = 1\n}\n";
+    let diags = lint::walker::lint_source(code.as_bytes(), &registry);
+    assert_eq!(diags.len(), 1);
+    let diag = &diags[0];
+    assert_eq!(diag.report_ranges.len(), 2);
+    assert_eq!(diag.report_ranges[0].start_line, 1);
+    assert_eq!(diag.report_ranges[0].start_col, 1);
+    assert_eq!(diag.report_ranges[1].start_line, 3);
+    assert_eq!(diag.report_ranges[1].start_col, 2);
+    assert_eq!(
+        diag.to_string(),
+        "1:1, 3:2: [warning] custom.yaml:multiline-func: Multiline function"
+    );
+}

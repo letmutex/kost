@@ -7,10 +7,12 @@ use lint::types::{Diagnostic, Severity, TextRange};
 use smol_str::SmolStr;
 
 fn make_diagnostic(rule_id: &str, severity: Severity, line: u32, message: &str) -> Diagnostic {
+    let range = TextRange::new(line, 1, line, 10);
     Diagnostic {
         rule_id: SmolStr::new(rule_id),
         severity,
-        range: TextRange::new(line, 1, line, 10),
+        check_range: range,
+        report_ranges: smallvec::smallvec![range],
         message: message.to_string(),
     }
 }

@@ -4,20 +4,22 @@ use smol_str::SmolStr;
 
 /// Finds a child identifier or variable identifier for an AST node.
 pub fn find_child_identifier(node: tree_sitter::Node, source: &[u8]) -> Option<SmolStr> {
+    find_child_identifier_node(node)
+        .and_then(|child| child.utf8_text(source).ok().map(SmolStr::new))
+}
+
+/// Finds the AST node representing the child identifier or variable identifier.
+pub fn find_child_identifier_node(node: tree_sitter::Node) -> Option<tree_sitter::Node> {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if matches!(child.kind(), "simple_identifier" | "type_identifier")
-            && let Ok(text) = child.utf8_text(source)
-        {
-            return Some(SmolStr::new(text));
+        if matches!(child.kind(), "simple_identifier" | "type_identifier") {
+            return Some(child);
         }
         if child.kind() == "variable_declaration" {
             let mut var_cursor = child.walk();
             for var_child in child.children(&mut var_cursor) {
-                if matches!(var_child.kind(), "simple_identifier" | "type_identifier")
-                    && let Ok(text) = var_child.utf8_text(source)
-                {
-                    return Some(SmolStr::new(text));
+                if matches!(var_child.kind(), "simple_identifier" | "type_identifier") {
+                    return Some(var_child);
                 }
             }
         }
@@ -259,20 +261,34 @@ pub fn is_kotlin_keyword(name: &str) -> bool {
 
 /// Computes the column indentation of the line starting at `node_start_byte`.
 pub fn compute_line_indent(source: &[u8], node_start_byte: usize) -> i64 {
+    compute_line_indent_and_col_width(source, node_start_byte).0
+}
+
+/// Computes the column indentation and the character/byte width of the leading whitespace.
+pub fn compute_line_indent_and_col_width(source: &[u8], node_start_byte: usize) -> (i64, u32) {
     let mut line_start = node_start_byte;
     while line_start > 0 && source[line_start - 1] != b'\n' {
         line_start -= 1;
     }
     let mut indent: i64 = 0;
+    let mut ws_len: u32 = 0;
     for &byte in &source[line_start..] {
         match byte {
-            b' ' => indent += 1,
-            b'\t' => indent += 4,
-            b'\r' => {}
+            b' ' => {
+                indent += 1;
+                ws_len += 1;
+            }
+            b'\t' => {
+                indent += 4;
+                ws_len += 1;
+            }
+            b'\r' => {
+                ws_len += 1;
+            }
             _ => break,
         }
     }
-    indent
+    (indent, ws_len)
 }
 
 /// Recursively checks whether an annotation node contains argument lists.

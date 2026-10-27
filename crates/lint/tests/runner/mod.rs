@@ -146,31 +146,21 @@ fn resolve_output_path(input_path: &Path) -> Option<PathBuf> {
 
 /// Formats a single diagnostic in canonical string line format.
 pub fn format_diagnostic(diagnostic: &Diagnostic) -> String {
-    let line_str = diagnostic.range.start_line.to_string();
-    let col_str = diagnostic.range.start_col.to_string();
-    common::concat_str!(
-        &line_str,
-        ":",
-        &col_str,
-        ": [",
-        diagnostic.severity.as_str(),
-        "] ",
-        &diagnostic.rule_id,
-        ": ",
-        &diagnostic.message
-    )
+    diagnostic.to_string()
 }
 
 /// Formats a list of diagnostics deterministically sorted by position and rule ID.
 pub fn format_diagnostics(diagnostics: &[Diagnostic]) -> String {
     let mut sorted = diagnostics.to_vec();
     sorted.sort_by(|left, right| {
-        left.range
+        let left_range = left.primary_range();
+        let right_range = right.primary_range();
+        left_range
             .start_line
-            .cmp(&right.range.start_line)
-            .then_with(|| left.range.start_col.cmp(&right.range.start_col))
-            .then_with(|| left.range.end_line.cmp(&right.range.end_line))
-            .then_with(|| left.range.end_col.cmp(&right.range.end_col))
+            .cmp(&right_range.start_line)
+            .then_with(|| left_range.start_col.cmp(&right_range.start_col))
+            .then_with(|| left_range.end_line.cmp(&right_range.end_line))
+            .then_with(|| left_range.end_col.cmp(&right_range.end_col))
             .then_with(|| left.rule_id.cmp(&right.rule_id))
             .then_with(|| left.message.cmp(&right.message))
     });

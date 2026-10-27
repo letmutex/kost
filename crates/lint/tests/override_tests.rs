@@ -168,3 +168,22 @@ lint:
         other => panic!("Expected DisallowedFieldOnOverride, got: {:?}", other),
     }
 }
+
+#[test]
+fn test_report_at_on_ast_rule_override_rejected() {
+    let yaml = r#"
+lint:
+  imports:
+    - standard
+  rules:
+    - id: standard:no-semi
+      report_at: function.start
+"#;
+    let err = ConfigLoader::load_string(yaml, "test.yaml").unwrap_err();
+    match err {
+        ConfigError::InvalidAstOverride { id } => {
+            assert_eq!(id, "standard:no-semi");
+        }
+        other => panic!("Expected InvalidAstOverride, got: {other:?}"),
+    }
+}

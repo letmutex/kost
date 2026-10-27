@@ -2,8 +2,9 @@
 
 use crate::condition::{Condition, PropertyLookup};
 use crate::context::LintCtx;
-use crate::types::{OptionValue, PropertyKey, Scope, Severity, WherePolicy};
+use crate::types::{OptionValue, PropertyKey, ReportTarget, Scope, Severity, WherePolicy};
 use indexmap::IndexMap;
+use smallvec::SmallVec;
 use smol_str::SmolStr;
 
 /// Imperative compiled rule inspecting specific tree-sitter AST nodes.
@@ -43,6 +44,7 @@ pub struct StatRule {
     pub condition: Condition,
     pub message_template: SmolStr,
     pub where_policy: WherePolicy,
+    pub report_targets: SmallVec<[ReportTarget; 2]>,
 }
 
 impl StatRule {
@@ -159,6 +161,7 @@ pub struct StatRuleBuilder {
     condition: Option<Condition>,
     message_template: SmolStr,
     where_policy: WherePolicy,
+    report_targets: SmallVec<[ReportTarget; 2]>,
 }
 
 impl StatRuleBuilder {
@@ -173,6 +176,7 @@ impl StatRuleBuilder {
             condition: None,
             message_template: SmolStr::default(),
             where_policy: WherePolicy::AllowOverride,
+            report_targets: SmallVec::new(),
         }
     }
 
@@ -207,6 +211,16 @@ impl StatRuleBuilder {
         self
     }
 
+    pub fn report_target(mut self, target: ReportTarget) -> Self {
+        self.report_targets.push(target);
+        self
+    }
+
+    pub fn report_targets(mut self, targets: impl IntoIterator<Item = ReportTarget>) -> Self {
+        self.report_targets.extend(targets);
+        self
+    }
+
     pub fn build(self) -> StatRule {
         let report_id = self.report_id.unwrap_or_else(|| self.id.clone());
         StatRule {
@@ -218,6 +232,7 @@ impl StatRuleBuilder {
             condition: self.condition.expect("Condition is required for StatRule"),
             message_template: self.message_template,
             where_policy: self.where_policy,
+            report_targets: self.report_targets,
         }
     }
 }

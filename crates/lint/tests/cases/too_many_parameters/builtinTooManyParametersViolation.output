@@ -1,1 +1,1 @@
-1:1: [warning] statistics:too-many-parameters: Function 'tooMany' has 8 parameters (limit: 7)
+1:5: [warning] statistics:too-many-parameters: Function 'tooMany' has 8 parameters (limit: 7)

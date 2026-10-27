@@ -1,9 +1,9 @@
 //! AST property extraction for lexical scopes.
 
-use crate::context::LintCtx;
-use crate::types::{PropertyKey, PropertyValue, Scope, TextRange};
-use crate::util::{count_function_parameters, find_child_identifier};
-use smallvec::SmallVec;
+use crate::annotation::extract_annotations;
+use crate::context::{LintCtx, ScopeFrame};
+use crate::types::{PropertyKey, PropertyValue, ReportTarget, Scope, TextRange};
+use crate::util::{count_function_parameters, find_child_identifier, find_child_identifier_node};
 use smol_str::SmolStr;
 
 pub fn populate_file_properties(node: &tree_sitter::Node, ctx: &mut LintCtx) {
@@ -35,21 +35,13 @@ pub fn populate_function_properties(node: tree_sitter::Node, source: &[u8], ctx:
             .insert_property(PropertyKey::FunctionLines, PropertyValue::Int(lines));
     }
 
-    let needs_name = needed.contains(&PropertyKey::FunctionName);
-    let needs_len = needed.contains(&PropertyKey::FunctionNameLength);
-    if (needs_name || needs_len)
-        && let Some(name) = find_child_identifier(node, source)
-    {
-        if needs_len {
-            let len = identifier_clean_length(name.as_str());
-            ctx.scope_tracker
-                .insert_property(PropertyKey::FunctionNameLength, PropertyValue::Int(len));
-        }
-        if needs_name {
-            ctx.scope_tracker
-                .insert_property(PropertyKey::FunctionName, PropertyValue::Str(name));
-        }
-    }
+    populate_name_and_length(
+        node,
+        source,
+        ctx,
+        PropertyKey::FunctionName,
+        PropertyKey::FunctionNameLength,
+    );
 
     if needed.contains(&PropertyKey::FunctionParametersCount) {
         let count = count_function_parameters(node);
@@ -77,21 +69,13 @@ pub fn populate_class_properties(node: tree_sitter::Node, source: &[u8], ctx: &m
             .insert_property(PropertyKey::ClassLines, PropertyValue::Int(lines));
     }
 
-    let needs_name = needed.contains(&PropertyKey::ClassName);
-    let needs_len = needed.contains(&PropertyKey::ClassNameLength);
-    if (needs_name || needs_len)
-        && let Some(name) = find_child_identifier(node, source)
-    {
-        if needs_len {
-            let len = identifier_clean_length(name.as_str());
-            ctx.scope_tracker
-                .insert_property(PropertyKey::ClassNameLength, PropertyValue::Int(len));
-        }
-        if needs_name {
-            ctx.scope_tracker
-                .insert_property(PropertyKey::ClassName, PropertyValue::Str(name));
-        }
-    }
+    populate_name_and_length(
+        node,
+        source,
+        ctx,
+        PropertyKey::ClassName,
+        PropertyKey::ClassNameLength,
+    );
 
     if needed.contains(&PropertyKey::ClassMethodsCount) {
         let count = count_class_methods(node);
@@ -117,19 +101,36 @@ pub fn populate_variable_properties(node: tree_sitter::Node, source: &[u8], ctx:
             .insert_property(PropertyKey::VariableLines, PropertyValue::Int(lines));
     }
 
-    let needs_name = needed.contains(&PropertyKey::VariableName);
-    let needs_len = needed.contains(&PropertyKey::VariableNameLength);
+    populate_name_and_length(
+        node,
+        source,
+        ctx,
+        PropertyKey::VariableName,
+        PropertyKey::VariableNameLength,
+    );
+}
+
+fn populate_name_and_length(
+    node: tree_sitter::Node,
+    source: &[u8],
+    ctx: &mut LintCtx,
+    name_key: PropertyKey,
+    len_key: PropertyKey,
+) {
+    let needed = &ctx.registry.needed_properties;
+    let needs_name = needed.contains(&name_key);
+    let needs_len = needed.contains(&len_key);
     if (needs_name || needs_len)
         && let Some(name) = find_child_identifier(node, source)
     {
         if needs_len {
             let len = identifier_clean_length(name.as_str());
             ctx.scope_tracker
-                .insert_property(PropertyKey::VariableNameLength, PropertyValue::Int(len));
+                .insert_property(len_key, PropertyValue::Int(len));
         }
         if needs_name {
             ctx.scope_tracker
-                .insert_property(PropertyKey::VariableName, PropertyValue::Str(name));
+                .insert_property(name_key, PropertyValue::Str(name));
         }
     }
 }
@@ -195,59 +196,6 @@ pub fn populate_import_properties(node: tree_sitter::Node, source: &[u8], ctx: &
     }
 }
 
-pub fn extract_annotations(node: tree_sitter::Node, source: &[u8]) -> SmallVec<[SmolStr; 4]> {
-    let mut annotations = SmallVec::new();
-    let Some(modifiers) = node
-        .children(&mut node.walk())
-        .find(|child| child.kind() == "modifiers")
-    else {
-        return annotations;
-    };
-
-    let mut mod_cursor = modifiers.walk();
-    for modifier in modifiers.children(&mut mod_cursor) {
-        if modifier.kind() != "annotation" {
-            continue;
-        }
-
-        let mut ann_cursor = modifier.walk();
-        for ann_child in modifier.children(&mut ann_cursor) {
-            if let Some(user_type) = find_annotation_type(ann_child)
-                && let Ok(full_name) = user_type.utf8_text(source)
-            {
-                let trimmed = full_name.trim();
-                push_annotation(&mut annotations, trimmed);
-                let short_name = trimmed.rsplit('.').next().unwrap_or(trimmed);
-                if short_name != trimmed {
-                    push_annotation(&mut annotations, short_name);
-                }
-            }
-        }
-    }
-
-    annotations
-}
-
-fn find_annotation_type(node: tree_sitter::Node) -> Option<tree_sitter::Node> {
-    if node.kind() == "user_type" {
-        Some(node)
-    } else if node.kind() == "constructor_invocation" {
-        node.named_child(0)
-            .filter(|child| child.kind() == "user_type")
-    } else {
-        None
-    }
-}
-
-fn push_annotation(annotations: &mut SmallVec<[SmolStr; 4]>, name: &str) {
-    let name_smol = SmolStr::new(name);
-    if !annotations.contains(&name_smol) {
-        let at_name = common::concat_smol_str!("@", name);
-        annotations.push(name_smol);
-        annotations.push(at_name);
-    }
-}
-
 pub fn enter_scope_if_matching(
     node: tree_sitter::Node,
     source: &[u8],
@@ -259,16 +207,46 @@ pub fn enter_scope_if_matching(
     match kind {
         "function_declaration" => {
             ctx.scope_tracker.push(Scope::Function, range);
+            if let Some(frame) = ctx.scope_tracker.current_mut() {
+                attach_declaration_anchors(
+                    frame,
+                    range,
+                    ReportTarget::FunctionStart,
+                    ReportTarget::FunctionEnd,
+                    ReportTarget::FunctionName,
+                    node,
+                );
+            }
             populate_function_properties(node, source, ctx);
             Some(Scope::Function)
         }
         "class_declaration" | "object_declaration" => {
             ctx.scope_tracker.push(Scope::Class, range);
+            if let Some(frame) = ctx.scope_tracker.current_mut() {
+                attach_declaration_anchors(
+                    frame,
+                    range,
+                    ReportTarget::ClassStart,
+                    ReportTarget::ClassEnd,
+                    ReportTarget::ClassName,
+                    node,
+                );
+            }
             populate_class_properties(node, source, ctx);
             Some(Scope::Class)
         }
         "property_declaration" => {
             ctx.scope_tracker.push(Scope::Variable, range);
+            if let Some(frame) = ctx.scope_tracker.current_mut() {
+                attach_declaration_anchors(
+                    frame,
+                    range,
+                    ReportTarget::VariableStart,
+                    ReportTarget::VariableEnd,
+                    ReportTarget::VariableName,
+                    node,
+                );
+            }
             populate_variable_properties(node, source, ctx);
             Some(Scope::Variable)
         }
@@ -283,6 +261,32 @@ pub fn enter_scope_if_matching(
             Some(Scope::Import)
         }
         _ => None,
+    }
+}
+
+fn attach_declaration_anchors(
+    frame: &mut ScopeFrame,
+    range: TextRange,
+    start_target: ReportTarget,
+    end_target: ReportTarget,
+    name_target: ReportTarget,
+    node: tree_sitter::Node,
+) {
+    frame.insert_target_anchor(
+        start_target,
+        TextRange::new(
+            range.start_line,
+            range.start_col,
+            range.start_line,
+            range.start_col,
+        ),
+    );
+    frame.insert_target_anchor(
+        end_target,
+        TextRange::new(range.end_line, range.end_col, range.end_line, range.end_col),
+    );
+    if let Some(id_node) = find_child_identifier_node(node) {
+        frame.insert_target_anchor(name_target, TextRange::from_node(id_node));
     }
 }
 

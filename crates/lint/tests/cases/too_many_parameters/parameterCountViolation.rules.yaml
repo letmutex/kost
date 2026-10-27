@@ -6,4 +6,5 @@ lint:
         max: 2
       where:
         function.parameters_count: gt(options.max)
+      report_at: function.name
       message: "Too many params"

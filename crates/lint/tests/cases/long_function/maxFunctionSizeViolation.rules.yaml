@@ -6,4 +6,7 @@ lint:
         limit: 3
       where:
         function.lines: gt(options.limit)
+      report_at:
+        - function.name
+        - function.end
       message: "Function '${function.name}' exceeds limit ${options.limit}"

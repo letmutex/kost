@@ -4,7 +4,7 @@ use crate::condition::{PropertyBag, PropertyLookup};
 use crate::registry::RuleRegistry;
 use crate::suppression::SuppressionLocator;
 use crate::types::{
-    CommentType, Diagnostic, PropertyKey, PropertyValue, Scope, Severity, TextRange,
+    CommentType, Diagnostic, PropertyKey, PropertyValue, ReportTarget, Scope, Severity, TextRange,
 };
 use smallvec::SmallVec;
 use smol_str::SmolStr;
@@ -15,7 +15,7 @@ pub struct ScopeFrame {
     pub scope: Scope,
     pub range: TextRange,
     pub properties: PropertyBag,
-    pub property_ranges: SmallVec<[(PropertyKey, TextRange); 2]>,
+    pub target_anchors: SmallVec<[(ReportTarget, TextRange); 4]>,
 }
 
 impl ScopeFrame {
@@ -24,14 +24,22 @@ impl ScopeFrame {
             scope,
             range,
             properties: PropertyBag::new(),
-            property_ranges: SmallVec::new(),
+            target_anchors: SmallVec::new(),
         }
     }
 
-    pub fn get_property_range(&self, key: PropertyKey) -> Option<TextRange> {
-        self.property_ranges
+    pub fn insert_target_anchor(&mut self, target: ReportTarget, range: TextRange) {
+        if let Some(existing) = self.target_anchors.iter_mut().find(|(t, _)| *t == target) {
+            existing.1 = range;
+        } else {
+            self.target_anchors.push((target, range));
+        }
+    }
+
+    pub fn get_target_anchor(&self, target: ReportTarget) -> Option<TextRange> {
+        self.target_anchors
             .iter()
-            .find(|(k, _)| *k == key)
+            .find(|(t, _)| *t == target)
             .map(|(_, range)| *range)
     }
 }
@@ -74,6 +82,22 @@ impl ScopeTracker {
 pub struct StackPropertyResolver<'a> {
     pub current: &'a ScopeFrame,
     pub tracker: &'a ScopeTracker,
+}
+
+impl<'a> StackPropertyResolver<'a> {
+    pub fn resolve_target_anchor(&self, target: ReportTarget) -> Option<TextRange> {
+        if let Some(range) = self.current.get_target_anchor(target) {
+            return Some(range);
+        }
+        for frame in self.tracker.stack.iter().rev() {
+            if frame.scope == target.scope()
+                && let Some(range) = frame.get_target_anchor(target)
+            {
+                return Some(range);
+            }
+        }
+        None
+    }
 }
 
 impl<'a> PropertyLookup for StackPropertyResolver<'a> {
@@ -277,11 +301,11 @@ impl<'a> LintCtx<'a> {
         {
             return;
         }
-        self.diagnostics.push(Diagnostic {
-            rule_id: report_id.clone(),
-            severity: self.active_severity,
+        self.diagnostics.push(Diagnostic::single_range(
+            report_id.clone(),
+            self.active_severity,
             range,
-            message: message.into(),
-        });
+            message,
+        ));
     }
 }

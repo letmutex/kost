@@ -77,6 +77,18 @@ pub enum ConfigError {
         property: &'static str,
     },
 
+    #[error("Unknown report target '{target}' in rule '{rule_id}'")]
+    UnknownReportTarget { rule_id: String, target: String },
+
+    #[error(
+        "Report target '{target}' (scope '{target_scope}') in rule '{rule_id}' is forbidden: rule condition has no '{target_scope}' scope"
+    )]
+    InvalidReportTargetScope {
+        rule_id: String,
+        target: String,
+        target_scope: &'static str,
+    },
+
     #[error(
         "Invalid severity '{severity}' for rule '{rule_id}': expected 'error', 'warning', or 'none'"
     )]

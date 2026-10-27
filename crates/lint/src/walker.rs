@@ -1,9 +1,10 @@
 //! Single-pass DFS tree-sitter AST traversal engine.
 
-use crate::context::{LintCtx, ScopeFrame, StackPropertyResolver};
+use crate::context::LintCtx;
+use crate::eval::evaluate_scope_stat_rules;
 use crate::extractor::{enter_scope_if_matching, populate_file_properties};
 use crate::registry::RuleRegistry;
-use crate::types::{Diagnostic, PropertyKey, PropertyValue, Scope, TextRange};
+use crate::types::{Diagnostic, PropertyKey, PropertyValue, ReportTarget, Scope, TextRange};
 
 /// Executes a single-pass AST traversal over source code and returns all detected diagnostics.
 pub fn lint_source(source: &[u8], registry: &RuleRegistry) -> Vec<Diagnostic> {
@@ -44,17 +45,47 @@ pub fn lint_source_with_path_and_config(
         .with_file_path(file_path)
         .with_editorconfig(editorconfig);
 
-    // Enter root File scope
-    let file_range = TextRange::from_node(root_node);
-    ctx.scope_tracker.push(Scope::File, file_range);
-    populate_file_properties(&root_node, &mut ctx);
+    init_file_scope(root_node, &mut ctx);
 
     // Walk DFS
     let mut cursor = root_node.walk();
     walk_cursor(&mut cursor, source, &mut ctx);
 
-    // Finalize File scope
+    finalize_file_scope(&mut ctx);
+    ctx.diagnostics
+}
+
+fn init_file_scope(root_node: tree_sitter::Node, ctx: &mut LintCtx) {
+    let file_range = TextRange::from_node(root_node);
+    ctx.scope_tracker.push(Scope::File, file_range);
+    if let Some(frame) = ctx.scope_tracker.current_mut() {
+        frame.insert_target_anchor(
+            ReportTarget::FileStart,
+            TextRange::new(
+                file_range.start_line,
+                file_range.start_col,
+                file_range.start_line,
+                file_range.start_col,
+            ),
+        );
+        frame.insert_target_anchor(
+            ReportTarget::FileEnd,
+            TextRange::new(
+                file_range.end_line,
+                file_range.end_col,
+                file_range.end_line,
+                file_range.end_col,
+            ),
+        );
+    }
+    populate_file_properties(&root_node, ctx);
+}
+
+fn finalize_file_scope(ctx: &mut LintCtx) {
     if let Some(mut file_frame) = ctx.scope_tracker.pop() {
+        if let Some(range) = ctx.max_indent_range {
+            file_frame.insert_target_anchor(ReportTarget::FileMaxIndentSpacesAt, range);
+        }
         if ctx
             .registry
             .needed_properties
@@ -64,11 +95,6 @@ pub fn lint_source_with_path_and_config(
                 PropertyKey::FileMaxIndentSpaces,
                 PropertyValue::Int(ctx.max_indent_spaces),
             );
-            if let Some(range) = ctx.max_indent_range {
-                file_frame
-                    .property_ranges
-                    .push((PropertyKey::FileMaxIndentSpaces, range));
-            }
         }
         if ctx
             .registry
@@ -80,10 +106,8 @@ pub fn lint_source_with_path_and_config(
                 PropertyValue::Int(ctx.file_functions_count),
             );
         }
-        evaluate_scope_stat_rules(&file_frame.scope, &file_frame, &mut ctx);
+        evaluate_scope_stat_rules(&file_frame.scope, &file_frame, ctx);
     }
-
-    ctx.diagnostics
 }
 
 struct WalkerFrame<'a> {
@@ -218,43 +242,6 @@ fn dispatch_post_rules(node: tree_sitter::Node, kind: &str, source: &[u8], ctx: 
     dispatch_rules(kind, ctx, |rule, c| rule.after_node(node, source, c));
 }
 
-fn evaluate_scope_stat_rules(scope: &Scope, frame: &ScopeFrame, ctx: &mut LintCtx) {
-    if let Some(rules) = ctx.registry.stat_dispatch.get(scope) {
-        let resolver = StackPropertyResolver {
-            current: frame,
-            tracker: &ctx.scope_tracker,
-        };
-        for rule in rules {
-            if rule.condition.matches(&resolver, rule.options.as_ref()) {
-                let target_range = if frame.property_ranges.is_empty() {
-                    frame.range
-                } else {
-                    frame
-                        .property_ranges
-                        .iter()
-                        .find(|(key, _)| rule.condition.has_property(*key))
-                        .map(|(_, range)| *range)
-                        .unwrap_or(frame.range)
-                };
-
-                if ctx
-                    .suppression_locator
-                    .is_suppressed(&rule.report_id, &target_range)
-                {
-                    continue;
-                }
-                let message = rule.format_message(&resolver);
-                ctx.diagnostics.push(Diagnostic {
-                    rule_id: rule.report_id.clone(),
-                    severity: rule.severity,
-                    range: target_range,
-                    message,
-                });
-            }
-        }
-    }
-}
-
 fn update_max_indent_if_needed(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
     let kind = node.kind();
     if kind == "source_file" {
@@ -266,11 +253,12 @@ fn update_max_indent_if_needed(node: tree_sitter::Node, source: &[u8], ctx: &mut
 
     let row = node.start_position().row as isize;
     if !is_comment && row > ctx.last_indent_row {
-        let indent = crate::util::compute_line_indent(source, node.start_byte());
+        let (indent, ws_len) =
+            crate::util::compute_line_indent_and_col_width(source, node.start_byte());
         if indent > ctx.max_indent_spaces {
             ctx.max_indent_spaces = indent;
             let line = (row + 1) as u32;
-            ctx.max_indent_range = Some(TextRange::new(line, 1, line, (indent + 1) as u32));
+            ctx.max_indent_range = Some(TextRange::new(line, 1, line, ws_len + 1));
         }
         ctx.last_indent_row = row;
     }

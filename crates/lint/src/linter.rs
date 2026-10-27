@@ -155,10 +155,12 @@ impl LintReport {
     /// Creates a new `LintReport` from diagnostics and an optional virtual file path.
     pub fn new(mut diagnostics: Vec<Diagnostic>, file_path: Option<String>) -> Self {
         diagnostics.sort_by(|left, right| {
-            left.range
+            let left_range = left.primary_range();
+            let right_range = right.primary_range();
+            left_range
                 .start_line
-                .cmp(&right.range.start_line)
-                .then_with(|| left.range.start_col.cmp(&right.range.start_col))
+                .cmp(&right_range.start_line)
+                .then_with(|| left_range.start_col.cmp(&right_range.start_col))
                 .then_with(|| left.rule_id.cmp(&right.rule_id))
         });
 

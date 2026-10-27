@@ -13,37 +13,56 @@ pub fn render_full_snippet_diagnostic<W: Write>(
     path: Option<&str>,
     colorize: bool,
 ) -> std::io::Result<()> {
-    if diagnostic.range.start_line == 0 {
+    let ranges = diagnostic.effective_report_ranges();
+    let mut rendered_any = false;
+
+    for range in ranges.iter() {
+        if range.start_line == 0 {
+            continue;
+        }
+
+        let target_idx = (range.start_line as usize).saturating_sub(1);
+        if target_idx >= lines.len() {
+            continue;
+        }
+
+        if rendered_any {
+            if colorize {
+                writeln!(writer, "{DIM}...{RESET}")?;
+            } else {
+                writeln!(writer, "...")?;
+            }
+        }
+
+        // Up to 2 extra lines before the diagnosis line, trimming consecutive leading empty lines.
+        let mut start_idx = target_idx.saturating_sub(2);
+        while start_idx < target_idx && lines[start_idx].trim().is_empty() {
+            start_idx += 1;
+        }
+
+        let max_line = range.start_line;
+        let gutter_width = if max_line == 0 {
+            1
+        } else {
+            max_line.ilog10() as usize + 1
+        };
+
+        render_context_lines(writer, lines, start_idx, target_idx, gutter_width, colorize)?;
+        render_caret_line(
+            writer,
+            lines[target_idx],
+            range.start_col,
+            gutter_width,
+            diagnostic.severity,
+            colorize,
+        )?;
+        rendered_any = true;
+    }
+
+    if !rendered_any {
         return render_diagnostic(writer, diagnostic, path, colorize);
     }
 
-    let target_idx = (diagnostic.range.start_line as usize).saturating_sub(1);
-    if target_idx >= lines.len() {
-        return render_diagnostic(writer, diagnostic, path, colorize);
-    }
-
-    // Up to 2 extra lines before the diagnosis line, trimming consecutive leading empty lines.
-    let mut start_idx = target_idx.saturating_sub(2);
-    while start_idx < target_idx && lines[start_idx].trim().is_empty() {
-        start_idx += 1;
-    }
-
-    let max_line = diagnostic.range.start_line;
-    let gutter_width = if max_line == 0 {
-        1
-    } else {
-        max_line.ilog10() as usize + 1
-    };
-
-    render_context_lines(writer, lines, start_idx, target_idx, gutter_width, colorize)?;
-    render_caret_line(
-        writer,
-        lines[target_idx],
-        diagnostic.range.start_col,
-        gutter_width,
-        diagnostic.severity,
-        colorize,
-    )?;
     render_diagnostic_footer(writer, diagnostic, path, colorize)
 }
 
@@ -119,6 +138,8 @@ fn render_diagnostic_footer<W: Write>(
     path: Option<&str>,
     colorize: bool,
 ) -> std::io::Result<()> {
+    let path_label = path.unwrap_or("<input>");
+    let ranges = diagnostic.effective_report_ranges();
     if colorize {
         let sev_color = diagnostic.severity.color().unwrap_or(RESET);
         writeln!(
@@ -128,12 +149,14 @@ fn render_diagnostic_footer<W: Write>(
             diagnostic.rule_id.as_str(),
             diagnostic.message.as_str()
         )?;
-        let path_label = path.unwrap_or("<input>");
-        writeln!(
-            writer,
-            "    {DIM}at{RESET} {path_label}{DIM}:{RESET}{YELLOW}{}{RESET}{DIM}:{RESET}{YELLOW}{}{RESET}",
-            diagnostic.range.start_line, diagnostic.range.start_col
-        )
+        for range in ranges {
+            writeln!(
+                writer,
+                "    {DIM}at{RESET} {path_label}{DIM}:{RESET}{YELLOW}{}{RESET}{DIM}:{RESET}{YELLOW}{}{RESET}",
+                range.start_line, range.start_col
+            )?;
+        }
+        Ok(())
     } else {
         writeln!(
             writer,
@@ -142,11 +165,13 @@ fn render_diagnostic_footer<W: Write>(
             diagnostic.rule_id.as_str(),
             diagnostic.message.as_str()
         )?;
-        let path_label = path.unwrap_or("<input>");
-        writeln!(
-            writer,
-            "    at {path_label}:{}:{}",
-            diagnostic.range.start_line, diagnostic.range.start_col
-        )
+        for range in ranges {
+            writeln!(
+                writer,
+                "    at {path_label}:{}:{}",
+                range.start_line, range.start_col
+            )?;
+        }
+        Ok(())
     }
 }

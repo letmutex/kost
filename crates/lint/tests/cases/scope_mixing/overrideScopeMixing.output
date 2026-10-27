@@ -1,1 +1,1 @@
-2:5: [warning] overrideScopeMixing.rules.yaml:long-function: Controller method action in AppController is too long
+2:9, 6:6: [warning] overrideScopeMixing.rules.yaml:long-function: Controller method action in AppController is too long

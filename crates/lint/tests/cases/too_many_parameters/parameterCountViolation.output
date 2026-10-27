@@ -1,1 +1,1 @@
-1:1: [error] parameterCountViolation.rules.yaml:max-params: Too many params
+1:5: [error] parameterCountViolation.rules.yaml:max-params: Too many params

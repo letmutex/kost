@@ -7,6 +7,9 @@ lint:
         max_lines: 80
       where:
         function.lines: gt(options.max_lines)
+      report_at:
+        - function.name
+        - function.end
       message: "Function '${function.name}' is ${function.lines} lines (limit: ${options.max_lines})"
 
     - id: deep-indent
@@ -16,6 +19,7 @@ lint:
         max_indent: 32
       where:
         file.max_indent_spaces: gt(options.max_indent)
+      report_at: file.max_indent_spaces_at
       message: "Max indent depth is ${file.max_indent_spaces} spaces (limit: ${options.max_indent})"
 
     - id: too-many-parameters
@@ -25,6 +29,7 @@ lint:
         max_params: 7
       where:
         function.parameters_count: gt(options.max_params)
+      report_at: function.name
       message: "Function '${function.name}' has ${function.parameters_count} parameters (limit: ${options.max_params})"
 
     - id: long-class-name
@@ -36,6 +41,7 @@ lint:
         all:
           - class.name.length: gt(options.max_length)
           - class.name: not(has(" "))
+      report_at: class.name
       message: "Class '${class.name}' name length is ${class.name.length} (limit: ${options.max_length})"
 
     - id: long-function-name
@@ -48,6 +54,7 @@ lint:
           - function.name.length: gt(options.max_length)
           - function.name: not(has(" "))
           - function.annotations: not(has("@Test"))
+      report_at: function.name
       message: "Function '${function.name}' name length is ${function.name.length} (limit: ${options.max_length})"
 
     - id: long-variable-name
@@ -59,6 +66,7 @@ lint:
         all:
           - variable.name.length: gt(options.max_length)
           - variable.name: not(has(" "))
+      report_at: variable.name
       message: "Variable '${variable.name}' name length is ${variable.name.length} (limit: ${options.max_length})"
 
     - id: long-file
@@ -68,6 +76,9 @@ lint:
         max_lines: 600
       where:
         file.lines: gt(options.max_lines)
+      report_at:
+        - file.start
+        - file.end
       message: "File is ${file.lines} lines (limit: ${options.max_lines})"
 
     - id: too-many-file-functions

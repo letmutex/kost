@@ -1,1 +1,1 @@
-1:1: [warning] fileLengthViolation.rules.yaml:long-file: File is 5 lines (limit: 3)
+1:1, 6:1: [warning] fileLengthViolation.rules.yaml:long-file: File is 5 lines (limit: 3)

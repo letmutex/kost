@@ -1,10 +1,47 @@
 //! Property operator compatibility validator.
 
-use crate::condition::CondOp;
+use crate::condition::{CondOp, Condition};
 use crate::config::error::ConfigError;
-use crate::types::{Operand, PropertyKey, PropertyValue};
+use crate::types::{Operand, PropertyKey, PropertyValue, ReportTarget};
 use indexmap::IndexMap;
+use smallvec::SmallVec;
 use smol_str::SmolStr;
+
+pub fn validate_and_compile_report_targets(
+    rule_id: &str,
+    raw_targets: Option<&[String]>,
+    condition: &Condition,
+) -> Result<SmallVec<[ReportTarget; 2]>, ConfigError> {
+    let Some(targets) = raw_targets else {
+        return Ok(SmallVec::new());
+    };
+
+    let participating = condition.participating_scopes();
+    let mut compiled = SmallVec::with_capacity(targets.len());
+
+    for raw_target in targets {
+        let target =
+            ReportTarget::parse(raw_target).ok_or_else(|| ConfigError::UnknownReportTarget {
+                rule_id: rule_id.to_string(),
+                target: raw_target.clone(),
+            })?;
+
+        let target_scope = target.scope();
+        if !participating.contains(&target_scope) {
+            return Err(ConfigError::InvalidReportTargetScope {
+                rule_id: rule_id.to_string(),
+                target: raw_target.clone(),
+                target_scope: target_scope.as_str(),
+            });
+        }
+
+        if !compiled.contains(&target) {
+            compiled.push(target);
+        }
+    }
+
+    Ok(compiled)
+}
 
 pub fn validate_property_operator(
     rule_id: &str,

@@ -6,4 +6,5 @@ lint:
         max_indent: 8
       where:
         file.max_indent_spaces: gt(options.max_indent)
+      report_at: file.max_indent_spaces_at
       message: "Max indent depth exceeds limit: ${file.max_indent_spaces}"

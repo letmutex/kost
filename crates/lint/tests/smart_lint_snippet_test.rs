@@ -4,12 +4,19 @@ use lint::types::{Diagnostic, Severity, TextRange};
 use smol_str::SmolStr;
 
 fn make_diagnostic(rule_id: &str, severity: Severity, line: u32, message: &str) -> Diagnostic {
+    let range = TextRange::new(line, 1, line, 10);
     Diagnostic {
         rule_id: SmolStr::new(rule_id),
         severity,
-        range: TextRange::new(line, 1, line, 10),
+        check_range: range,
+        report_ranges: smallvec::smallvec![range],
         message: message.to_string(),
     }
+}
+
+fn set_diagnostic_range(diag: &mut Diagnostic, range: TextRange) {
+    diag.check_range = range;
+    diag.report_ranges = smallvec::smallvec![range];
 }
 
 #[test]
@@ -21,7 +28,7 @@ fn test_full_mode_snippet_caret_alignment() {
         2,
         "Property name should be in camelCase",
     );
-    diag.range = TextRange::new(2, 2, 2, 10);
+    set_diagnostic_range(&mut diag, TextRange::new(2, 2, 2, 10));
 
     let report = LintReport::new(vec![diag], Some("src/Test.kt".to_string())).with_source(source);
 
@@ -47,7 +54,7 @@ fn test_full_mode_snippet_trim_leading_consecutive_empty_lines() {
         6,
         "Property name violation",
     );
-    diag.range = TextRange::new(6, 1, 6, 2);
+    set_diagnostic_range(&mut diag, TextRange::new(6, 1, 6, 2));
 
     let report = LintReport::new(vec![diag], Some("src/Test.kt".to_string())).with_source(source);
 
@@ -72,7 +79,7 @@ fn test_full_mode_snippet_preserve_interleaved_empty_lines() {
         8,
         "Function name check",
     );
-    diag.range = TextRange::new(8, 5, 8, 8);
+    set_diagnostic_range(&mut diag, TextRange::new(8, 5, 8, 8));
 
     let report =
         LintReport::new(vec![diag], Some("src/Service.kt".to_string())).with_source(source);
@@ -93,9 +100,9 @@ fn test_full_mode_snippet_preserve_interleaved_empty_lines() {
 fn test_full_mode_snippet_multiline_blank_line_separation() {
     let source = "val x = 1\nval y = 2\n\n\n\nval name = \"test\"\n";
     let mut diag1 = make_diagnostic("standard:property-naming", Severity::Warning, 1, "Naming 1");
-    diag1.range = TextRange::new(1, 1, 1, 4);
+    set_diagnostic_range(&mut diag1, TextRange::new(1, 1, 1, 4));
     let mut diag2 = make_diagnostic("standard:no-semi", Severity::Error, 6, "Semi 2");
-    diag2.range = TextRange::new(6, 1, 6, 5);
+    set_diagnostic_range(&mut diag2, TextRange::new(6, 1, 6, 5));
 
     let report =
         LintReport::new(vec![diag1, diag2], Some("src/Example.kt".to_string())).with_source(source);
@@ -112,7 +119,7 @@ fn test_full_mode_snippet_multiline_blank_line_separation() {
 fn test_full_mode_snippet_tab_indentation_caret_alignment() {
     let source = "\tval foo = 1;\n";
     let mut diag = make_diagnostic("standard:no-semi", Severity::Warning, 1, "Unnecessary ;");
-    diag.range = TextRange::new(1, 13, 1, 14);
+    set_diagnostic_range(&mut diag, TextRange::new(1, 13, 1, 14));
 
     let report = LintReport::new(vec![diag], Some("src/Foo.kt".to_string())).with_source(source);
 
@@ -179,4 +186,37 @@ fn test_full_reports_mixed_snippet_and_compact_separation() {
     assert!(text.contains(
         "src/Compact.kt:1:1: [standard:no-semi] Compact 1 (warning)\nsrc/Compact.kt:2:1: [standard:max-line-length] Compact 2 (error)"
     ));
+}
+
+#[test]
+fn test_full_mode_snippet_multi_target_separator() {
+    let source = "fun compute() {\n    val a = 1\n    val b = 2\n}\n";
+    let range1 = TextRange::new(1, 5, 1, 12);
+    let range2 = TextRange::new(4, 1, 4, 2);
+    let diag = Diagnostic {
+        rule_id: SmolStr::new("standard:long-function"),
+        severity: Severity::Warning,
+        check_range: range1,
+        report_ranges: smallvec::smallvec![range1, range2],
+        message: "Function is too long".to_string(),
+    };
+
+    let report = LintReport::new(vec![diag], Some("src/Test.kt".to_string())).with_source(source);
+
+    let mut output = Vec::new();
+    render_smart_lint_reports(
+        &mut output,
+        DisplayTier::Full,
+        std::slice::from_ref(&report),
+        false,
+    )
+    .unwrap();
+    let text = String::from_utf8(output).unwrap();
+
+    assert!(text.contains("1 | fun compute() {\n"));
+    assert!(text.contains("        ^\n...\n"));
+    assert!(text.contains("4 | }\n"));
+    assert!(text.contains("    ^\n"));
+    assert!(text.contains("warning: standard:long-function: Function is too long\n"));
+    assert!(text.contains("    at src/Test.kt:1:5\n    at src/Test.kt:4:1\n"));
 }

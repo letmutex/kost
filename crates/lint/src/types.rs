@@ -1,5 +1,6 @@
 //! Core data types and contracts for the linting engine.
 
+pub use crate::diagnostic::{Diagnostic, ReportTarget};
 pub use crate::property::PropertyKey;
 use smallvec::SmallVec;
 use smol_str::SmolStr;
@@ -67,71 +68,6 @@ impl TextRange {
             end_line: (end.row + 1) as u32,
             end_col: (end.column + 1) as u32,
         }
-    }
-}
-
-/// A diagnostic emitted by a lint rule.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Diagnostic {
-    pub rule_id: SmolStr,
-    pub severity: Severity,
-    pub range: TextRange,
-    pub message: String,
-}
-
-impl Diagnostic {
-    /// Formats this diagnostic directly into a writer without intermediate heap allocations.
-    pub fn write_formatted<W: std::fmt::Write>(
-        &self,
-        writer: &mut W,
-        file_path: Option<&str>,
-        colorize: bool,
-    ) -> std::fmt::Result {
-        if colorize {
-            use common::color::{BOLD, DIM, RESET, YELLOW};
-            if let Some(path) = file_path {
-                write!(writer, "{path}{DIM}:{RESET}")?;
-            }
-            write!(
-                writer,
-                "{YELLOW}{}{RESET}{DIM}:{RESET}{YELLOW}{}{RESET}{DIM}:{RESET} ",
-                self.range.start_line, self.range.start_col,
-            )?;
-            let sev_color = self.severity.color().unwrap_or(RESET);
-            write!(
-                writer,
-                "{BOLD}[{}] {} ({RESET}{sev_color}{}{RESET}{BOLD}){RESET}",
-                self.rule_id.as_str(),
-                self.message.as_str(),
-                self.severity.as_str(),
-            )
-        } else {
-            if let Some(path) = file_path {
-                write!(writer, "{path}:")?;
-            }
-            write!(
-                writer,
-                "{}:{}: [{}] {} ({})",
-                self.range.start_line,
-                self.range.start_col,
-                self.rule_id.as_str(),
-                self.message.as_str(),
-                self.severity.as_str(),
-            )
-        }
-    }
-
-    /// Formats this diagnostic into a new String with an optional file path.
-    pub fn format_with_path(&self, file_path: Option<&str>) -> String {
-        let mut buffer = String::new();
-        let _ = self.write_formatted(&mut buffer, file_path, false);
-        buffer
-    }
-}
-
-impl std::fmt::Display for Diagnostic {
-    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        self.write_formatted(formatter, None, false)
     }
 }
 

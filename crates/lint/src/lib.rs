@@ -1,9 +1,12 @@
 //! Kotlin linting engine for kost.
 
+pub mod annotation;
 pub mod cli;
 pub mod condition;
 pub mod config;
 pub mod context;
+pub mod diagnostic;
+pub mod eval;
 pub mod extractor;
 pub mod linter;
 pub mod property;
@@ -27,7 +30,7 @@ pub use registry::{RuleRegistry, RuleRegistryBuilder};
 pub use rule::{AstRule, StatRule};
 pub use suppression::{SuppressionHint, SuppressionLocator};
 pub use types::{
-    Diagnostic, Numeric, Operand, OptionValue, PropertyKey, PropertyValue, Scope, Severity,
-    TextRange, WherePolicy,
+    Diagnostic, Numeric, Operand, OptionValue, PropertyKey, PropertyValue, ReportTarget, Scope,
+    Severity, TextRange, WherePolicy,
 };
 pub use walker::{lint_source, lint_source_with_path};
