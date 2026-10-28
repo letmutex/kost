@@ -123,7 +123,8 @@ fn handle_class_body_semicolon<'a>(
     if prev_child.is_some_and(|p| ctx.has_user_newline_between(&p, &child)) {
         items.push(BlockItem::new(Doc::text(";")));
     } else if let Some(last) = items.last_mut() {
-        last.doc = Doc::concat(vec![last.doc.clone(), Doc::text(";")]);
+        let prev_doc = std::mem::replace(&mut last.doc, Doc::empty());
+        last.doc = Doc::concat(vec![prev_doc, Doc::text(";")]);
     } else {
         items.push(BlockItem::new(Doc::text(";")));
     }
@@ -137,7 +138,8 @@ fn handle_class_body_accessor<'a>(
 ) {
     let doc = Doc::indent(Doc::concat(vec![Doc::HardLine, lower_fn(child, ctx)]));
     if let Some(last) = items.last_mut() {
-        last.doc = Doc::concat(vec![last.doc.clone(), doc]);
+        let prev_doc = std::mem::replace(&mut last.doc, Doc::empty());
+        last.doc = Doc::concat(vec![prev_doc, doc]);
     } else {
         items.push(BlockItem::new(doc));
     }
@@ -154,11 +156,13 @@ fn push_class_body_member<'a>(
     lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) {
     let mut entry_doc = lower_fn(child, ctx);
-    if child.kind() == "enum_entry"
+    if crate::engine::node_kind(child) == "enum_entry"
         && Some(child) == last_enum_entry
         && !has_non_redundant_semicolon
         && ctx.options.trailing_comma_strategy != TrailingCommaStrategy::None
-        && !child.next_sibling().is_some_and(|s| s.kind() == ",")
+        && !child
+            .next_sibling()
+            .is_some_and(|s| crate::engine::node_kind(s) == ",")
     {
         entry_doc = Doc::concat(vec![entry_doc, Doc::text(",")]);
     }
@@ -179,39 +183,61 @@ fn handle_class_body_comma<'a>(
     ctx: &LowerContext<'a, '_>,
 ) {
     if child.next_sibling().is_some_and(|next| {
-        next.kind() == ";"
+        crate::engine::node_kind(next) == ";"
             && !ctx.is_redundant_semicolon(&next)
             && next.start_position().row == child.start_position().row
     }) {
         return;
     }
     if let Some(last) = items.last_mut() {
-        last.doc = Doc::concat(vec![last.doc.clone(), Doc::text(",")]);
+        let prev_doc = std::mem::replace(&mut last.doc, Doc::empty());
+        last.doc = Doc::concat(vec![prev_doc, Doc::text(",")]);
     }
 }
 
 fn assemble_class_body_result<'a>(
-    node: &Node<'a>,
+    close_brace: Option<Node<'a>>,
     items: Vec<BlockItem<'a>>,
     opening_comment: Option<Doc<'a>>,
     prev_child: Option<Node<'a>>,
     ctx: &LowerContext<'a, '_>,
 ) -> Doc<'a> {
-    let close_brace = node.children(&mut node.walk()).find(|c| c.kind() == "}");
     let blank_at_end = close_brace
         .is_some_and(|cb| prev_child.is_some_and(|p| ctx.has_blank_line_between(&p, &cb)));
     format_braced_block_ext(items, Vec::new(), opening_comment, blank_at_end)
 }
 
 fn find_enum_meta<'a>(node: &Node<'a>, ctx: &LowerContext<'a, '_>) -> (bool, Option<Node<'a>>) {
-    let has_non_redundant_semicolon = node
-        .children(&mut node.walk())
-        .any(|c| c.kind() == ";" && !ctx.is_redundant_semicolon(&c));
-    let last_enum_entry = node
-        .children(&mut node.walk())
-        .filter(|c| c.kind() == "enum_entry")
-        .last();
+    if crate::engine::node_kind(*node) != "enum_class_body" {
+        return (false, None);
+    }
+    let mut has_non_redundant_semicolon = false;
+    let mut last_enum_entry = None;
+    let mut cursor = node.walk();
+    for c in node.children(&mut cursor) {
+        let kind = crate::engine::node_kind(c);
+        if kind == ";" && !ctx.is_redundant_semicolon(&c) {
+            has_non_redundant_semicolon = true;
+        } else if kind == "enum_entry" {
+            last_enum_entry = Some(c);
+        }
+    }
     (has_non_redundant_semicolon, last_enum_entry)
+}
+
+fn is_accessor_or_backing_member<'a>(
+    child: Node<'a>,
+    kind: &str,
+    prev_child: Option<Node<'a>>,
+    ctx: &LowerContext<'a, '_>,
+) -> bool {
+    matches!(kind, "getter" | "setter" | "backing_field")
+        || (prev_child.is_some_and(|p| crate::engine::node_kind(p) == "property_declaration")
+            && kind == "assignment"
+            && child.child(0).is_some_and(|c| {
+                let t = ctx.node_text(&c);
+                t == "field" || t == "get()" || t.starts_with("set(")
+            }))
 }
 
 pub fn lower_class_body<'a>(
@@ -223,17 +249,19 @@ pub fn lower_class_body<'a>(
     let mut prev_child = None;
     let mut opening_comment = None;
     let mut brace_node = None;
+    let mut close_brace = None;
 
     let (has_non_redundant_semicolon, last_enum_entry) = find_enum_meta(&node, ctx);
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        let kind = child.kind();
+        let kind = crate::engine::node_kind(child);
         if kind == "{" {
             brace_node = Some(child);
             continue;
         }
         if kind == "}" {
+            close_brace = Some(child);
             continue;
         }
 
@@ -265,15 +293,7 @@ pub fn lower_class_body<'a>(
             continue;
         }
 
-        let is_accessor_or_backing = matches!(kind, "getter" | "setter" | "backing_field")
-            || (prev_child.is_some_and(|p| p.kind() == "property_declaration")
-                && kind == "assignment"
-                && child.child(0).is_some_and(|c| {
-                    let t = ctx.node_text(&c);
-                    t == "field" || t == "get()" || t.starts_with("set(")
-                }));
-
-        if is_accessor_or_backing {
+        if is_accessor_or_backing_member(child, kind, prev_child, ctx) {
             handle_class_body_accessor(child, &mut items, ctx, lower_fn);
             prev_child = Some(child);
             continue;
@@ -292,7 +312,7 @@ pub fn lower_class_body<'a>(
         prev_child = Some(child);
     }
 
-    assemble_class_body_result(&node, items, opening_comment, prev_child, ctx)
+    assemble_class_body_result(close_brace, items, opening_comment, prev_child, ctx)
 }
 
 pub fn lower_enum_entry<'a>(

@@ -1,6 +1,22 @@
 //! Utility functions for AST inspection and linting.
 
+pub use crate::registry::{kotlin_kind_names, node_kind};
 use smol_str::SmolStr;
+
+/// Returns true if `kind` is a top-level or class-body declaration kind.
+#[inline]
+pub fn is_declaration_kind(kind: &str) -> bool {
+    matches!(
+        kind,
+        "class_declaration"
+            | "object_declaration"
+            | "function_declaration"
+            | "property_declaration"
+            | "secondary_constructor"
+            | "anonymous_initializer"
+            | "type_alias"
+    )
+}
 
 /// Finds a child identifier or variable identifier for an AST node.
 pub fn find_child_identifier(node: tree_sitter::Node, source: &[u8]) -> Option<SmolStr> {
@@ -104,6 +120,9 @@ pub fn has_blank_line_between_decls(
     prev_decl: tree_sitter::Node,
     curr_decl: tree_sitter::Node,
 ) -> bool {
+    if curr_decl.start_position().row <= prev_decl.end_position().row + 1 {
+        return false;
+    }
     let mut last_end_row = prev_decl.end_position().row;
     let mut current = prev_decl.next_sibling();
     while let Some(sibling) = current {

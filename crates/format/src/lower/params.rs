@@ -147,8 +147,8 @@ pub fn lower_delimited_list_node<'a>(
     lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> Doc<'a> {
     let builder = DelimitedListBuilder::build_from_node(node, ctx, lower_fn);
-    let has_trailing = ctx.has_trailing_comma(&node);
-    if is_single_unnamed_lambda_arg(&node) && !has_trailing && builder.items.len() == 1 {
+    let has_trailing = builder.has_trailing_comma;
+    if !has_trailing && builder.items.len() == 1 && is_single_unnamed_lambda_arg(&node) {
         let item_doc = builder.items.into_iter().next().unwrap().doc;
         return Doc::concat(vec![
             Doc::text(builder.open),
@@ -156,9 +156,10 @@ pub fn lower_delimited_list_node<'a>(
             Doc::text(builder.close),
         ]);
     }
-    let use_cont = node.kind() != "class_parameters";
+    let kind = crate::engine::node_kind(node);
+    let use_cont = kind != "class_parameters";
     let is_declaration = matches!(
-        node.kind(),
+        kind,
         "function_value_parameters" | "class_parameters" | "type_parameters"
     );
     let omit_closing_break = !is_declaration
@@ -171,24 +172,18 @@ pub fn lower_delimited_list_node<'a>(
                 .last()
                 .is_some_and(|d| d.doc.ends_with_brace()));
 
-    let mut cursor = node.walk();
-    let children: Vec<_> = node.children(&mut cursor).collect();
-    let has_user_newline = children
-        .windows(2)
-        .any(|w| ctx.has_user_newline_between(&w[0], &w[1]));
-
     format_delimited_list_ext(
         builder.open,
         builder.close,
         builder.items,
         builder.dangling_comments,
         has_trailing,
-        has_user_newline,
+        builder.has_user_newline,
         is_declaration,
         ctx.options.trailing_comma_strategy,
         use_cont,
         omit_closing_break,
-        !is_declaration || node.kind() == "type_parameters",
+        !is_declaration || kind == "type_parameters",
     )
 }
 
@@ -198,7 +193,7 @@ pub fn lower_value_arguments_multiline<'a>(
     lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> Doc<'a> {
     let builder = DelimitedListBuilder::build_from_node(node, ctx, lower_fn);
-    let has_trailing = ctx.has_trailing_comma(&node);
+    let has_trailing = builder.has_trailing_comma;
     let mut items = builder.items;
     if let Some(first) = items.first_mut() {
         first.force_newline_after = true;

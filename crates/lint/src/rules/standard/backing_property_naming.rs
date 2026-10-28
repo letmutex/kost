@@ -37,7 +37,7 @@ impl AstRule for BackingPropertyNaming {
             return;
         }
 
-        if !has_private_modifier(node, source) && !is_in_private_companion_object(node, source) {
+        if !has_private_modifier(node, source) && !is_in_private_companion_object(ctx, source) {
             ctx.report(
                 identifier_node,
                 "Backing property not allowed when 'private' modifier is missing",
@@ -46,7 +46,7 @@ impl AstRule for BackingPropertyNaming {
         }
 
         let correlated_name = &text[1..];
-        let correlated_member = find_correlated_member(node, correlated_name, source);
+        let correlated_member = find_correlated_member(node, correlated_name, source, ctx);
 
         let Some(correlated_node) = correlated_member else {
             ctx.report(
@@ -90,11 +90,14 @@ fn is_companion_object(decl: tree_sitter::Node, source: &[u8]) -> bool {
         || (decl.kind() == "object_declaration" && has_modifier_named(decl, "companion", source))
 }
 
-fn is_in_private_companion_object(node: tree_sitter::Node, source: &[u8]) -> bool {
-    let Some(class_body) = node.parent() else {
+fn is_in_private_companion_object(ctx: &LintCtx, source: &[u8]) -> bool {
+    let Some(class_body) = ctx.parent() else {
         return false;
     };
-    let Some(object_decl) = class_body.parent() else {
+    if class_body.kind() != "class_body" {
+        return false;
+    }
+    let Some(object_decl) = ctx.ancestor(2) else {
         return false;
     };
     if is_companion_object(object_decl, source) {
@@ -124,8 +127,9 @@ fn find_correlated_member<'a>(
     node: tree_sitter::Node<'a>,
     correlated_name: &str,
     source: &[u8],
+    ctx: &LintCtx<'a>,
 ) -> Option<tree_sitter::Node<'a>> {
-    let class_body = node.parent()?;
+    let class_body = ctx.parent()?;
     if class_body.kind() != "class_body" {
         return None;
     }
@@ -138,9 +142,9 @@ fn find_correlated_member<'a>(
         return Some(found);
     }
 
-    if let Some(obj_decl) = class_body.parent()
+    if let Some(obj_decl) = ctx.ancestor(2)
         && is_companion_object(obj_decl, source)
-        && let Some(outer_body) = obj_decl.parent()
+        && let Some(outer_body) = ctx.ancestor(3)
         && outer_body.kind() == "class_body"
         && let Some(found) =
             search_body_for_correlated(outer_body, node, correlated_name, &func_name, source)

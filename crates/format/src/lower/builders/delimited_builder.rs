@@ -1,9 +1,32 @@
 use tree_sitter::Node;
 
 use crate::doc::Doc;
+use crate::engine::node_kind;
 use crate::lower::builders::assign_like::format_assign_like;
 use crate::lower::builders::delimited_list::ListItem;
 use crate::lower::context::LowerContext;
+
+fn find_last_element_start_byte(node: Node<'_>) -> Option<usize> {
+    let mut last_byte = None;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if !matches!(
+            node_kind(child),
+            "(" | ")"
+                | "["
+                | "]"
+                | "<"
+                | ">"
+                | ","
+                | "comment"
+                | "line_comment"
+                | "multiline_comment"
+        ) {
+            last_byte = Some(child.start_byte());
+        }
+    }
+    last_byte
+}
 
 #[derive(Default)]
 pub struct DelimitedListBuilder<'a> {
@@ -12,6 +35,8 @@ pub struct DelimitedListBuilder<'a> {
     pub dangling_comments: Vec<Doc<'a>>,
     pub open: &'static str,
     pub close: &'static str,
+    pub has_trailing_comma: bool,
+    pub has_user_newline: bool,
     has_equals: bool,
     eq_rhs_node: Option<Node<'a>>,
     eq_lhs_docs: Vec<Doc<'a>>,
@@ -33,25 +58,33 @@ impl<'a> DelimitedListBuilder<'a> {
         lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
     ) -> Self {
         let mut builder = Self::new();
+        let mut last_element_byte: Option<Option<usize>> = None;
         let mut cursor = node.walk();
-        let children: Vec<Node<'a>> = node.children(&mut cursor).collect();
-        let last_element_idx = children.iter().rposition(|c| {
-            !matches!(
-                c.kind(),
-                "(" | ")"
-                    | "["
-                    | "]"
-                    | "<"
-                    | ">"
-                    | ","
-                    | "comment"
-                    | "line_comment"
-                    | "multiline_comment"
-            )
-        });
+        let mut children_iter = node.children(&mut cursor).peekable();
 
-        for (i, child) in children.into_iter().enumerate() {
-            builder.handle_child(child, i, last_element_idx, ctx, lower_fn);
+        while let Some(child) = children_iter.next() {
+            if let Some(prev) = builder.prev_child
+                && !builder.has_user_newline
+            {
+                builder.has_user_newline = ctx.has_user_newline_between(&prev, &child);
+            }
+            let kind = node_kind(child);
+            if !matches!(
+                kind,
+                ")" | "]" | ">" | "}" | "comment" | "line_comment" | "multiline_comment"
+            ) {
+                builder.has_trailing_comma = kind == ",";
+            }
+            let next_sibling = children_iter.peek().copied();
+            let is_dangling_comment =
+                if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
+                    let last_byte = *last_element_byte
+                        .get_or_insert_with(|| find_last_element_start_byte(node));
+                    last_byte.is_none_or(|last| child.start_byte() > last)
+                } else {
+                    false
+                };
+            builder.handle_child_with_next(child, next_sibling, is_dangling_comment, ctx, lower_fn);
         }
         builder.flush(ctx, lower_fn);
         builder
@@ -65,7 +98,20 @@ impl<'a> DelimitedListBuilder<'a> {
         ctx: &LowerContext<'a, '_>,
         lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
     ) {
-        let kind = child.kind();
+        let next_sibling = child.next_sibling();
+        let is_dangling = last_element_idx.is_none_or(|last| index > last);
+        self.handle_child_with_next(child, next_sibling, is_dangling, ctx, lower_fn);
+    }
+
+    pub fn handle_child_with_next(
+        &mut self,
+        child: Node<'a>,
+        next_sibling: Option<Node<'a>>,
+        is_dangling_comment: bool,
+        ctx: &LowerContext<'a, '_>,
+        lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
+    ) {
+        let kind = node_kind(child);
         match kind {
             "(" | "[" | "<" => {
                 self.open = match kind {
@@ -83,7 +129,7 @@ impl<'a> DelimitedListBuilder<'a> {
             }
             "," => self.flush(ctx, lower_fn),
             "comment" | "line_comment" | "multiline_comment" => {
-                self.handle_comment(child, index, last_element_idx, ctx, lower_fn);
+                self.handle_comment(child, next_sibling, is_dangling_comment, ctx, lower_fn);
             }
             "=" if !self.has_equals => {
                 self.has_equals = true;
@@ -108,13 +154,14 @@ impl<'a> DelimitedListBuilder<'a> {
     fn handle_comment(
         &mut self,
         child: Node<'a>,
-        index: usize,
-        last_element_idx: Option<usize>,
+        next_sibling: Option<Node<'a>>,
+        is_dangling: bool,
         ctx: &LowerContext<'a, '_>,
         lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
     ) {
+        let child_kind = node_kind(child);
         if ctx.style.align_wrapped_trailing_comments
-            && child.kind() == "line_comment"
+            && child_kind == "line_comment"
             && let Some(prev) = self
                 .prev_child
                 .and_then(crate::rules::comments::find_trailing_line_comment)
@@ -138,7 +185,6 @@ impl<'a> DelimitedListBuilder<'a> {
                 return;
             }
         }
-        let is_dangling = last_element_idx.is_none_or(|last| index > last);
         let is_same_line = self
             .prev_child
             .is_some_and(|p| p.end_position().row == child.start_position().row);
@@ -178,8 +224,8 @@ impl<'a> DelimitedListBuilder<'a> {
                 self.current_docs.push(Doc::HardLine);
             }
             self.current_docs.push(lower_fn(child, ctx));
-            if let Some(next) = child.next_sibling()
-                && (child.kind() == "line_comment" || ctx.has_user_newline_between(&child, &next))
+            if let Some(next) = next_sibling
+                && (child_kind == "line_comment" || ctx.has_user_newline_between(&child, &next))
             {
                 self.current_docs.push(Doc::HardLine);
             }

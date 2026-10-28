@@ -26,7 +26,7 @@ pub enum SpineSegment<'a> {
 
 pub fn is_spine_root(node: &Node<'_>) -> bool {
     matches!(
-        node.kind(),
+        crate::engine::node_kind(*node),
         "call_expression" | "navigation_expression" | "indexing_expression" | "postfix_expression"
     )
 }
@@ -38,14 +38,14 @@ fn extract_call_segment<'a>(call_node: Node<'a>) -> SpineSegment<'a> {
 
     let mut cursor = call_node.walk();
     for child in call_node.children(&mut cursor) {
-        match child.kind() {
+        match crate::engine::node_kind(child) {
             "type_arguments" => type_args = Some(child),
             "value_arguments" => val_args = Some(child),
             "lambda_literal" | "annotated_lambda" => trailing_lambda = Some(child),
             "call_suffix" => {
                 let mut sc = child.walk();
                 for s_child in child.children(&mut sc) {
-                    match s_child.kind() {
+                    match crate::engine::node_kind(s_child) {
                         "type_arguments" => type_args = Some(s_child),
                         "value_arguments" => val_args = Some(s_child),
                         "lambda_literal" | "annotated_lambda" => trailing_lambda = Some(s_child),
@@ -68,19 +68,17 @@ fn extract_spine_step<'a>(
     curr: Node<'a>,
     ctx: &LowerContext<'a, '_>,
 ) -> Option<(Node<'a>, SpineSegment<'a>)> {
-    match curr.kind() {
+    match crate::engine::node_kind(curr) {
         "navigation_expression" => {
             let mut recv = None;
             let mut comments = Vec::new();
             let mut suf = None;
             let mut cursor = curr.walk();
             for child in curr.children(&mut cursor) {
+                let child_kind = crate::engine::node_kind(child);
                 if recv.is_none() {
                     recv = Some(child);
-                } else if matches!(
-                    child.kind(),
-                    "comment" | "line_comment" | "multiline_comment"
-                ) {
+                } else if matches!(child_kind, "comment" | "line_comment" | "multiline_comment") {
                     comments.push(child);
                 } else {
                     suf = Some(child);
@@ -89,8 +87,11 @@ fn extract_spine_step<'a>(
             let recv = recv?;
             let suf = suf?;
             let prev_end_byte = recv.end_byte();
-            let (type_args, op, tgt) = if suf.kind() == "navigation_suffix" {
-                if suf.child(0).is_some_and(|c| c.kind() == "type_arguments") {
+            let (type_args, op, tgt) = if crate::engine::node_kind(suf) == "navigation_suffix" {
+                if suf
+                    .child(0)
+                    .is_some_and(|c| crate::engine::node_kind(c) == "type_arguments")
+                {
                     let ta = suf.child(0);
                     let op = suf.child(1).map(|c| ctx.node_text(&c)).unwrap_or(".");
                     let tgt = suf.child(2)?;

@@ -21,7 +21,7 @@ impl AstRule for FunctionLiteral {
         let (open_brace, params, arrow, statements, close_brace) = parse_lambda_structure(node);
 
         if let Some(arrow_node) = arrow {
-            check_redundant_arrow(node, arrow_node, params, statements, ctx);
+            check_redundant_arrow(arrow_node, params, statements, ctx);
         }
 
         if let Some(params_node) = params {
@@ -63,7 +63,6 @@ fn parse_lambda_structure(node: tree_sitter::Node<'_>) -> LambdaParts<'_> {
 }
 
 fn check_redundant_arrow(
-    lambda_node: tree_sitter::Node,
     arrow_node: tree_sitter::Node,
     params: Option<tree_sitter::Node>,
     statements: Option<tree_sitter::Node>,
@@ -81,7 +80,7 @@ fn check_redundant_arrow(
     }
 
     // Direct branch bodies of when_entry, then, or else require arrow to parse as lambda
-    if is_direct_branch_body(lambda_node) {
+    if is_direct_branch_body(ctx) {
         return;
     }
 
@@ -91,10 +90,10 @@ fn check_redundant_arrow(
     );
 }
 
-fn is_direct_branch_body(node: tree_sitter::Node) -> bool {
-    let effective_parent = match node.parent() {
-        Some(p) if p.kind() == "annotated_lambda" => p.parent(),
-        other => other,
+fn is_direct_branch_body(ctx: &LintCtx) -> bool {
+    let (effective_parent, parent_level) = match ctx.parent() {
+        Some(p) if p.kind() == "annotated_lambda" => (ctx.ancestor(2), 2),
+        other => (other, 1),
     };
 
     let Some(parent) = effective_parent else {
@@ -106,7 +105,7 @@ fn is_direct_branch_body(node: tree_sitter::Node) -> bool {
     }
 
     if parent.kind() == "control_structure_body"
-        && let Some(grandparent) = parent.parent()
+        && let Some(grandparent) = ctx.ancestor(parent_level + 1)
     {
         return matches!(grandparent.kind(), "if_expression" | "when_entry");
     }

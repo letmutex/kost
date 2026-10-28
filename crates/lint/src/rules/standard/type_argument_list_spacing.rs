@@ -2,7 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
-use crate::util::{WhitespaceAfter, WhitespaceBefore, spaces_after, spaces_before};
+use crate::util::{WhitespaceAfter, WhitespaceBefore, node_kind, spaces_after, spaces_before};
 
 /// Rule that enforces proper spacing around and inside type argument lists (`<T>`).
 pub struct TypeArgumentListSpacing;
@@ -29,7 +29,7 @@ impl AstRule for TypeArgumentListSpacing {
             return;
         };
 
-        if left_angle.kind() != "<" || right_angle.kind() != ">" {
+        if node_kind(left_angle) != "<" || node_kind(right_angle) != ">" {
             return;
         }
 
@@ -44,16 +44,20 @@ fn check_angle_brackets(
     source: &[u8],
     ctx: &mut LintCtx,
 ) {
-    let is_call_suffix = node
-        .parent()
-        .map(|parent| parent.kind() == "call_suffix")
-        .unwrap_or(false);
+    let parent = ctx.parent();
+    let is_call_suffix = parent.is_some_and(|p| node_kind(p) == "call_suffix");
 
     let should_check_before = if is_call_suffix {
-        node.parent().and_then(|p| p.prev_sibling()).is_some()
+        parent
+            .and_then(|p| {
+                ctx.ancestor(2)
+                    .and_then(|gp| gp.child(0))
+                    .filter(|&first| first != p)
+            })
+            .is_some()
     } else {
-        node.prev_sibling()
-            .is_some_and(|prev| matches!(prev.kind(), "type_identifier" | "simple_identifier"))
+        ctx.prev_sibling()
+            .is_some_and(|prev| matches!(node_kind(prev), "type_identifier" | "simple_identifier"))
     };
 
     if should_check_before {
@@ -85,16 +89,17 @@ fn check_angle_brackets(
         _ => {}
     }
 
-    let has_following_value_args = node
-        .next_sibling()
-        .is_some_and(|sibling| sibling.kind() == "value_arguments");
-
-    if is_call_suffix && has_following_value_args {
-        match spaces_after(right_angle, source) {
-            WhitespaceAfter::Spaces(count) if count > 0 => {
-                ctx.report(right_angle, "Unexpected spacing after '>'");
-            }
-            _ => {}
+    if is_call_suffix {
+        let has_following_value_args = parent.is_some_and(|p| {
+            let mut cursor = p.walk();
+            p.children(&mut cursor)
+                .any(|c| c.start_byte() >= node.end_byte() && node_kind(c) == "value_arguments")
+        });
+        if has_following_value_args
+            && let WhitespaceAfter::Spaces(count) = spaces_after(right_angle, source)
+            && count > 0
+        {
+            ctx.report(right_angle, "Unexpected spacing after '>'");
         }
     }
 }

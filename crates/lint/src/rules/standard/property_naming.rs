@@ -5,7 +5,7 @@ use super::helpers::{
 };
 use crate::context::LintCtx;
 use crate::rule::AstRule;
-use crate::util::is_kotlin_keyword;
+use crate::util::{is_kotlin_keyword, node_kind};
 
 /// Rule enforcing lowerCamelCase naming for properties and SCREAMING_SNAKE_CASE for constants.
 pub struct PropertyNaming;
@@ -37,8 +37,13 @@ impl AstRule for PropertyNaming {
 
         if has_const_modifier(node, source) {
             check_const_property(identifier_node, text, ctx);
-        } else if has_custom_getter(node) || is_top_level_val(node) || is_object_val(node) {
-            // Cannot reliably determine mutability
+        } else if text.starts_with('_')
+            || is_lower_camel_case(text)
+            || has_custom_getter(node)
+            || is_top_level_val(node, ctx)
+            || is_object_val(node, ctx)
+        {
+            // Valid lowerCamelCase or cannot reliably determine mutability
         } else {
             check_non_const_property(identifier_node, text, ctx);
         }
@@ -52,40 +57,40 @@ fn has_const_modifier(node: tree_sitter::Node, source: &[u8]) -> bool {
 fn has_custom_getter(node: tree_sitter::Node) -> bool {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if child.kind() == "getter" {
+        if node_kind(child) == "getter" {
             return true;
         }
     }
     if let Some(next) = next_code_sibling(node)
-        && next.kind() == "getter"
+        && node_kind(next) == "getter"
     {
         return true;
     }
     false
 }
 
-fn is_top_level_val(node: tree_sitter::Node) -> bool {
-    let Some(parent) = node.parent() else {
+fn is_top_level_val(node: tree_sitter::Node, ctx: &LintCtx) -> bool {
+    let Some(parent) = ctx.parent() else {
         return false;
     };
-    if parent.kind() != "source_file" {
+    if node_kind(parent) != "source_file" {
         return false;
     }
     node_has_val(node)
 }
 
-fn is_object_val(node: tree_sitter::Node) -> bool {
-    let Some(class_body) = node.parent() else {
+fn is_object_val(node: tree_sitter::Node, ctx: &LintCtx) -> bool {
+    let Some(class_body) = ctx.parent() else {
         return false;
     };
-    if class_body.kind() != "class_body" {
+    if node_kind(class_body) != "class_body" {
         return false;
     }
-    let Some(object_decl) = class_body.parent() else {
+    let Some(object_decl) = ctx.ancestor(2) else {
         return false;
     };
     if !matches!(
-        object_decl.kind(),
+        node_kind(object_decl),
         "object_declaration" | "companion_object"
     ) {
         return false;
@@ -96,9 +101,10 @@ fn is_object_val(node: tree_sitter::Node) -> bool {
 fn node_has_val(node: tree_sitter::Node) -> bool {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if child.kind() == "val"
-            || (child.kind() == "binding_pattern_kind"
-                && child.child(0).is_some_and(|k| k.kind() == "val"))
+        let kind = node_kind(child);
+        if kind == "val"
+            || (kind == "binding_pattern_kind"
+                && child.child(0).is_some_and(|k| node_kind(k) == "val"))
         {
             return true;
         }

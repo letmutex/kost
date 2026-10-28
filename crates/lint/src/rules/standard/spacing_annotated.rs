@@ -1,10 +1,9 @@
 //! Built-in AST rule enforcing blank lines before annotated declarations (Ktlint rule 10).
 
+use super::helpers::has_blank_line_between_decls_with_context;
 use crate::context::LintCtx;
 use crate::rule::AstRule;
-use crate::util::{
-    has_blank_line_between_decls, has_declaration_annotations, prev_declaration_sibling,
-};
+use crate::util::{has_declaration_annotations, node_kind};
 
 /// Rule that enforces a blank line before declarations with annotations.
 pub struct SpacingBetweenDeclarationsWithAnnotations;
@@ -24,18 +23,27 @@ impl AstRule for SpacingBetweenDeclarationsWithAnnotations {
     }
 
     fn check_node(&self, node: tree_sitter::Node, _source: &[u8], ctx: &mut LintCtx) {
-        let Some(prev_decl) = prev_declaration_sibling(node) else {
+        let Some(prev_decl) = ctx.prev_declaration_sibling() else {
             return;
         };
 
         let curr_annotated = has_declaration_annotations(node);
-        let prev_annotated = has_declaration_annotations(prev_decl);
+        let prev_annotated = if curr_annotated || node_kind(node) == "property_declaration" {
+            has_declaration_annotations(prev_decl)
+        } else {
+            false
+        };
 
-        if !curr_annotated && (!prev_annotated || node.kind() != "property_declaration") {
+        if !curr_annotated && (!prev_annotated || node_kind(node) != "property_declaration") {
             return;
         }
 
-        if !has_blank_line_between_decls(prev_decl, node) {
+        if !has_blank_line_between_decls_with_context(
+            prev_decl,
+            node,
+            ctx.prev_sibling(),
+            ctx.parent(),
+        ) {
             let message = if curr_annotated {
                 "Expected a blank line before declaration with annotations"
             } else {

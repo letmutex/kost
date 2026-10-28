@@ -24,6 +24,10 @@ impl AstRule for MaxLineLength {
 
     fn check_node(&self, _node: tree_sitter::Node, _source: &[u8], _ctx: &mut LintCtx) {}
 
+    fn has_after_node(&self) -> bool {
+        true
+    }
+
     fn after_node(&self, _node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
         let max_len = match ctx.max_line_length() {
             Some(common::editorconfig::LineLengthSetting::Off) => return,

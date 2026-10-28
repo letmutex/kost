@@ -2,7 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
-use crate::util::{prev_declaration_sibling, prev_meaningful_sibling};
+use crate::util::node_kind;
 
 /// Rule that enforces a blank line before a declaration preceded by a comment.
 pub struct SpacingBetweenDeclarationsWithComments;
@@ -25,44 +25,30 @@ impl AstRule for SpacingBetweenDeclarationsWithComments {
     }
 
     fn check_node(&self, node: tree_sitter::Node, _source: &[u8], ctx: &mut LintCtx) {
-        if node
-            .parent()
-            .map(|p| p.kind() == "statements")
-            .unwrap_or(false)
-        {
+        let Some(parent) = ctx.parent() else {
+            return;
+        };
+        if node_kind(parent) == "statements" {
             return;
         }
 
-        let Some(prev_decl) = prev_declaration_sibling(node) else {
-            return;
-        };
-
-        let Some(meaningful_sibling) = prev_meaningful_sibling(node) else {
+        let Some(meaningful_sibling) = ctx.prev_meaningful_sibling() else {
             return;
         };
 
         if !matches!(
-            meaningful_sibling.kind(),
+            node_kind(meaningful_sibling),
             "line_comment" | "multiline_comment"
         ) {
             return;
         }
 
-        let prev_end_row = prev_decl.end_position().row;
-        let mut first_comment = meaningful_sibling;
-        let mut current = meaningful_sibling.prev_sibling();
-        while let Some(sibling) = current {
-            if sibling == prev_decl || sibling.start_position().row <= prev_end_row {
-                break;
-            }
-            if matches!(sibling.kind(), "line_comment" | "multiline_comment") {
-                first_comment = sibling;
-            } else if sibling.is_named() {
-                break;
-            }
-            current = sibling.prev_sibling();
-        }
+        let Some(prev_decl) = ctx.prev_declaration_sibling() else {
+            return;
+        };
 
+        let prev_end_row = prev_decl.end_position().row;
+        let first_comment = find_first_leading_comment(parent, prev_decl, node, meaningful_sibling);
         let comment_start_row = first_comment.start_position().row;
 
         if comment_start_row == prev_end_row || node.start_position().row == comment_start_row {
@@ -73,4 +59,37 @@ impl AstRule for SpacingBetweenDeclarationsWithComments {
             ctx.report(first_comment, "Expected a blank line before comment");
         }
     }
+}
+
+fn find_first_leading_comment<'a>(
+    parent: tree_sitter::Node<'a>,
+    prev_decl: tree_sitter::Node<'a>,
+    curr_decl: tree_sitter::Node<'a>,
+    meaningful_sibling: tree_sitter::Node<'a>,
+) -> tree_sitter::Node<'a> {
+    let prev_end_row = prev_decl.end_position().row;
+    let prev_end_byte = prev_decl.end_byte();
+    let curr_start_byte = curr_decl.start_byte();
+    let mut candidate: Option<tree_sitter::Node<'a>> = None;
+    let mut cursor = parent.walk();
+    for sibling in parent.children(&mut cursor) {
+        if sibling.start_byte() < prev_end_byte || sibling == prev_decl {
+            continue;
+        }
+        if sibling.start_byte() >= curr_start_byte || sibling == curr_decl {
+            break;
+        }
+        if sibling.start_position().row <= prev_end_row {
+            candidate = None;
+            continue;
+        }
+        if matches!(node_kind(sibling), "line_comment" | "multiline_comment") {
+            if candidate.is_none() {
+                candidate = Some(sibling);
+            }
+        } else if sibling.is_named() {
+            candidate = None;
+        }
+    }
+    candidate.unwrap_or(meaningful_sibling)
 }

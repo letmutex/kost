@@ -2,7 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
-use crate::util::{WhitespaceAfter, WhitespaceBefore, spaces_after, spaces_before};
+use crate::util::{WhitespaceAfter, WhitespaceBefore, node_kind, spaces_after, spaces_before};
 
 /// Rule that enforces consistent line breaks in multiline call expressions.
 pub struct CallExpressionWrapping;
@@ -17,9 +17,12 @@ impl AstRule for CallExpressionWrapping {
     }
 
     fn check_node(&self, node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
+        if node.start_position().row == node.end_position().row {
+            return;
+        }
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            match child.kind() {
+            match node_kind(child) {
                 "call_suffix" => {
                     let mut suffix_cursor = child.walk();
                     for suffix_child in child.children(&mut suffix_cursor) {
@@ -33,7 +36,7 @@ impl AstRule for CallExpressionWrapping {
 }
 
 fn check_call_child(child: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
-    match child.kind() {
+    match node_kind(child) {
         "value_arguments" => check_multiline_value_arguments(child, source, ctx),
         "lambda_literal" | "annotated_lambda" => check_multiline_lambda(child, source, ctx),
         _ => {}
@@ -47,13 +50,12 @@ fn check_multiline_value_arguments(node: tree_sitter::Node, source: &[u8], ctx: 
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if child.kind() == "(" {
+        let kind = node_kind(child);
+        if kind == "(" {
             if !has_newline_after(child, node, source) {
                 ctx.report(child, "Expected new line after '('");
             }
-        } else if child.kind() == ")"
-            && spaces_before(child, source) != WhitespaceBefore::StartOfLine
-        {
+        } else if kind == ")" && spaces_before(child, source) != WhitespaceBefore::StartOfLine {
             ctx.report(child, "Expected new line before ')'");
         }
     }
@@ -64,10 +66,10 @@ fn check_multiline_lambda(node: tree_sitter::Node, source: &[u8], ctx: &mut Lint
         return;
     }
 
-    let lambda_literal = if node.kind() == "annotated_lambda" {
+    let lambda_literal = if node_kind(node) == "annotated_lambda" {
         let mut child_cursor = node.walk();
         node.children(&mut child_cursor)
-            .find(|child| child.kind() == "lambda_literal")
+            .find(|&child| node_kind(child) == "lambda_literal")
             .unwrap_or(node)
     } else {
         node
@@ -109,28 +111,28 @@ fn has_newline_after(
     let mut cursor = container.walk();
     let mut found_delimiter = false;
     for child in container.children(&mut cursor) {
+        let kind = node_kind(child);
         if !found_delimiter {
             if child == delimiter
-                || (child.kind() == "lambda_parameters" && delimiter.parent() == Some(child))
+                || (kind == "lambda_parameters"
+                    && delimiter.start_byte() >= child.start_byte()
+                    && delimiter.end_byte() <= child.end_byte())
             {
                 found_delimiter = true;
             }
             continue;
         }
-        if matches!(
-            child.kind(),
-            "line_comment" | "multiline_comment" | "comment"
-        ) {
+        if matches!(kind, "line_comment" | "multiline_comment" | "comment") {
             continue;
         }
-        if child.kind() == "}" || child.kind() == ")" {
+        if kind == "}" || kind == ")" {
             return child.start_position().row > delimiter.start_position().row;
         }
-        if child.kind() == "statements" {
+        if kind == "statements" {
             let mut stmt_cursor = child.walk();
             for stmt_child in child.children(&mut stmt_cursor) {
                 if matches!(
-                    stmt_child.kind(),
+                    node_kind(stmt_child),
                     "line_comment" | "multiline_comment" | "comment"
                 ) {
                     continue;
@@ -155,14 +157,14 @@ fn find_lambda_tokens<'a>(
 ) {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        match child.kind() {
+        match node_kind(child) {
             "{" => *opening_brace = Some(child),
             "}" => *closing_brace = Some(child),
             "->" => *arrow_token = Some(child),
             "lambda_parameters" => {
                 let mut param_cursor = child.walk();
                 for param_child in child.children(&mut param_cursor) {
-                    if param_child.kind() == "->" {
+                    if node_kind(param_child) == "->" {
                         *arrow_token = Some(param_child);
                     }
                 }

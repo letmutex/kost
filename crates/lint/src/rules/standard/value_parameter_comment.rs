@@ -2,7 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
-use crate::util::is_kdoc;
+use crate::util::{is_kdoc, node_kind};
 
 /// Rule that disallows misplaced comments inside parameter lists.
 pub struct ValueParameterComment;
@@ -13,56 +13,46 @@ impl AstRule for ValueParameterComment {
     }
 
     fn interested_kinds(&self) -> &'static [&'static str] {
-        &[
-            "function_value_parameters",
-            "class_parameters",
-            "primary_constructor",
-            "parameter",
-            "class_parameter",
-        ]
+        &["line_comment", "multiline_comment", "comment"]
     }
 
     fn check_node(&self, node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
-        if matches!(node.kind(), "parameter" | "class_parameter") {
-            let mut cursor = node.walk();
-            for (index, child) in node.children(&mut cursor).enumerate() {
-                if is_comment(child.kind()) {
-                    if index == 0
-                        && let Ok(text) = child.utf8_text(source)
-                        && is_kdoc(text)
-                    {
-                        continue;
-                    }
-                    ctx.report(
-                        child,
-                        "A comment inside or on same line after a 'value_parameter' is not allowed. It may be placed on a separate line above.",
-                    );
-                }
+        let Some(parent) = ctx.parent() else {
+            return;
+        };
+        let parent_kind = node_kind(parent);
+        if matches!(parent_kind, "parameter" | "class_parameter") {
+            if ctx.prev_sibling().is_none()
+                && let Ok(text) = node.utf8_text(source)
+                && is_kdoc(text)
+            {
+                return;
             }
+            ctx.report(
+                node,
+                "A comment inside or on same line after a 'value_parameter' is not allowed. It may be placed on a separate line above.",
+            );
         } else if matches!(
-            node.kind(),
+            parent_kind,
             "function_value_parameters" | "class_parameters" | "primary_constructor"
         ) {
-            let mut cursor = node.walk();
+            let mut cursor = parent.walk();
             let mut prev_param: Option<tree_sitter::Node> = None;
-            for child in node.children(&mut cursor) {
-                if is_comment(child.kind()) {
+            for child in parent.children(&mut cursor) {
+                if child == node {
                     if let Some(prev) = prev_param
-                        && child.start_position().row == prev.end_position().row
+                        && node.start_position().row == prev.end_position().row
                     {
                         ctx.report(
-                            child,
+                            node,
                             "A comment inside or on same line after a 'value_parameter' is not allowed. It may be placed on a separate line above.",
                         );
                     }
-                } else if matches!(child.kind(), "parameter" | "class_parameter") {
+                    break;
+                } else if matches!(node_kind(child), "parameter" | "class_parameter") {
                     prev_param = Some(child);
                 }
             }
         }
     }
-}
-
-fn is_comment(kind: &str) -> bool {
-    matches!(kind, "line_comment" | "multiline_comment" | "comment")
 }

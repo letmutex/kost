@@ -30,7 +30,7 @@ impl AstRule for Kdoc {
 }
 
 fn check_kdoc_placement(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
-    if is_inside_disallowed_block(node) {
+    if is_inside_disallowed_block(ctx) {
         ctx.report(
             node,
             "A KDoc is not allowed inside a block or function body",
@@ -38,7 +38,7 @@ fn check_kdoc_placement(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCt
         return;
     }
 
-    if let Some(parent) = node.parent() {
+    if let Some(parent) = ctx.parent() {
         if matches!(
             parent.kind(),
             "primary_constructor" | "class_parameters" | "function_value_parameters"
@@ -53,7 +53,7 @@ fn check_kdoc_placement(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCt
             ctx.report(node, "A KDoc is allowed only at start of declaration");
             return;
         } else if is_allowed_declaration(parent.kind())
-            && node.prev_named_sibling().is_some()
+            && ctx.prev_named_sibling().is_some()
             && !(parent.kind() == "property_declaration" && is_accessor_kdoc(node))
         {
             ctx.report(node, "A KDoc is allowed only at start of declaration");
@@ -66,9 +66,9 @@ fn check_kdoc_placement(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCt
     }
 }
 
-fn is_inside_disallowed_block(node: tree_sitter::Node) -> bool {
-    let mut current = node.parent();
-    while let Some(parent) = current {
+fn is_inside_disallowed_block(ctx: &LintCtx) -> bool {
+    let mut level = 1;
+    while let Some(parent) = ctx.ancestor(level) {
         if matches!(parent.kind(), "class_body" | "object_literal") {
             return false;
         }
@@ -86,7 +86,7 @@ fn is_inside_disallowed_block(node: tree_sitter::Node) -> bool {
         ) {
             return true;
         }
-        current = parent.parent();
+        level += 1;
     }
     false
 }

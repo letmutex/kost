@@ -177,7 +177,8 @@ fn handle_semicolon<'a>(
     {
         items.push(BlockItem::new(Doc::text(";")));
     } else if let Some(last) = items.last_mut() {
-        last.doc = Doc::concat(vec![last.doc.clone(), Doc::text(";")]);
+        let prev_doc = std::mem::replace(&mut last.doc, Doc::empty());
+        last.doc = Doc::concat(vec![prev_doc, Doc::text(";")]);
     } else {
         items.push(BlockItem::new(Doc::text(";")));
     }
@@ -219,7 +220,8 @@ fn handle_trivia_semicolon<'a>(
         items.push(BlockItem::new(Doc::text(";")));
         (true, true)
     } else if let Some(last) = items.last_mut() {
-        last.doc = Doc::concat(vec![last.doc.clone(), Doc::text(";")]);
+        let prev_doc = std::mem::replace(&mut last.doc, Doc::empty());
+        last.doc = Doc::concat(vec![prev_doc, Doc::text(";")]);
         (true, false)
     } else {
         items.push(BlockItem::new(Doc::text(";")));

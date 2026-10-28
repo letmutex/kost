@@ -87,19 +87,19 @@ impl<'a, 'b> LowerContext<'a, 'b> {
     }
 
     pub fn has_trailing_comma(&self, list_node: &Node<'_>) -> bool {
+        let mut has_comma = false;
         let mut cursor = list_node.walk();
-        let children: Vec<_> = list_node.children(&mut cursor).collect();
-        for child in children.into_iter().rev() {
-            let kind = child.kind();
-            if kind == ")" || kind == "]" || kind == ">" || kind == "}" {
+        for child in list_node.children(&mut cursor) {
+            let kind = crate::engine::node_kind(child);
+            if matches!(
+                kind,
+                ")" | "]" | ">" | "}" | "comment" | "line_comment" | "multiline_comment"
+            ) {
                 continue;
             }
-            if matches!(kind, "comment" | "line_comment" | "multiline_comment") {
-                continue;
-            }
-            return kind == ",";
+            has_comma = kind == ",";
         }
-        false
+        has_comma
     }
 
     pub fn is_redundant_semicolon(&self, node: &Node<'_>) -> bool {

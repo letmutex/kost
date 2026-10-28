@@ -27,7 +27,11 @@ impl<'a> Printer<'a> {
     }
 
     pub fn print<'d>(&mut self, doc: &'d Doc<'a>) -> String {
-        let mut state = PrintState::new(1024);
+        self.print_with_capacity(doc, 1024)
+    }
+
+    pub fn print_with_capacity<'d>(&mut self, doc: &'d Doc<'a>, capacity: usize) -> String {
+        let mut state = PrintState::new(capacity);
         let mut stack = Vec::with_capacity(64);
         let mut scratch = Vec::with_capacity(64);
 

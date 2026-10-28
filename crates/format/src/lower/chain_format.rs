@@ -142,9 +142,10 @@ pub(crate) fn lower_step_call<'a>(
     step: &ChainStep<'a>,
     idx: usize,
     steps: &[ChainStep<'a>],
+    receiver: &Node<'a>,
     in_prefix: bool,
     break_scoping_root: bool,
-    is_on_rhs: bool,
+    is_on_rhs: &mut Option<bool>,
     last_call: &mut Option<LastCallData<'a>>,
     ctx: &LowerContext<'a, '_>,
     lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
@@ -190,8 +191,12 @@ pub(crate) fn lower_step_call<'a>(
             call_docs.push(Doc::space());
             if idx == 0 && break_scoping_root {
                 let mut tl_doc = super::lambda::lower_lambda_node_multiline(tl_node, ctx, lower_fn);
-                if ctx.options.continuation_indent == 2 && total_steps > 1 && !is_on_rhs {
-                    tl_doc = Doc::continuation_indent(tl_doc);
+                if ctx.options.continuation_indent == 2 && total_steps > 1 {
+                    let on_rhs = *is_on_rhs
+                        .get_or_insert_with(|| super::chain_call::is_receiver_on_rhs(*receiver));
+                    if !on_rhs {
+                        tl_doc = Doc::continuation_indent(tl_doc);
+                    }
                 }
                 call_docs.push(tl_doc);
             } else {

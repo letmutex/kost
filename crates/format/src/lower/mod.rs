@@ -35,12 +35,17 @@ pub mod when_expr;
 use tree_sitter::Node;
 
 use crate::doc::Doc;
+use crate::engine::node_kind;
 use crate::lower::chain::{flatten_spine, format_chain_spine, is_spine_root};
 pub use crate::lower::context::LowerContext;
 use crate::verbatim::lower_verbatim;
 
-fn lower_declaration_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Option<Doc<'a>> {
-    let doc = match node.kind() {
+fn lower_declaration_node<'a>(
+    node: Node<'a>,
+    kind: &str,
+    ctx: &LowerContext<'a, '_>,
+) -> Option<Doc<'a>> {
+    let doc = match kind {
         "class_declaration"
         | "interface_declaration"
         | "companion_object"
@@ -92,8 +97,12 @@ fn lower_declaration_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Opt
     Some(doc)
 }
 
-fn lower_expression_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Option<Doc<'a>> {
-    let doc = match node.kind() {
+fn lower_expression_node<'a>(
+    node: Node<'a>,
+    kind: &str,
+    ctx: &LowerContext<'a, '_>,
+) -> Option<Doc<'a>> {
+    let doc = match kind {
         "assignment" => assignment::lower_assignment(node, ctx, &lower_node),
         "type_parameters" | "type_arguments" => types::lower_type_list(node, ctx, &lower_node),
         "type_constraints" => types::lower_type_constraints(node, ctx, &lower_node),
@@ -148,7 +157,7 @@ fn lower_expression_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Opti
 }
 
 pub fn lower_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
-    let kind = node.kind();
+    let kind = node_kind(node);
 
     if kind == ";" {
         return if ctx.is_redundant_semicolon(&node) {
@@ -170,14 +179,9 @@ pub fn lower_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
     }
 
     if is_spine_root(&node) {
-        let parent_is_spine = node
-            .parent()
-            .is_some_and(|p| is_spine_root(&p) && p.child(0).is_some_and(|c| c.id() == node.id()));
-        if !parent_is_spine {
-            let (receiver, segments) = flatten_spine(node, ctx);
-            if receiver.id() != node.id() || !segments.is_empty() {
-                return format_chain_spine(receiver, segments, ctx, &lower_node);
-            }
+        let (receiver, segments) = flatten_spine(node, ctx);
+        if receiver.id() != node.id() || !segments.is_empty() {
+            return format_chain_spine(receiver, segments, ctx, &lower_node);
         }
     }
 
@@ -204,9 +208,9 @@ pub fn lower_node<'a>(node: Node<'a>, ctx: &LowerContext<'a, '_>) -> Doc<'a> {
         | "interpolated_expression"
         | "spread_expression" => lower_transparent_wrapper(node, ctx),
         _ => {
-            if let Some(doc) = lower_declaration_node(node, ctx) {
+            if let Some(doc) = lower_declaration_node(node, kind, ctx) {
                 doc
-            } else if let Some(doc) = lower_expression_node(node, ctx) {
+            } else if let Some(doc) = lower_expression_node(node, kind, ctx) {
                 doc
             } else if node.child_count() == 0 || kind == "character_literal" {
                 Doc::text(ctx.node_text(&node))

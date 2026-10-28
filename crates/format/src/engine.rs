@@ -1,4 +1,5 @@
 use ahash::AHashSet;
+use std::sync::LazyLock;
 use tree_sitter::{Node, Parser, Tree};
 
 use crate::error::{FormatError, Position};
@@ -6,6 +7,31 @@ use crate::lower::context::LowerContext;
 use crate::lower::lower_node;
 use crate::options::{FileType, FormattingOptions};
 use crate::printer::Printer;
+
+static KOTLIN_KIND_NAMES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    let language: tree_sitter::Language =
+        unsafe { std::mem::transmute((tree_sitter_kotlin::LANGUAGE.into_raw())()) };
+    let count = language.node_kind_count();
+    let mut names = Vec::with_capacity(count);
+    for id in 0..count as u16 {
+        names.push(language.node_kind_for_id(id).unwrap_or(""));
+    }
+    names
+});
+
+/// Fast O(1) lookup of a node's kind string by `kind_id` without C-string `strlen` or UTF-8 validation.
+#[inline]
+pub fn node_kind(node: Node<'_>) -> &'static str {
+    let id = node.kind_id() as usize;
+    let names = &*KOTLIN_KIND_NAMES;
+    if id < names.len() {
+        names[id]
+    } else if node.is_error() {
+        "ERROR"
+    } else {
+        node.kind()
+    }
+}
 
 pub struct KotlinParser {
     parser: Parser,
@@ -84,26 +110,33 @@ pub fn format_source(
         });
     }
 
-    // Extract package name if present
+    // Extract package name and check whether imports exist
     let mut package_name = None;
+    let mut has_imports = false;
     let mut cursor = root.walk();
     for child in root.children(&mut cursor) {
-        if child.kind() == "package_header" {
+        let kind = node_kind(child);
+        if kind == "package_header" {
             let mut pkg_cursor = child.walk();
             for pkg_child in child.children(&mut pkg_cursor) {
-                if pkg_child.kind() == "identifier"
+                if node_kind(pkg_child) == "identifier"
                     && let Some(s) = source.get(pkg_child.start_byte()..pkg_child.end_byte())
                 {
                     package_name = Some(s.trim());
                     break;
                 }
             }
+        } else if kind == "import_list" {
+            has_imports = true;
             break;
         }
     }
 
-    let used_references: AHashSet<&str> =
-        crate::rules::imports::collect_used_references(root, source);
+    let used_references: AHashSet<&str> = if has_imports {
+        crate::rules::imports::collect_used_references(root, source)
+    } else {
+        AHashSet::new()
+    };
     let redundant_semicolons = crate::rules::semicolons::find_redundant_semicolons(root, source);
 
     let ctx = LowerContext::new(source, options)
@@ -115,7 +148,7 @@ pub fn format_source(
         eprintln!("{}", crate::doc::dump::dump(&doc, 0));
     }
     let mut printer = Printer::new(options);
-    let formatted = printer.print(&doc);
+    let formatted = printer.print_with_capacity(&doc, source.len() + 64);
 
     Ok(formatted)
 }

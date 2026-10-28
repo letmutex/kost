@@ -93,3 +93,37 @@ pub fn is_lower_camel_case(text: &str) -> bool {
     }
     chars.all(|character| character.is_ascii_alphanumeric())
 }
+
+/// Fast blank-line check between declaration siblings using parent cursor when needed.
+pub fn has_blank_line_between_decls_with_context(
+    prev_decl: tree_sitter::Node,
+    curr_decl: tree_sitter::Node,
+    prev_sibling: Option<tree_sitter::Node>,
+    parent: Option<tree_sitter::Node>,
+) -> bool {
+    if curr_decl.start_position().row <= prev_decl.end_position().row + 1 {
+        return false;
+    }
+    if prev_sibling == Some(prev_decl) {
+        return true;
+    }
+    let Some(parent_node) = parent else {
+        return crate::util::has_blank_line_between_decls(prev_decl, curr_decl);
+    };
+    let (prev_end, curr_start) = (prev_decl.end_byte(), curr_decl.start_byte());
+    let mut last_end_row = prev_decl.end_position().row;
+    let mut cursor = parent_node.walk();
+    for sibling in parent_node.children(&mut cursor) {
+        if sibling.start_byte() < prev_end || sibling == prev_decl {
+            continue;
+        }
+        if sibling.start_byte() >= curr_start || sibling == curr_decl {
+            break;
+        }
+        if sibling.start_position().row > last_end_row + 1 {
+            return true;
+        }
+        last_end_row = last_end_row.max(sibling.end_position().row);
+    }
+    curr_decl.start_position().row > last_end_row + 1
+}

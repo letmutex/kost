@@ -1,17 +1,17 @@
 //! Built-in AST rule detecting unused imports (Ktlint rule 8).
 
 use ahash::AHashSet;
-use smol_str::SmolStr;
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
+use crate::util::node_kind;
 
 /// Rule that detects unused import statements.
 pub struct NoUnusedImports;
 
-struct ImportInfo {
-    symbol: SmolStr,
-    full_path: SmolStr,
+struct ImportInfo<'a> {
+    symbol: &'a str,
+    full_path: &'a str,
 }
 
 impl AstRule for NoUnusedImports {
@@ -25,24 +25,28 @@ impl AstRule for NoUnusedImports {
 
     fn check_node(&self, _node: tree_sitter::Node, _source: &[u8], _ctx: &mut LintCtx) {}
 
+    fn has_after_node(&self) -> bool {
+        true
+    }
+
     fn ignores_suppressions(&self) -> bool {
         true
     }
 
     fn after_node(&self, node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
         let mut imports = Vec::new();
-        let mut unreferenced = AHashSet::new();
+        let mut unreferenced: AHashSet<&str> = AHashSet::new();
 
         let mut cursor = node.walk();
         for child in node.children(&mut cursor) {
-            if child.kind() == "import_list" {
+            if node_kind(child) == "import_list" {
                 let mut list_cursor = child.walk();
                 for inner_child in child.children(&mut list_cursor) {
-                    if inner_child.kind() == "import_header"
+                    if node_kind(inner_child) == "import_header"
                         && let Some(info) = parse_import_target(inner_child, source)
                     {
-                        if !is_operator_or_component(&info.symbol) {
-                            unreferenced.insert(info.symbol.clone());
+                        if !is_operator_or_component(info.symbol) {
+                            unreferenced.insert(info.symbol);
                         }
                         imports.push((inner_child, info));
                     }
@@ -54,37 +58,40 @@ impl AstRule for NoUnusedImports {
             return;
         }
 
-        scan_used_identifiers(node, source, &mut unreferenced, false);
+        scan_used_identifiers_with_cursor(node, source, &mut unreferenced);
 
         for (import_node, info) in imports {
-            if unreferenced.contains(&info.symbol) {
-                let message = common::concat_str!("Unused import: ", &info.full_path);
+            if unreferenced.contains(info.symbol) {
+                let message = common::concat_str!("Unused import: ", info.full_path);
                 ctx.report(import_node, message);
             }
         }
     }
 }
 
-fn parse_import_target(node: tree_sitter::Node, source: &[u8]) -> Option<ImportInfo> {
+fn parse_import_target<'a>(node: tree_sitter::Node, source: &'a [u8]) -> Option<ImportInfo<'a>> {
     let mut is_wildcard = false;
     let mut full_path = "";
     let mut alias = None;
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if child.kind() == "wildcard_import" {
+        let kind = node_kind(child);
+        if kind == "wildcard_import" {
             is_wildcard = true;
-        } else if child.kind() == "identifier" {
+        } else if kind == "identifier" {
             if let Ok(text) = child.utf8_text(source) {
                 full_path = text;
             }
-        } else if child.kind() == "import_alias" {
+        } else if kind == "import_alias" {
             let mut alias_cursor = child.walk();
             for alias_child in child.children(&mut alias_cursor) {
-                if matches!(alias_child.kind(), "simple_identifier" | "type_identifier")
-                    && let Ok(name) = alias_child.utf8_text(source)
+                if matches!(
+                    node_kind(alias_child),
+                    "simple_identifier" | "type_identifier"
+                ) && let Ok(name) = alias_child.utf8_text(source)
                 {
-                    alias = Some(SmolStr::new(name.trim_matches('`')));
+                    alias = Some(name.trim_matches('`'));
                     break;
                 }
             }
@@ -96,60 +103,68 @@ fn parse_import_target(node: tree_sitter::Node, source: &[u8]) -> Option<ImportI
     }
 
     let symbol = match alias {
-        Some(a) => a,
+        Some(alias_name) => alias_name,
         None => {
             let last_segment = full_path.rsplit('.').next().unwrap_or(full_path);
-            SmolStr::new(last_segment.trim_matches('`'))
+            last_segment.trim_matches('`')
         }
     };
 
-    Some(ImportInfo {
-        symbol,
-        full_path: SmolStr::new(full_path),
-    })
+    Some(ImportInfo { symbol, full_path })
 }
 
-fn scan_used_identifiers(
-    node: tree_sitter::Node,
+fn scan_used_identifiers_with_cursor(
+    root: tree_sitter::Node,
     source: &[u8],
-    unreferenced: &mut AHashSet<SmolStr>,
-    in_import_header: bool,
+    unreferenced: &mut AHashSet<&str>,
 ) {
-    if unreferenced.is_empty() {
-        return;
-    }
-
-    let kind = node.kind();
-    if kind == "package_header" {
-        return;
-    }
-
-    let is_import = in_import_header || kind == "import_header" || kind == "import_alias";
-
-    if matches!(
-        kind,
-        "simple_identifier" | "type_identifier" | "interpolated_identifier"
-    ) {
-        if !is_import && let Ok(text) = node.utf8_text(source) {
-            unreferenced.remove(text.trim_matches('`'));
-        }
-    } else if kind == "multiline_comment"
-        && let Ok(comment_text) = node.utf8_text(source)
-        && comment_text.starts_with("/**")
-    {
-        extract_kdoc_symbols(comment_text, unreferenced);
-    }
-
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        scan_used_identifiers(child, source, unreferenced, is_import);
+    let mut cursor = root.walk();
+    let mut import_depth: usize = 0;
+    loop {
         if unreferenced.is_empty() {
-            break;
+            return;
+        }
+        let curr = cursor.node();
+        let kind = node_kind(curr);
+        let is_import_node = kind == "import_header" || kind == "import_alias";
+        let in_import = import_depth > 0 || is_import_node;
+        let skip_children = kind == "package_header" || kind == "import_alias";
+
+        if !in_import
+            && matches!(
+                kind,
+                "simple_identifier" | "type_identifier" | "interpolated_identifier"
+            )
+        {
+            if let Ok(text) = curr.utf8_text(source) {
+                unreferenced.remove(text.trim_matches('`'));
+            }
+        } else if kind == "multiline_comment"
+            && let Ok(comment_text) = curr.utf8_text(source)
+            && comment_text.starts_with("/**")
+        {
+            extract_kdoc_symbols(comment_text, unreferenced);
+        }
+
+        if !skip_children && cursor.goto_first_child() {
+            if in_import {
+                import_depth += 1;
+            }
+            continue;
+        }
+        loop {
+            if cursor.goto_next_sibling() {
+                break;
+            }
+            if !cursor.goto_parent() {
+                return;
+            }
+            import_depth = import_depth.saturating_sub(1);
         }
     }
 }
 
-fn extract_kdoc_symbols(kdoc: &str, unreferenced: &mut AHashSet<SmolStr>) {
+fn extract_kdoc_symbols(kdoc: &str, unreferenced: &mut AHashSet<&str>) {
     for (start_idx, c) in kdoc.char_indices() {
         if c == '['
             && let Some(end_offset) = kdoc[start_idx..].find(']')

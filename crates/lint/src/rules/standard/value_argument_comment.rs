@@ -2,6 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
+use crate::util::node_kind;
 
 /// Rule that disallows misplaced comments inside call argument lists.
 pub struct ValueArgumentComment;
@@ -12,41 +13,37 @@ impl AstRule for ValueArgumentComment {
     }
 
     fn interested_kinds(&self) -> &'static [&'static str] {
-        &["value_arguments", "value_argument"]
+        &["line_comment", "multiline_comment", "comment"]
     }
 
     fn check_node(&self, node: tree_sitter::Node, _source: &[u8], ctx: &mut LintCtx) {
-        if node.kind() == "value_argument" {
-            let mut cursor = node.walk();
-            for child in node.children(&mut cursor) {
-                if is_comment(child.kind()) {
-                    ctx.report(
-                        child,
-                        "A (block or EOL) comment inside or on same line after a 'value_argument' is not allowed. It may be placed on a separate line above.",
-                    );
-                }
-            }
-        } else if node.kind() == "value_arguments" {
-            let mut cursor = node.walk();
+        let Some(parent) = ctx.parent() else {
+            return;
+        };
+        let parent_kind = node_kind(parent);
+        if parent_kind == "value_argument" {
+            ctx.report(
+                node,
+                "A (block or EOL) comment inside or on same line after a 'value_argument' is not allowed. It may be placed on a separate line above.",
+            );
+        } else if parent_kind == "value_arguments" {
+            let mut cursor = parent.walk();
             let mut prev_arg: Option<tree_sitter::Node> = None;
-            for child in node.children(&mut cursor) {
-                if is_comment(child.kind()) {
+            for child in parent.children(&mut cursor) {
+                if child == node {
                     if let Some(prev) = prev_arg
-                        && child.start_position().row == prev.end_position().row
+                        && node.start_position().row == prev.end_position().row
                     {
                         ctx.report(
-                            child,
+                            node,
                             "A (block or EOL) comment inside or on same line after a 'value_argument' is not allowed. It may be placed on a separate line above.",
                         );
                     }
-                } else if child.kind() == "value_argument" {
+                    break;
+                } else if node_kind(child) == "value_argument" {
                     prev_arg = Some(child);
                 }
             }
         }
     }
-}
-
-fn is_comment(kind: &str) -> bool {
-    matches!(kind, "line_comment" | "multiline_comment" | "comment")
 }

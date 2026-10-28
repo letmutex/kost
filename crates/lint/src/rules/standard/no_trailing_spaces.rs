@@ -22,6 +22,10 @@ impl AstRule for NoTrailingSpaces {
 
     fn check_node(&self, _node: tree_sitter::Node, _source: &[u8], _ctx: &mut LintCtx) {}
 
+    fn has_after_node(&self) -> bool {
+        true
+    }
+
     fn after_node(&self, _node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
         if !ctx.trim_trailing_whitespace() {
             return;

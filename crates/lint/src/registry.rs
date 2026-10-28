@@ -5,6 +5,38 @@ use crate::types::{PropertyKey, Scope, Severity};
 use ahash::{AHashMap, AHashSet};
 use smallvec::SmallVec;
 use smol_str::SmolStr;
+use std::sync::LazyLock;
+
+static KOTLIN_KIND_NAMES: LazyLock<Vec<&'static str>> = LazyLock::new(|| {
+    let language: tree_sitter::Language =
+        unsafe { std::mem::transmute((tree_sitter_kotlin::LANGUAGE.into_raw())()) };
+    let count = language.node_kind_count();
+    let mut names = Vec::with_capacity(count);
+    for id in 0..count as u16 {
+        names.push(language.node_kind_for_id(id).unwrap_or(""));
+    }
+    names
+});
+
+/// Returns the static slice of all tree-sitter-kotlin node kind names indexed by `kind_id`.
+#[inline]
+pub fn kotlin_kind_names() -> &'static [&'static str] {
+    &KOTLIN_KIND_NAMES
+}
+
+/// Fast O(1) lookup of a node's kind string by `kind_id` without C-string `strlen` or UTF-8 validation.
+#[inline]
+pub fn node_kind(node: tree_sitter::Node) -> &'static str {
+    let id = node.kind_id() as usize;
+    let names = &*KOTLIN_KIND_NAMES;
+    if id < names.len() {
+        names[id]
+    } else if node.is_error() {
+        "ERROR"
+    } else {
+        node.kind()
+    }
+}
 
 /// Compiled and indexed registry of active lint rules.
 pub struct RuleRegistry {
@@ -13,10 +45,18 @@ pub struct RuleRegistry {
     pub ast_report_ids: Vec<SmolStr>,
     /// Node kind string -> indices in `ast_rules` for O(1) dispatch
     pub ast_dispatch: AHashMap<&'static str, SmallVec<[usize; 4]>>,
+    /// Dense `kind_id` -> pre-order rule indices in `ast_rules`
+    pub ast_dispatch_by_id: Vec<SmallVec<[usize; 4]>>,
+    /// Dense `kind_id` -> post-order (`after_node`) rule indices in `ast_rules`
+    pub ast_post_dispatch_by_id: Vec<SmallVec<[usize; 2]>>,
     /// Catch-all AST rules that inspect every node kind
     pub ast_catch_all: SmallVec<[usize; 2]>,
+    /// Catch-all post-order AST rules that inspect every node kind
+    pub ast_post_catch_all: SmallVec<[usize; 2]>,
     /// Configured severities for AST rules (parallel to ast_rules)
     pub ast_severities: Vec<Severity>,
+    /// Precomputed suppression-ignoring flags for AST rules (parallel to ast_rules)
+    pub ast_ignores_suppressions: Vec<bool>,
     /// Target scope -> active statistical rules
     pub stat_dispatch: AHashMap<Scope, Vec<StatRule>>,
     /// Set of property keys needed by at least one active statistical rule
@@ -112,8 +152,11 @@ impl RuleRegistryBuilder {
         let mut active_ast_rules = Vec::new();
         let mut ast_report_ids = Vec::new();
         let mut ast_severities = Vec::new();
+        let mut ast_ignores_suppressions = Vec::new();
         let mut ast_dispatch: AHashMap<&'static str, SmallVec<[usize; 4]>> = AHashMap::new();
+        let mut ast_post_dispatch: AHashMap<&'static str, SmallVec<[usize; 2]>> = AHashMap::new();
         let mut ast_catch_all = SmallVec::new();
+        let mut ast_post_catch_all = SmallVec::new();
         let mut needs_file_exclusions = false;
 
         for rule in self.ast_rules {
@@ -139,19 +182,23 @@ impl RuleRegistryBuilder {
                 .unwrap_or_else(|| full_id.clone());
 
             let index = active_ast_rules.len();
-            let kinds = rule.interested_kinds();
-            if kinds.is_empty() {
-                ast_catch_all.push(index);
-            } else {
-                for &kind in kinds {
-                    ast_dispatch.entry(kind).or_default().push(index);
-                }
-            }
+            register_rule_dispatch(
+                rule.as_ref(),
+                index,
+                &mut ast_dispatch,
+                &mut ast_post_dispatch,
+                &mut ast_catch_all,
+                &mut ast_post_catch_all,
+            );
 
+            ast_ignores_suppressions.push(rule.ignores_suppressions());
             active_ast_rules.push(rule);
             ast_report_ids.push(report_id);
             ast_severities.push(severity);
         }
+
+        let (ast_dispatch_by_id, ast_post_dispatch_by_id) =
+            compile_kind_id_dispatch(&ast_dispatch, &ast_post_dispatch);
 
         let (stat_dispatch, needed_properties) = compile_stat_rules(
             self.stat_rules,
@@ -163,14 +210,64 @@ impl RuleRegistryBuilder {
             ast_rules: active_ast_rules,
             ast_report_ids,
             ast_dispatch,
+            ast_dispatch_by_id,
+            ast_post_dispatch_by_id,
             ast_catch_all,
+            ast_post_catch_all,
             ast_severities,
+            ast_ignores_suppressions,
             stat_dispatch,
             needed_properties,
             needs_file_exclusions,
             ignore_patterns: self.ignore_patterns,
         }
     }
+}
+
+fn register_rule_dispatch(
+    rule: &dyn AstRule,
+    index: usize,
+    ast_dispatch: &mut AHashMap<&'static str, SmallVec<[usize; 4]>>,
+    ast_post_dispatch: &mut AHashMap<&'static str, SmallVec<[usize; 2]>>,
+    ast_catch_all: &mut SmallVec<[usize; 2]>,
+    ast_post_catch_all: &mut SmallVec<[usize; 2]>,
+) {
+    let has_post = rule.has_after_node();
+    let kinds = rule.interested_kinds();
+    if kinds.is_empty() {
+        ast_catch_all.push(index);
+        if has_post {
+            ast_post_catch_all.push(index);
+        }
+    } else {
+        for &kind in kinds {
+            ast_dispatch.entry(kind).or_default().push(index);
+            if has_post {
+                ast_post_dispatch.entry(kind).or_default().push(index);
+            }
+        }
+    }
+}
+
+type KindIdDispatch = (Vec<SmallVec<[usize; 4]>>, Vec<SmallVec<[usize; 2]>>);
+
+fn compile_kind_id_dispatch(
+    ast_dispatch: &AHashMap<&'static str, SmallVec<[usize; 4]>>,
+    ast_post_dispatch: &AHashMap<&'static str, SmallVec<[usize; 2]>>,
+) -> KindIdDispatch {
+    let kind_names = crate::util::kotlin_kind_names();
+    let mut ast_dispatch_by_id = Vec::with_capacity(kind_names.len());
+    let mut ast_post_dispatch_by_id = Vec::with_capacity(kind_names.len());
+    for &kind_name in kind_names {
+        ast_dispatch_by_id.push(ast_dispatch.get(kind_name).cloned().unwrap_or_default());
+        ast_post_dispatch_by_id.push(
+            ast_post_dispatch
+                .get(kind_name)
+                .cloned()
+                .unwrap_or_default(),
+        );
+    }
+    (ast_dispatch_by_id, ast_post_dispatch_by_id)
 }
 
 fn compile_stat_rules(

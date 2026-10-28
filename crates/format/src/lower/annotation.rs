@@ -24,25 +24,21 @@ fn is_empty_declaration(node: &Node<'_>) -> bool {
         return false;
     }
     let kind = node.kind();
-    if matches!(kind, "class_declaration" | "object_declaration") {
-        let body = node
-            .children(&mut node.walk())
-            .find(|c| matches!(c.kind(), "class_body" | "enum_class_body"));
-        return body.is_none_or(|b| {
-            !b.children(&mut b.walk())
-                .any(|c| c.kind() != "{" && c.kind() != "}")
-        });
+    let is_class_or_obj = matches!(kind, "class_declaration" | "object_declaration");
+    if !is_class_or_obj && kind != "function_declaration" {
+        return false;
     }
-    if kind == "function_declaration" {
-        let body = node
-            .children(&mut node.walk())
-            .find(|c| matches!(c.kind(), "function_body" | "block"));
-        return body.is_none_or(|b| {
-            !b.children(&mut b.walk())
-                .any(|c| c.kind() != "{" && c.kind() != "}")
-        });
-    }
-    false
+    let body = node.children(&mut node.walk()).find(|c| {
+        if is_class_or_obj {
+            matches!(c.kind(), "class_body" | "enum_class_body")
+        } else {
+            matches!(c.kind(), "function_body" | "block")
+        }
+    });
+    body.is_none_or(|b| {
+        !b.children(&mut b.walk())
+            .any(|c| c.kind() != "{" && c.kind() != "}")
+    })
 }
 
 fn resolve_annotation_style_trailing_doc<'a>(
@@ -240,12 +236,12 @@ pub fn lower_modifiers<'a>(
 ) -> Doc<'a> {
     let mut docs = Vec::new();
     let mut cursor = node.walk();
-    let m_ctx = build_modifier_context(&node, ctx);
+    let mut m_ctx: Option<ModifierContext> = None;
 
     let mut only_annotations_so_far = true;
     let mut prev_child: Option<Node<'a>> = None;
     for child in node.children(&mut cursor) {
-        let kind = child.kind();
+        let kind = crate::engine::node_kind(child);
         if crate::rules::comments::try_merge_continuation_comment(
             prev_child, &child, &mut docs, ctx,
         ) {
@@ -264,7 +260,8 @@ pub fn lower_modifiers<'a>(
             lower_fn(child, ctx)
         };
         if kind == "annotation" {
-            let mut item_m_ctx = m_ctx.clone();
+            let base_ctx = m_ctx.get_or_insert_with(|| build_modifier_context(&node, ctx));
+            let mut item_m_ctx = base_ctx.clone();
             item_m_ctx.only_annotations_so_far = only_annotations_so_far;
             docs.push(doc);
             docs.push(annotation_trailing_doc(&child, &node, ctx, &item_m_ctx));

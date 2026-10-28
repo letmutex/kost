@@ -249,16 +249,18 @@ pub(crate) fn accumulate_chain_step<'a>(
                     "when_expression" | "if_expression" | "try_expression" | "lambda_literal"
                 ))
         {
+            let prev = std::mem::replace(prefix_doc, Doc::empty());
             *prefix_doc = Doc::concat(vec![
-                prefix_doc.clone(),
+                prev,
                 Doc::concat(selector_docs),
                 Doc::concat(call_docs),
             ]);
         } else if step_call_is_none {
             let mut step_docs = selector_docs;
             step_docs.extend(call_docs);
+            let prev = std::mem::replace(prefix_doc, Doc::empty());
             *prefix_doc = Doc::group(Doc::concat(vec![
-                prefix_doc.clone(),
+                prev,
                 Doc::continuation_indent(Doc::concat(vec![Doc::SoftLine, Doc::concat(step_docs)])),
             ]));
         } else {
@@ -266,10 +268,11 @@ pub(crate) fn accumulate_chain_step<'a>(
             if is_last && curr_has_call {
                 *last_call_prefix_gid = Some(pgid);
             }
+            let prev = std::mem::replace(prefix_doc, Doc::empty());
             *prefix_doc = Doc::group_with_id(
                 pgid,
                 Doc::concat(vec![
-                    prefix_doc.clone(),
+                    prev,
                     Doc::continuation_indent(Doc::concat(vec![
                         Doc::SoftLine,
                         Doc::concat(selector_docs),
@@ -277,7 +280,8 @@ pub(crate) fn accumulate_chain_step<'a>(
                 ]),
             );
             if !call_docs.is_empty() {
-                *prefix_doc = Doc::concat(vec![prefix_doc.clone(), Doc::concat(call_docs)]);
+                let prev_grouped = std::mem::replace(prefix_doc, Doc::empty());
+                *prefix_doc = Doc::concat(vec![prev_grouped, Doc::concat(call_docs)]);
             }
         }
     } else {

@@ -22,6 +22,11 @@ pub trait AstRule: Send + Sync {
     /// Post-order visit hook: invoked after all child nodes have been traversed.
     fn after_node(&self, _node: tree_sitter::Node, _source: &[u8], _ctx: &mut LintCtx) {}
 
+    /// Whether this rule implements `after_node` post-order logic.
+    fn has_after_node(&self) -> bool {
+        false
+    }
+
     /// Whether this rule ignores Ktlint suppressions (e.g. no-unused-imports).
     fn ignores_suppressions(&self) -> bool {
         false

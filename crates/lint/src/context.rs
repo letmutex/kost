@@ -139,6 +139,9 @@ pub struct LintCtx<'a> {
     pub has_test_import: Option<bool>,
     pub ancestors: Vec<tree_sitter::Node<'a>>,
     pub prev_sibling: Option<tree_sitter::Node<'a>>,
+    pub prev_named_sibling: Option<tree_sitter::Node<'a>>,
+    pub prev_meaningful_sibling: Option<tree_sitter::Node<'a>>,
+    pub prev_declaration_sibling: Option<tree_sitter::Node<'a>>,
     pub editorconfig: Option<&'a common::editorconfig::ResolvedEditorConfig>,
     pub disabled_ast_rules: [u64; 4],
 }
@@ -172,6 +175,9 @@ impl<'a> LintCtx<'a> {
             has_test_import: None,
             ancestors: Vec::with_capacity(64),
             prev_sibling: None,
+            prev_named_sibling: None,
+            prev_meaningful_sibling: None,
+            prev_declaration_sibling: None,
             editorconfig: None,
             disabled_ast_rules: [0u64; 4],
         }
@@ -279,6 +285,24 @@ impl<'a> LintCtx<'a> {
     #[inline]
     pub fn prev_sibling(&self) -> Option<tree_sitter::Node<'a>> {
         self.prev_sibling
+    }
+
+    /// Returns the nearest preceding named sibling in the current node's parent child list.
+    #[inline]
+    pub fn prev_named_sibling(&self) -> Option<tree_sitter::Node<'a>> {
+        self.prev_named_sibling
+    }
+
+    /// Returns the nearest preceding sibling that is named or a comment.
+    #[inline]
+    pub fn prev_meaningful_sibling(&self) -> Option<tree_sitter::Node<'a>> {
+        self.prev_meaningful_sibling
+    }
+
+    /// Returns the nearest preceding declaration sibling in the current node's parent child list.
+    #[inline]
+    pub fn prev_declaration_sibling(&self) -> Option<tree_sitter::Node<'a>> {
+        self.prev_declaration_sibling
     }
 
     /// Reports a violation on the full span of an AST node.

@@ -98,7 +98,7 @@ pub fn clean_identifier_path(node: Node<'_>, source: &str) -> String {
 pub fn collect_used_references<'a>(root: Node<'_>, source: &'a str) -> AHashSet<&'a str> {
     let mut used = AHashSet::with_capacity(256);
     extract_all_kdoc_references(source, &mut used);
-    collect_refs_recursive(root, source, &mut used);
+    collect_refs_with_cursor(root, source, &mut used);
     used
 }
 
@@ -118,24 +118,34 @@ fn extract_all_kdoc_references<'a>(source: &'a str, used: &mut AHashSet<&'a str>
     }
 }
 
-fn collect_refs_recursive<'a>(node: Node<'_>, source: &'a str, used: &mut AHashSet<&'a str>) {
-    let kind = node.kind();
-    if kind == "package_header" || kind == "import_list" || kind == "import_header" {
-        return;
-    }
+fn collect_refs_with_cursor<'a>(root: Node<'_>, source: &'a str, used: &mut AHashSet<&'a str>) {
+    let mut cursor = root.walk();
+    let bytes = source.as_bytes();
+    loop {
+        let node = cursor.node();
+        let kind = crate::engine::node_kind(node);
+        let mut skip_children = false;
 
-    if kind == "simple_identifier" || kind == "type_identifier" || kind == "identifier" {
-        if let Some(slice) = source.get(node.start_byte()..node.end_byte()) {
-            let clean = slice.trim().trim_matches('`');
-            if !clean.is_empty() && !clean.contains('.') {
-                used.insert(clean);
+        if kind == "package_header" || kind == "import_list" || kind == "import_header" {
+            skip_children = true;
+        } else if kind == "simple_identifier" || kind == "type_identifier" || kind == "identifier" {
+            if let Some(slice) = source.get(node.start_byte()..node.end_byte()) {
+                let clean = slice.trim().trim_matches('`');
+                if !clean.is_empty() && !clean.contains('.') {
+                    used.insert(clean);
+                }
             }
+            skip_children = true;
         }
-        return;
-    }
 
-    if node.child_count() == 0 {
-        if let Some(slice) = source.get(node.start_byte()..node.end_byte()) {
+        if !skip_children && cursor.goto_first_child() {
+            continue;
+        }
+
+        if !skip_children
+            && bytes.get(node.start_byte()) == Some(&b'`')
+            && let Some(slice) = source.get(node.start_byte()..node.end_byte())
+        {
             let trimmed = slice.trim();
             if trimmed.starts_with('`') && trimmed.ends_with('`') && trimmed.len() >= 2 {
                 let clean = trimmed.trim_matches('`');
@@ -144,12 +154,15 @@ fn collect_refs_recursive<'a>(node: Node<'_>, source: &'a str, used: &mut AHashS
                 }
             }
         }
-        return;
-    }
 
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        collect_refs_recursive(child, source, used);
+        loop {
+            if cursor.goto_next_sibling() {
+                break;
+            }
+            if !cursor.goto_parent() {
+                return;
+            }
+        }
     }
 }
 

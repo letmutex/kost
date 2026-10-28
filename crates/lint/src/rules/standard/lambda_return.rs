@@ -2,6 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
+use crate::util::node_kind;
 
 /// Rule that flags redundant labeled return statements at the end of a lambda.
 pub struct LambdaReturn;
@@ -24,7 +25,7 @@ impl AstRule for LambdaReturn {
             return;
         };
 
-        if last_statement.kind() != "jump_expression" {
+        if node_kind(last_statement) != "jump_expression" {
             return;
         }
 
@@ -37,7 +38,7 @@ impl AstRule for LambdaReturn {
             return;
         }
 
-        let expected_label = find_innermost_lambda_label(node, source);
+        let expected_label = find_innermost_lambda_label(ctx, source);
         if expected_label == Some(label) {
             ctx.report(last_statement, "Unnecessary return");
         }
@@ -48,7 +49,7 @@ fn find_statements_node(lambda_node: tree_sitter::Node) -> Option<tree_sitter::N
     let mut cursor = lambda_node.walk();
     lambda_node
         .children(&mut cursor)
-        .find(|&child| child.kind() == "statements")
+        .find(|&child| node_kind(child) == "statements")
 }
 
 fn find_last_non_comment_statement(
@@ -59,7 +60,7 @@ fn find_last_non_comment_statement(
     for child in statements_node.children(&mut cursor) {
         if child.is_named()
             && !matches!(
-                child.kind(),
+                node_kind(child),
                 "comment" | "line_comment" | "multiline_comment"
             )
         {
@@ -79,7 +80,8 @@ fn parse_jump_expression<'a>(
 
     let mut cursor = jump_node.walk();
     for child in jump_node.children(&mut cursor) {
-        if child.kind() == "label" {
+        let kind = node_kind(child);
+        if kind == "label" {
             if let Ok(text) = child.utf8_text(source) {
                 let trimmed = text.trim_matches('@').trim();
                 label_name = Some(trimmed);
@@ -87,10 +89,7 @@ fn parse_jump_expression<'a>(
             seen_label = true;
         } else if seen_label
             && child.is_named()
-            && !matches!(
-                child.kind(),
-                "comment" | "line_comment" | "multiline_comment"
-            )
+            && !matches!(kind, "comment" | "line_comment" | "multiline_comment")
         {
             has_value = true;
         }
@@ -99,16 +98,13 @@ fn parse_jump_expression<'a>(
     (label_name, has_value)
 }
 
-fn find_innermost_lambda_label<'a>(
-    lambda_node: tree_sitter::Node,
-    source: &'a [u8],
-) -> Option<&'a str> {
-    let parent = lambda_node.parent()?;
+fn find_innermost_lambda_label<'a>(ctx: &LintCtx, source: &'a [u8]) -> Option<&'a str> {
+    let parent = ctx.parent()?;
 
-    if parent.kind() == "annotated_lambda" {
+    if node_kind(parent) == "annotated_lambda" {
         let mut cursor = parent.walk();
         for child in parent.children(&mut cursor) {
-            if child.kind() == "label"
+            if node_kind(child) == "label"
                 && let Ok(text) = child.utf8_text(source)
             {
                 let trimmed = text.trim_matches('@').trim();
@@ -117,20 +113,18 @@ fn find_innermost_lambda_label<'a>(
         }
     }
 
-    find_enclosing_call_name(lambda_node, source)
+    find_enclosing_call_name(ctx, source)
 }
 
-fn find_enclosing_call_name<'a>(
-    lambda_node: tree_sitter::Node,
-    source: &'a [u8],
-) -> Option<&'a str> {
-    let mut current = lambda_node.parent();
-    while let Some(node) = current {
-        if node.kind() == "call_expression" {
+fn find_enclosing_call_name<'a>(ctx: &LintCtx, source: &'a [u8]) -> Option<&'a str> {
+    let mut level = 1;
+    while let Some(node) = ctx.ancestor(level) {
+        let kind = node_kind(node);
+        if kind == "call_expression" {
             return extract_callee_name(node, source);
         }
         if matches!(
-            node.kind(),
+            kind,
             "function_declaration"
                 | "property_declaration"
                 | "class_declaration"
@@ -138,7 +132,7 @@ fn find_enclosing_call_name<'a>(
         ) {
             break;
         }
-        current = node.parent();
+        level += 1;
     }
     None
 }

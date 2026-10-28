@@ -2,7 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
-use crate::util::{WhitespaceBefore, spaces_before};
+use crate::util::{WhitespaceBefore, node_kind, spaces_before};
 
 /// Rule that forbids spacing between a function identifier and its parameter/argument opening parenthesis.
 pub struct FunctionNameSpacing;
@@ -17,7 +17,7 @@ impl AstRule for FunctionNameSpacing {
     }
 
     fn check_node(&self, node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
-        if node.kind() == "function_declaration" {
+        if node_kind(node) == "function_declaration" {
             check_function_declaration(node, source, ctx);
         } else {
             check_call_expression(node, source, ctx);
@@ -30,9 +30,10 @@ fn check_function_declaration(node: tree_sitter::Node, source: &[u8], ctx: &mut 
     let mut name_node = None;
 
     for child in node.children(&mut cursor) {
-        if child.kind() == "simple_identifier" {
+        let kind = node_kind(child);
+        if kind == "simple_identifier" {
             name_node = Some(child);
-        } else if child.kind() == "function_value_parameters" {
+        } else if kind == "function_value_parameters" {
             if let Some(name) = name_node {
                 match spaces_before(child, source) {
                     WhitespaceBefore::Spaces(count) if count > 0 => {
@@ -57,24 +58,27 @@ fn check_call_expression(node: tree_sitter::Node, source: &[u8], ctx: &mut LintC
         return;
     };
 
-    if call_suffix.kind() != "call_suffix" {
+    if callee.end_byte() == call_suffix.start_byte() {
         return;
     }
 
-    let Some(target) = get_callee_name_node(callee) else {
+    if node_kind(call_suffix) != "call_suffix" {
         return;
-    };
+    }
+
     let mut cursor = call_suffix.walk();
     for child in call_suffix.children(&mut cursor) {
+        let kind = node_kind(child);
         if matches!(
-            child.kind(),
+            kind,
             "type_arguments" | "annotated_lambda" | "lambda_literal"
         ) {
             return;
         }
-        if child.kind() == "value_arguments" {
+        if kind == "value_arguments" {
             if let WhitespaceBefore::Spaces(count) = spaces_before(child, source)
                 && count > 0
+                && let Some(target) = get_callee_name_node(callee)
             {
                 ctx.report(target, "Unexpected spacing between function name and '('");
             }
@@ -84,18 +88,19 @@ fn check_call_expression(node: tree_sitter::Node, source: &[u8], ctx: &mut LintC
 }
 
 fn get_callee_name_node(callee: tree_sitter::Node) -> Option<tree_sitter::Node> {
-    if callee.kind() == "simple_identifier" {
+    let callee_kind = node_kind(callee);
+    if callee_kind == "simple_identifier" {
         return Some(callee);
     }
-    if callee.kind() == "navigation_expression" {
+    if callee_kind == "navigation_expression" {
         let child_count = callee.child_count();
         if child_count > 0
             && let Some(suffix) = callee.child(child_count - 1)
-            && suffix.kind() == "navigation_suffix"
+            && node_kind(suffix) == "navigation_suffix"
         {
             let mut cursor = suffix.walk();
             for child in suffix.children(&mut cursor) {
-                if child.kind() == "simple_identifier" {
+                if node_kind(child) == "simple_identifier" {
                     return Some(child);
                 }
             }

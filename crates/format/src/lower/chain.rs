@@ -28,9 +28,10 @@ fn lower_step_call_and_post_ops<'a>(
     step: &ChainStep<'a>,
     idx: usize,
     steps: &[ChainStep<'a>],
+    receiver: &Node<'a>,
     state: &mut ChainStepState<'a>,
     analysis: &ChainAnalysis,
-    is_on_rhs: bool,
+    is_on_rhs: &mut Option<bool>,
     is_last: bool,
     ctx: &LowerContext<'a, '_>,
     lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
@@ -39,6 +40,7 @@ fn lower_step_call_and_post_ops<'a>(
         step,
         idx,
         steps,
+        receiver,
         state.in_prefix,
         analysis.break_scoping_root,
         is_on_rhs,
@@ -62,7 +64,7 @@ fn format_single_chain_step<'a>(
     steps: &[ChainStep<'a>],
     analysis: &ChainAnalysis,
     receiver: &Node<'a>,
-    is_on_rhs: bool,
+    is_on_rhs: &mut Option<bool>,
     state: &mut ChainStepState<'a>,
     ctx: &LowerContext<'a, '_>,
     lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
@@ -100,7 +102,7 @@ fn format_single_chain_step<'a>(
         lower_fn,
     );
     let call_docs = lower_step_call_and_post_ops(
-        step, idx, steps, state, analysis, is_on_rhs, is_last, ctx, lower_fn,
+        step, idx, steps, receiver, state, analysis, is_on_rhs, is_last, ctx, lower_fn,
     );
 
     accumulate_chain_step(
@@ -117,7 +119,7 @@ fn format_single_chain_step<'a>(
         step.lead_op.is_none(),
         analysis.has_trailing_lambda,
         analysis.has_intermediate_break,
-        receiver.kind(),
+        crate::engine::node_kind(*receiver),
         step.call.is_none(),
         ctx,
     );
@@ -132,7 +134,7 @@ pub(crate) fn format_chain_body<'a>(
     receiver: Node<'a>,
     receiver_doc: Doc<'a>,
     steps: &[ChainStep<'a>],
-    is_on_rhs: bool,
+    mut is_on_rhs: Option<bool>,
     ctx: &LowerContext<'a, '_>,
     lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> (
@@ -142,6 +144,7 @@ pub(crate) fn format_chain_body<'a>(
     Option<crate::doc::GroupId>,
 ) {
     let analysis = analyze_chain(steps, &receiver, ctx);
+    let recv_kind = crate::engine::node_kind(receiver);
     let mut state = ChainStepState {
         in_prefix: true,
         prefix_doc: receiver_doc,
@@ -149,18 +152,26 @@ pub(crate) fn format_chain_body<'a>(
         last_call: None,
         last_call_prefix_gid: None,
         prev_is_call: false,
-        prev_name: if receiver.kind() == "simple_identifier" {
+        prev_name: if recv_kind == "simple_identifier" {
             Some(ctx.node_text(&receiver))
         } else {
             None
         },
-        prev_is_super_or_this: matches!(receiver.kind(), "this_expression" | "super_expression"),
+        prev_is_super_or_this: matches!(recv_kind, "this_expression" | "super_expression"),
         prev_op: None,
     };
 
     for (idx, step) in steps.iter().enumerate() {
         format_single_chain_step(
-            step, idx, steps, &analysis, &receiver, is_on_rhs, &mut state, ctx, lower_fn,
+            step,
+            idx,
+            steps,
+            &analysis,
+            &receiver,
+            &mut is_on_rhs,
+            &mut state,
+            ctx,
+            lower_fn,
         );
     }
 
@@ -178,28 +189,32 @@ pub fn format_chain_spine<'a>(
     ctx: &LowerContext<'a, '_>,
     lower_fn: &dyn Fn(Node<'a>, &LowerContext<'a, '_>) -> Doc<'a>,
 ) -> Doc<'a> {
-    if let Some(doc) = format_elvis_receiver(receiver, segments.clone(), ctx, lower_fn) {
+    let receiver_kind = crate::engine::node_kind(receiver);
+    if matches!(receiver_kind, "infix_expression" | "elvis_expression")
+        && !segments.is_empty()
+        && let Some(doc) = format_elvis_receiver(receiver, segments.clone(), ctx, lower_fn)
+    {
         return doc;
     }
     let mut receiver_doc = lower_fn(receiver, ctx);
     if segments.is_empty() {
         return receiver_doc;
     }
-    let is_on_rhs = is_receiver_on_rhs(receiver);
-    if is_on_rhs
-        && matches!(
-            receiver.kind(),
-            "if_expression" | "when_expression" | "try_expression"
-        )
-    {
-        receiver_doc = Doc::continuation_indent(receiver_doc);
+    let mut is_on_rhs = None;
+    if matches!(
+        receiver_kind,
+        "if_expression" | "when_expression" | "try_expression"
+    ) {
+        let rhs = is_receiver_on_rhs(receiver);
+        is_on_rhs = Some(rhs);
+        if rhs {
+            receiver_doc = Doc::continuation_indent(receiver_doc);
+        }
     }
 
     let steps = assemble_chain_steps(segments);
-    if matches!(
-        receiver.kind(),
-        "string_literal" | "multiline_string_literal"
-    ) && steps.len() == 1
+    if matches!(receiver_kind, "string_literal" | "multiline_string_literal")
+        && steps.len() == 1
         && let Some(doc) =
             format_string_receiver_single_step(receiver_doc.clone(), &steps[0], ctx, lower_fn)
     {

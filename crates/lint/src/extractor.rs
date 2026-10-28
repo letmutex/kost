@@ -147,30 +147,32 @@ pub fn populate_lambda_properties(node: tree_sitter::Node, ctx: &mut LintCtx) {
 
 pub fn populate_import_properties(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
     let needed = &ctx.registry.needed_properties;
-
-    let is_wildcard = node
-        .children(&mut node.walk())
-        .any(|c| c.kind() == "wildcard_import");
-    if needed.contains(&PropertyKey::ImportIsWildcard) {
-        ctx.scope_tracker.insert_property(
-            PropertyKey::ImportIsWildcard,
-            PropertyValue::Bool(is_wildcard),
-        );
+    let needs_wildcard = needed.contains(&PropertyKey::ImportIsWildcard);
+    let needs_path = needed.contains(&PropertyKey::ImportPath);
+    let needs_alias = needed.contains(&PropertyKey::ImportAlias);
+    if !needs_wildcard && !needs_path && !needs_alias {
+        return;
     }
 
+    let mut is_wildcard = false;
     let mut id_text = "";
     let mut alias_text = "";
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if child.kind() == "identifier" {
+        let child_kind = crate::util::node_kind(child);
+        if child_kind == "wildcard_import" {
+            is_wildcard = true;
+        } else if child_kind == "identifier" {
             if let Ok(t) = child.utf8_text(source) {
                 id_text = t;
             }
-        } else if child.kind() == "import_alias" {
+        } else if child_kind == "import_alias" {
             let mut alias_cursor = child.walk();
             for alias_child in child.children(&mut alias_cursor) {
-                if matches!(alias_child.kind(), "simple_identifier" | "type_identifier")
-                    && let Ok(t) = alias_child.utf8_text(source)
+                if matches!(
+                    crate::util::node_kind(alias_child),
+                    "simple_identifier" | "type_identifier"
+                ) && let Ok(t) = alias_child.utf8_text(source)
                 {
                     alias_text = t;
                 }
@@ -178,7 +180,14 @@ pub fn populate_import_properties(node: tree_sitter::Node, source: &[u8], ctx: &
         }
     }
 
-    if needed.contains(&PropertyKey::ImportPath) {
+    if needs_wildcard {
+        ctx.scope_tracker.insert_property(
+            PropertyKey::ImportIsWildcard,
+            PropertyValue::Bool(is_wildcard),
+        );
+    }
+
+    if needs_path {
         let path = if is_wildcard {
             common::concat_smol_str!(id_text, ".*")
         } else {
@@ -188,7 +197,7 @@ pub fn populate_import_properties(node: tree_sitter::Node, source: &[u8], ctx: &
             .insert_property(PropertyKey::ImportPath, PropertyValue::Str(path));
     }
 
-    if needed.contains(&PropertyKey::ImportAlias) {
+    if needs_alias {
         ctx.scope_tracker.insert_property(
             PropertyKey::ImportAlias,
             PropertyValue::Str(SmolStr::new(alias_text)),
@@ -198,14 +207,13 @@ pub fn populate_import_properties(node: tree_sitter::Node, source: &[u8], ctx: &
 
 pub fn enter_scope_if_matching(
     node: tree_sitter::Node,
+    kind: &str,
     source: &[u8],
     ctx: &mut LintCtx,
 ) -> Option<Scope> {
-    let kind = node.kind();
-    let range = TextRange::from_node(node);
-
     match kind {
         "function_declaration" => {
+            let range = TextRange::from_node(node);
             ctx.scope_tracker.push(Scope::Function, range);
             if let Some(frame) = ctx.scope_tracker.current_mut() {
                 attach_declaration_anchors(
@@ -221,6 +229,7 @@ pub fn enter_scope_if_matching(
             Some(Scope::Function)
         }
         "class_declaration" | "object_declaration" => {
+            let range = TextRange::from_node(node);
             ctx.scope_tracker.push(Scope::Class, range);
             if let Some(frame) = ctx.scope_tracker.current_mut() {
                 attach_declaration_anchors(
@@ -236,6 +245,7 @@ pub fn enter_scope_if_matching(
             Some(Scope::Class)
         }
         "property_declaration" => {
+            let range = TextRange::from_node(node);
             ctx.scope_tracker.push(Scope::Variable, range);
             if let Some(frame) = ctx.scope_tracker.current_mut() {
                 attach_declaration_anchors(
@@ -251,11 +261,13 @@ pub fn enter_scope_if_matching(
             Some(Scope::Variable)
         }
         "lambda_literal" => {
+            let range = TextRange::from_node(node);
             ctx.scope_tracker.push(Scope::Lambda, range);
             populate_lambda_properties(node, ctx);
             Some(Scope::Lambda)
         }
         "import_header" => {
+            let range = TextRange::from_node(node);
             ctx.scope_tracker.push(Scope::Import, range);
             populate_import_properties(node, source, ctx);
             Some(Scope::Import)

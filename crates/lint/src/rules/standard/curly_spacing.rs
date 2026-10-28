@@ -2,7 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
-use crate::util::{WhitespaceAfter, WhitespaceBefore, spaces_after, spaces_before};
+use crate::util::{WhitespaceAfter, WhitespaceBefore, node_kind, spaces_after, spaces_before};
 
 /// Rule that enforces proper spacing around curly braces.
 pub struct CurlySpacing;
@@ -17,7 +17,7 @@ impl AstRule for CurlySpacing {
     }
 
     fn check_node(&self, node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
-        if node.kind() == "{" {
+        if node_kind(node) == "{" {
             check_opening_curly(node, source, ctx);
         } else {
             check_closing_curly(node, source, ctx);
@@ -52,7 +52,7 @@ fn check_opening_curly(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx
         return;
     }
 
-    let Some(closing) = find_closing_brace(node) else {
+    let Some(closing) = find_closing_brace(node, ctx.parent()) else {
         return;
     };
 
@@ -87,18 +87,18 @@ fn check_opening_curly(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx
     }
 }
 
-fn is_followed_by_control_flow(node: tree_sitter::Node) -> bool {
+fn is_followed_by_control_flow(node: tree_sitter::Node, ctx: &LintCtx) -> bool {
     let check_kind =
         |kind: &str| matches!(kind, "else" | "while" | "catch_block" | "finally_block");
     if let Some(next) = node.next_sibling()
-        && check_kind(next.kind())
+        && check_kind(node_kind(next))
     {
         return true;
     }
-    if let Some(parent) = node.parent()
-        && matches!(parent.kind(), "control_structure_body" | "catch_block")
+    if let Some(parent) = ctx.parent()
+        && matches!(node_kind(parent), "control_structure_body" | "catch_block")
         && let Some(parent_next) = parent.next_sibling()
-        && check_kind(parent_next.kind())
+        && check_kind(node_kind(parent_next))
     {
         return true;
     }
@@ -107,7 +107,7 @@ fn is_followed_by_control_flow(node: tree_sitter::Node) -> bool {
 
 fn check_closing_curly(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
     if let WhitespaceAfter::Spaces(count) = spaces_after(node, source)
-        && is_followed_by_control_flow(node)
+        && is_followed_by_control_flow(node, ctx)
     {
         if count == 0 {
             ctx.report(node, "Missing spacing after '}'");
@@ -117,10 +117,13 @@ fn check_closing_curly(node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx
     }
 }
 
-fn find_closing_brace(opening: tree_sitter::Node) -> Option<tree_sitter::Node> {
-    let parent = opening.parent()?;
+fn find_closing_brace<'a>(
+    opening: tree_sitter::Node<'a>,
+    parent: Option<tree_sitter::Node<'a>>,
+) -> Option<tree_sitter::Node<'a>> {
+    let parent = parent?;
     let mut cursor = parent.walk();
     parent
         .children(&mut cursor)
-        .find(|&child| child.kind() == "}" && child.start_byte() > opening.end_byte())
+        .find(|&child| node_kind(child) == "}" && child.start_byte() > opening.end_byte())
 }

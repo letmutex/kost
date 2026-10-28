@@ -2,6 +2,7 @@
 
 use crate::context::LintCtx;
 use crate::rule::AstRule;
+use crate::util::node_kind;
 
 /// Rule that enforces individual statements are placed on separate lines.
 pub struct StatementWrapping;
@@ -22,16 +23,21 @@ impl AstRule for StatementWrapping {
     }
 
     fn check_node(&self, node: tree_sitter::Node, _source: &[u8], ctx: &mut LintCtx) {
-        let is_enum_body = matches!(node.kind(), "enum_class_body" | "class_body");
+        let is_enum_body = matches!(node_kind(node), "enum_class_body" | "class_body");
         let mut cursor = node.walk();
-        let mut prev_statement: Option<tree_sitter::Node> = None;
+        let mut prev_statement: Option<(tree_sitter::Node, &'static str)> = None;
+        let mut prev_named_kind: Option<&'static str> = None;
 
         for child in node.children(&mut cursor) {
             if !child.is_named() || child.is_error() {
                 continue;
             }
+            let kind = node_kind(child);
+            let last_named_kind = prev_named_kind;
+            prev_named_kind = Some(kind);
+
             if matches!(
-                child.kind(),
+                kind,
                 "line_comment"
                     | "multiline_comment"
                     | "comment"
@@ -43,40 +49,38 @@ impl AstRule for StatementWrapping {
                 continue;
             }
 
-            if child.kind() == "label" {
-                if let Some(prev) = prev_statement
+            if kind == "label" {
+                if let Some((prev, _)) = prev_statement
                     && child.start_position().row <= prev.end_position().row
                 {
                     ctx.report(child, "Missing newline between statements");
                 }
-                prev_statement = Some(child);
+                prev_statement = Some((child, kind));
                 continue;
             }
 
-            if child.kind() == "parenthesized_expression"
-                && child
-                    .prev_named_sibling()
-                    .is_some_and(|s| matches!(s.kind(), "annotation" | "single_annotation"))
+            if kind == "parenthesized_expression"
+                && matches!(last_named_kind, Some("annotation" | "single_annotation"))
             {
                 continue;
             }
 
             if is_enum_body
-                && child.kind() == "enum_entry"
-                && prev_statement.is_some_and(|p| p.kind() == "enum_entry")
+                && kind == "enum_entry"
+                && prev_statement.is_some_and(|(_, prev_kind)| prev_kind == "enum_entry")
             {
-                prev_statement = Some(child);
+                prev_statement = Some((child, kind));
                 continue;
             }
 
-            if let Some(prev) = prev_statement
+            if let Some((prev, prev_kind)) = prev_statement
                 && child.start_position().row <= prev.end_position().row
-                && prev.kind() != "label"
+                && prev_kind != "label"
             {
                 ctx.report(child, "Missing newline between statements");
             }
 
-            prev_statement = Some(child);
+            prev_statement = Some((child, kind));
         }
     }
 }

@@ -22,6 +22,10 @@ impl AstRule for NoConsecutiveBlankLines {
 
     fn check_node(&self, _node: tree_sitter::Node, _source: &[u8], _ctx: &mut LintCtx) {}
 
+    fn has_after_node(&self) -> bool {
+        true
+    }
+
     fn after_node(&self, _node: tree_sitter::Node, source: &[u8], ctx: &mut LintCtx) {
         let ranges = std::mem::take(&mut ctx.multiline_string_and_comment_ranges);
         scan_consecutive_blank_lines(source, &ranges, ctx);

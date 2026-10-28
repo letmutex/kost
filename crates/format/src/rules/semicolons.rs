@@ -7,22 +7,28 @@ pub fn find_redundant_semicolons(root: Node<'_>, source: &str) -> AHashSet<usize
         return AHashSet::new();
     }
     let mut redundant_offsets = AHashSet::new();
-    scan_semicolons(root, &mut redundant_offsets);
+    scan_semicolons_with_cursor(root, &mut redundant_offsets);
     redundant_offsets
 }
 
-fn scan_semicolons(node: Node<'_>, redundant: &mut AHashSet<usize>) {
-    if node.kind() == ";" {
-        if is_redundant_semicolon(node) {
-            redundant.insert(node.start_byte());
+fn scan_semicolons_with_cursor(root: Node<'_>, redundant: &mut AHashSet<usize>) {
+    let mut cursor = root.walk();
+    loop {
+        let node = cursor.node();
+        if !node.is_named() && crate::engine::node_kind(node) == ";" {
+            if is_redundant_semicolon(node) {
+                redundant.insert(node.start_byte());
+            }
+        } else if cursor.goto_first_child() {
+            continue;
         }
-        return;
-    }
-
-    if node.child_count() > 0 {
-        let mut cursor = node.walk();
-        for child in node.children(&mut cursor) {
-            scan_semicolons(child, redundant);
+        loop {
+            if cursor.goto_next_sibling() {
+                break;
+            }
+            if !cursor.goto_parent() {
+                return;
+            }
         }
     }
 }
