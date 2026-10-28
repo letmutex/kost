@@ -2,6 +2,8 @@
 Cargo.lock
 flamegraph.svg
 flamegraph_*.svg
+profile*.json
+profile.json.gz
 *.iml
 .idea/
 .vscode/
