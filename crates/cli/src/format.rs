@@ -153,7 +153,7 @@ pub fn render_format_help() -> String {
 /// Renders help text for the `kost fmt` command with optional ANSI color styling.
 pub fn render_format_help_styled(colorize: bool) -> String {
     let mut buffer = String::new();
-    buffer.push_str("kost-fmt - Format Kotlin source files\n\n");
+    buffer.push_str("Format Kotlin source files\n\n");
 
     crate::style::push_header(&mut buffer, "USAGE:", colorize);
     buffer.push_str("\n    kost fmt ");

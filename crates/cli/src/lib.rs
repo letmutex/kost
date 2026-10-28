@@ -17,7 +17,7 @@ pub use update::{UpdateArgs, render_update_help, render_update_help_styled};
 
 pub fn build_app() -> MiniClap {
     MiniClap::new(
-        "kost",
+        "Kost",
         env!("CARGO_PKG_VERSION"),
         "Fast JVM-free Kotlin static analysis & language server",
     )
