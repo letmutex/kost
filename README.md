@@ -28,8 +28,6 @@ irm https://raw.githubusercontent.com/letmutex/kost/main/install.ps1 | iex
 
 - Download binaries from [GitHub Releases](https://github.com/letmutex/kost/releases).
 
-- Install using Cargo: `cargo install kost`
-
 - Build from source: 
 
 ```bash
