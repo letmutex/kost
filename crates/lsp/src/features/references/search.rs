@@ -2,76 +2,16 @@ use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use tower_lsp::lsp_types::{Location, Url};
 use tree_sitter::Node;
 
-use super::ReferenceQuery;
 use super::filter::{find_producer_names, is_file_candidate_with_producers};
 use super::hierarchy::check_candidate_node;
-use super::target::{ReferenceTarget, is_declaration_name_node, is_position_in_range};
-use crate::features::definition::{BindingRole, find_local_binding_node};
+use super::target::{ReferenceTarget, is_position_in_range};
+use super::{
+    MAX_SLOWEST_OCCURRENCES, OccurrenceTiming, ReferenceQuery, merge_top_slowest,
+    should_record_slowest,
+};
 use crate::indexer::{WorkspaceIndex, is_source_url};
 use crate::parser::{extract_identifier_text, parse_source};
 use crate::position::node_to_range;
-use crate::syntax::ast_util::{is_call_callee, is_callable_reference_target};
-use crate::syntax::symbol_item::find_identifier_node;
-
-pub fn find_local_references(
-    query: &ReferenceQuery<'_>,
-    target: &ReferenceTarget,
-) -> Vec<Location> {
-    let Some(root) = query.root else {
-        return Vec::new();
-    };
-    let Some(scope_range) = target.local_scope_node_range else {
-        return Vec::new();
-    };
-
-    let mut candidate_nodes = Vec::new();
-    collect_matching_identifiers(root, &target.name, query.source, &mut candidate_nodes);
-
-    let mut results = Vec::new();
-    for cand_node in candidate_nodes {
-        let cand_range = node_to_range(&cand_node);
-        if !is_position_in_range(cand_range.start, scope_range) {
-            continue;
-        }
-
-        if cand_range == target.location.range {
-            if query.include_declaration {
-                results.push(Location {
-                    uri: query.current_url.clone(),
-                    range: cand_range,
-                });
-            }
-            continue;
-        }
-
-        if is_declaration_name_node(&cand_node) {
-            continue;
-        }
-
-        let is_callable_ref = is_callable_reference_target(&cand_node);
-        let role = if is_callable_ref {
-            BindingRole::CallableRef
-        } else if is_call_callee(&cand_node, query.source) {
-            BindingRole::DirectCall
-        } else {
-            BindingRole::Value
-        };
-        if let Some(found_node) =
-            find_local_binding_node(cand_node, &target.name, query.source, role)
-        {
-            let id_range = find_identifier_node(&found_node)
-                .map(|n| node_to_range(&n))
-                .unwrap_or_else(|| node_to_range(&found_node));
-            if id_range == target.location.range {
-                results.push(Location {
-                    uri: query.current_url.clone(),
-                    range: cand_range,
-                });
-            }
-        }
-    }
-    results
-}
 
 fn resolve_target_scope<'a>(
     index: &'a WorkspaceIndex,
@@ -88,7 +28,10 @@ fn resolve_target_scope<'a>(
     (pkg, decl.is_some_and(|d| d.container_name.is_none()))
 }
 
-fn find_private_references(query: &ReferenceQuery<'_>, target: &ReferenceTarget) -> Vec<Location> {
+fn find_private_references(
+    query: &ReferenceQuery<'_>,
+    target: &ReferenceTarget,
+) -> (Vec<Location>, Vec<OccurrenceTiming>) {
     if target.location.uri == *query.current_url {
         return scan_file_for_references(
             query.index,
@@ -97,10 +40,11 @@ fn find_private_references(query: &ReferenceQuery<'_>, target: &ReferenceTarget)
             query.current_url,
             query.source,
             query.root,
+            query.track_slowest,
         );
     }
     let Some(source) = query.index.get_file_source(&target.location.uri) else {
-        return Vec::new();
+        return (Vec::new(), Vec::new());
     };
     scan_file_for_references(
         query.index,
@@ -109,6 +53,7 @@ fn find_private_references(query: &ReferenceQuery<'_>, target: &ReferenceTarget)
         &target.location.uri,
         &source,
         None,
+        query.track_slowest,
     )
 }
 
@@ -133,41 +78,69 @@ fn scan_remote_files(
     is_top_level: bool,
     other_urls: Vec<&Url>,
     producer_names: &[smol_str::SmolStr],
-) -> Vec<Location> {
-    other_urls
-        .into_par_iter()
-        .flat_map(|candidate_url| {
-            let disk_source = query.index.get_file_source(candidate_url);
-            let Some(ref source) = disk_source else {
-                return Vec::new();
-            };
-            if !is_file_candidate_with_producers(
-                query.index,
-                candidate_url,
-                target,
-                target_pkg,
-                is_top_level,
-                source,
-                producer_names,
-            ) {
-                return Vec::new();
-            }
-            scan_file_for_references(
-                query.index,
-                query.include_declaration,
-                target,
-                candidate_url,
-                source,
-                None,
-            )
-        })
-        .collect()
+) -> (Vec<Location>, Vec<OccurrenceTiming>) {
+    let candidate_files = other_urls.into_par_iter().filter_map(|candidate_url| {
+        let source = query.index.get_file_source(candidate_url)?;
+        if is_file_candidate_with_producers(
+            query.index,
+            candidate_url,
+            target,
+            target_pkg,
+            is_top_level,
+            &source,
+            producer_names,
+        ) {
+            Some((candidate_url, source))
+        } else {
+            None
+        }
+    });
+
+    if query.track_slowest {
+        let file_results: Vec<(Vec<Location>, Vec<OccurrenceTiming>)> = candidate_files
+            .map(|(candidate_url, source)| {
+                scan_file_for_references(
+                    query.index,
+                    query.include_declaration,
+                    target,
+                    candidate_url,
+                    &source,
+                    None,
+                    true,
+                )
+            })
+            .collect();
+
+        let mut all_locations = Vec::new();
+        let mut top_slowest = Vec::new();
+        for (file_locs, file_timings) in file_results {
+            all_locations.extend(file_locs);
+            merge_top_slowest(&mut top_slowest, file_timings, MAX_SLOWEST_OCCURRENCES);
+        }
+        (all_locations, top_slowest)
+    } else {
+        let all_locations: Vec<Location> = candidate_files
+            .flat_map(|(candidate_url, source)| {
+                scan_file_for_references(
+                    query.index,
+                    query.include_declaration,
+                    target,
+                    candidate_url,
+                    &source,
+                    None,
+                    false,
+                )
+                .0
+            })
+            .collect();
+        (all_locations, Vec::new())
+    }
 }
 
 pub fn find_workspace_references(
     query: &ReferenceQuery<'_>,
     target: &ReferenceTarget,
-) -> Vec<Location> {
+) -> (Vec<Location>, Vec<OccurrenceTiming>) {
     if target.is_private {
         return find_private_references(query, target);
     }
@@ -186,7 +159,7 @@ pub fn find_workspace_references(
         })
         .collect();
 
-    let mut results = if is_file_candidate_with_producers(
+    let (mut results, mut slowest) = if is_file_candidate_with_producers(
         query.index,
         query.current_url,
         target,
@@ -202,12 +175,13 @@ pub fn find_workspace_references(
             query.current_url,
             query.source,
             query.root,
+            query.track_slowest,
         )
     } else {
-        Vec::new()
+        (Vec::new(), Vec::new())
     };
 
-    let remote_results = scan_remote_files(
+    let (remote_results, remote_slowest) = scan_remote_files(
         query,
         target,
         target_pkg,
@@ -217,7 +191,10 @@ pub fn find_workspace_references(
     );
 
     results.extend(remote_results);
-    results
+    if query.track_slowest {
+        merge_top_slowest(&mut slowest, remote_slowest, MAX_SLOWEST_OCCURRENCES);
+    }
+    (results, slowest)
 }
 
 fn scan_file_for_references(
@@ -227,13 +204,14 @@ fn scan_file_for_references(
     cand_url: &Url,
     source: &str,
     file_root_opt: Option<Node<'_>>,
-) -> Vec<Location> {
+    track_slowest: bool,
+) -> (Vec<Location>, Vec<OccurrenceTiming>) {
     let parsed_tree;
     let file_root = if let Some(root) = file_root_opt {
         root
     } else {
         let Some(tree) = parse_source(source) else {
-            return Vec::new();
+            return (Vec::new(), Vec::new());
         };
         parsed_tree = tree;
         parsed_tree.root_node()
@@ -243,7 +221,16 @@ fn scan_file_for_references(
     collect_matching_identifiers(file_root, &target.name, source, &mut candidate_nodes);
 
     let mut results = Vec::new();
+    let mut slowest = Vec::new();
+
     for &cand_node in &candidate_nodes {
+        let cand_start = if track_slowest {
+            Some(std::time::Instant::now())
+        } else {
+            None
+        };
+        let before_count = results.len();
+
         check_candidate_node(
             index,
             include_declaration,
@@ -254,11 +241,29 @@ fn scan_file_for_references(
             file_root,
             &mut results,
         );
+
+        if let Some(start) = cand_start {
+            let elapsed = start.elapsed();
+            if should_record_slowest(&slowest, elapsed) {
+                let matched = results.len() > before_count;
+                let range = node_to_range(&cand_node);
+                merge_top_slowest(
+                    &mut slowest,
+                    [OccurrenceTiming {
+                        uri: cand_url.clone(),
+                        range,
+                        elapsed,
+                        matched,
+                    }],
+                    MAX_SLOWEST_OCCURRENCES,
+                );
+            }
+        }
     }
-    results
+    (results, slowest)
 }
 
-fn collect_matching_identifiers<'a>(
+pub(crate) fn collect_matching_identifiers<'a>(
     root: Node<'a>,
     target_name: &str,
     source: &'a str,

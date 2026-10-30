@@ -39,6 +39,9 @@ pub use definition::{
 };
 pub use hover::{find_hover, find_hover_with_config, find_hover_with_root};
 pub use outline::extract_document_symbols;
-pub use references::{find_references, find_references_with_root};
+pub use references::{
+    OccurrenceTiming, find_references, find_references_profiled, find_references_with_root,
+    log_references_interaction,
+};
 pub use signature_help::find_signature_help;
 pub use workspace_symbol::{search_workspace, search_workspace_symbol_information};

@@ -318,8 +318,9 @@ impl LanguageServer for Backend {
         };
         let root = tree.root_node();
 
+        let log_level = self.config.read().await.interaction_logging;
         let index = self.index.read().await;
-        let locations = crate::features::find_references_with_root(
+        let (locations, slowest_occurrences) = crate::features::find_references_profiled(
             &index,
             &uri,
             &symbol_name,
@@ -327,18 +328,18 @@ impl LanguageServer for Backend {
             &source,
             Some(root),
             include_decl,
+            log_level.is_verbose(),
         );
         drop(index);
 
-        if self.config.read().await.interaction_logging.is_enabled() {
-            crate::logger::log!(
-                "interaction",
-                "references: '{}' at {}:{} found {} locations in {:?}",
-                symbol_name,
-                pos.line,
-                pos.character,
+        if log_level.is_enabled() {
+            crate::features::log_references_interaction(
+                &symbol_name,
+                pos,
                 locations.len(),
-                start.elapsed()
+                start.elapsed(),
+                &slowest_occurrences,
+                log_level.is_verbose(),
             );
         }
 

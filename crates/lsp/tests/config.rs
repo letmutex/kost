@@ -22,6 +22,7 @@ fn test_default_server_config() {
     assert!(config.indexing_logging.is_enabled());
     assert!(!config.indexing_logging.is_verbose());
     assert!(!config.interaction_logging.is_enabled());
+    assert!(!config.interaction_logging.is_verbose());
     assert!(!config.variable_hover_type_inference.is_enabled());
     assert!(config.auto_import);
     assert!(!config.work_done_progress_supported);
@@ -124,6 +125,10 @@ fn test_exact_string_parsing() {
     assert_eq!(
         InteractionLogLevel::parse_exact("default"),
         Some(InteractionLogLevel::Default)
+    );
+    assert_eq!(
+        InteractionLogLevel::parse_exact("verbose"),
+        Some(InteractionLogLevel::Verbose)
     );
 
     assert_eq!(
@@ -252,4 +257,15 @@ fn test_server_config_from_json_drops_int_options() {
     });
     let config_str = ServerConfig::from_init_options(Some(&json_int_str));
     assert!(config_str.auto_import);
+}
+
+#[test]
+fn test_server_config_interaction_logging_verbose() {
+    let json_verbose_interaction = json!({
+        "interaction_logging": "verbose"
+    });
+    let config = ServerConfig::from_init_options(Some(&json_verbose_interaction));
+    assert_eq!(config.interaction_logging, InteractionLogLevel::Verbose);
+    assert!(config.interaction_logging.is_enabled());
+    assert!(config.interaction_logging.is_verbose());
 }

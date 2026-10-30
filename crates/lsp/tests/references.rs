@@ -14,6 +14,7 @@ mod references {
     mod override_constructor;
     mod override_cross_file;
     mod override_hierarchy;
+    mod profiling;
     mod receiver_filter;
     mod receiver_inference;
     mod target;

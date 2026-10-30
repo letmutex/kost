@@ -1,8 +1,12 @@
 use tower_lsp::lsp_types::{Location, SymbolKind};
 use tree_sitter::Node;
 
-use super::ReferenceQuery;
-use super::target::{ReferenceTarget, is_position_in_range};
+use super::search::collect_matching_identifiers;
+use super::target::{ReferenceTarget, is_declaration_name_node, is_position_in_range};
+use super::{
+    MAX_SLOWEST_OCCURRENCES, OccurrenceTiming, ReferenceQuery, merge_top_slowest,
+    should_record_slowest,
+};
 use crate::features::definition::{BindingRole, find_local_binding_node};
 use crate::position::node_to_range;
 use crate::syntax::ast_util::{is_call_callee, is_callable_reference_target};
@@ -133,4 +137,95 @@ fn is_local_declaration_name_node(node: Node<'_>, callable: Node<'_>) -> bool {
         "lambda_parameters" => true,
         _ => false,
     }
+}
+
+pub fn find_local_references(
+    query: &ReferenceQuery<'_>,
+    target: &ReferenceTarget,
+) -> (Vec<Location>, Vec<OccurrenceTiming>) {
+    let Some(root) = query.root else {
+        return (Vec::new(), Vec::new());
+    };
+    let Some(scope_range) = target.local_scope_node_range else {
+        return (Vec::new(), Vec::new());
+    };
+
+    let mut candidate_nodes = Vec::new();
+    collect_matching_identifiers(root, &target.name, query.source, &mut candidate_nodes);
+
+    let mut results = Vec::new();
+    let mut slowest = Vec::new();
+
+    for cand_node in candidate_nodes {
+        let cand_range = node_to_range(&cand_node);
+        if !is_position_in_range(cand_range.start, scope_range) {
+            continue;
+        }
+
+        let cand_start = if query.track_slowest {
+            Some(std::time::Instant::now())
+        } else {
+            None
+        };
+        let before_count = results.len();
+
+        if cand_range == target.location.range {
+            if query.include_declaration {
+                results.push(Location {
+                    uri: query.current_url.clone(),
+                    range: cand_range,
+                });
+            }
+        } else if check_local_candidate(query, target, cand_node) {
+            results.push(Location {
+                uri: query.current_url.clone(),
+                range: cand_range,
+            });
+        }
+
+        if let Some(start) = cand_start {
+            let elapsed = start.elapsed();
+            if should_record_slowest(&slowest, elapsed) {
+                let matched = results.len() > before_count;
+                merge_top_slowest(
+                    &mut slowest,
+                    [OccurrenceTiming {
+                        uri: query.current_url.clone(),
+                        range: cand_range,
+                        elapsed,
+                        matched,
+                    }],
+                    MAX_SLOWEST_OCCURRENCES,
+                );
+            }
+        }
+    }
+
+    (results, slowest)
+}
+
+fn check_local_candidate(
+    query: &ReferenceQuery<'_>,
+    target: &ReferenceTarget,
+    cand_node: Node<'_>,
+) -> bool {
+    if is_declaration_name_node(&cand_node) {
+        return false;
+    }
+    let is_callable_ref = is_callable_reference_target(&cand_node);
+    let role = if is_callable_ref {
+        BindingRole::CallableRef
+    } else if is_call_callee(&cand_node, query.source) {
+        BindingRole::DirectCall
+    } else {
+        BindingRole::Value
+    };
+    let Some(found_node) = find_local_binding_node(cand_node, &target.name, query.source, role)
+    else {
+        return false;
+    };
+    let id_range = find_identifier_node(&found_node)
+        .map(|n| node_to_range(&n))
+        .unwrap_or_else(|| node_to_range(&found_node));
+    id_range == target.location.range
 }
