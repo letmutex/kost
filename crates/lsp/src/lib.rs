@@ -16,9 +16,10 @@ pub mod util;
 
 pub use config::{IndexingLogLevel, InteractionLogLevel, ServerConfig, VariableHoverTypeInference};
 pub use features::{
-    extract_document_symbols, find_completions, find_completions_with_root, find_definition,
-    find_definition_with_root, find_hover, find_hover_with_config, find_hover_with_root,
-    find_references, find_references_with_root, find_signature_help, search_workspace,
+    OccurrenceTiming, extract_document_symbols, find_completions, find_completions_with_root,
+    find_definition, find_definition_with_root, find_hover, find_hover_with_config,
+    find_hover_with_root, find_references, find_references_profiled, find_references_with_root,
+    find_signature_help, search_workspace,
 };
 pub use gradle::{GradleConfig, IndexingSummary, MultiStageIndexer};
 pub use indexer::WorkspaceIndex;

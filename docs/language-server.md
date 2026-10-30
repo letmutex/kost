@@ -47,6 +47,6 @@ Zed:
 | field | values | default | description |
 | --- | --- | --- | --- |
 | `indexing_logging` | `none`, `default`, `verbose` | `default` | Logging level for workspace and dependency indexing |
-| `interaction_logging` | `none`, `default` | `none` | Logging level for LSP requests and latency |
+| `interaction_logging` | `none`, `default`, `verbose` | `none` | Logging level for LSP requests and latency |
 | `variable_hover_type_inference` | `auto`, `always`, `always_full_name`, `always_with_trace` | `auto` | Type inference detail shown on variable hover |
 | `auto_import` | `true`, `false` | `true` | Automatically import symbols on completion |

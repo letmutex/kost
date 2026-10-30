@@ -44,6 +44,7 @@ pub enum InteractionLogLevel {
     #[default]
     None,
     Default,
+    Verbose,
 }
 
 impl InteractionLogLevel {
@@ -51,12 +52,17 @@ impl InteractionLogLevel {
         match s.trim().to_lowercase().as_str() {
             "none" => Some(Self::None),
             "default" => Some(Self::Default),
+            "verbose" => Some(Self::Verbose),
             _ => None,
         }
     }
 
     pub fn is_enabled(&self) -> bool {
         !matches!(self, Self::None)
+    }
+
+    pub fn is_verbose(&self) -> bool {
+        matches!(self, Self::Verbose)
     }
 }
 
