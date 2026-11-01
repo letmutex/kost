@@ -94,7 +94,7 @@ async fn test_path_traversal_rejection() {
 async fn test_kmp_candidate_probing_order() {
     let generic_coord =
         DependencyCoordinate::parse("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0").unwrap();
-    let candidates = generic_coord.kmp_candidate_names();
+    let candidates = generic_coord.kmp_probe_candidates();
     assert_eq!(candidates[0], "kotlinx-coroutines-core");
     assert_eq!(candidates[1], "kotlinx-coroutines-core-jvm");
     assert_eq!(candidates[2], "kotlinx-coroutines-core-desktop");
@@ -102,7 +102,7 @@ async fn test_kmp_candidate_probing_order() {
     let explicit_jvm_coord =
         DependencyCoordinate::parse("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.8.0")
             .unwrap();
-    let jvm_candidates = explicit_jvm_coord.kmp_candidate_names();
+    let jvm_candidates = explicit_jvm_coord.kmp_probe_candidates();
     assert_eq!(jvm_candidates, vec!["kotlinx-coroutines-core-jvm"]);
 }
 
@@ -229,4 +229,33 @@ async fn test_fetch_fails_fast_if_gradle_home_does_not_exist() {
     let err = result.unwrap_err();
     assert!(err.contains("Gradle home directory does not exist"));
     assert!(err.contains(&non_existent_home.display().to_string()));
+}
+
+#[tokio::test]
+async fn test_dep_fails_when_no_repositories_configured() {
+    let temp_dir = std::env::temp_dir().join("kost_test_no_repos_configured");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let script_file = temp_dir.join("build.gradle.kts");
+    std::fs::write(
+        &script_file,
+        "dependencies { implementation(\"org.example:foo:1.0.0\") }\n",
+    )
+    .unwrap();
+
+    let result = dep::run(&[
+        "list".to_string(),
+        "-p".to_string(),
+        temp_dir.display().to_string(),
+        "--gradle-home".to_string(),
+        temp_dir.display().to_string(),
+    ])
+    .await;
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.contains("No repositories"));
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
 }

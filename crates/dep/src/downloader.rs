@@ -213,7 +213,7 @@ impl Downloader {
         }
 
         let mut candidates = Vec::with_capacity(4);
-        for cand_name in coord.kmp_candidate_names() {
+        for cand_name in coord.kmp_probe_candidates() {
             let mut target = coord.clone();
             target.name = smol_str::SmolStr::new(&cand_name);
             candidates.push((target.clone(), is_sources));

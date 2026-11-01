@@ -66,14 +66,18 @@ impl GradleConfig {
 
     /// Resolve effective kotlinc home path
     pub fn resolve_kotlinc_home(&self) -> Option<PathBuf> {
-        if let Some(ref p) = self.kotlinc_home {
-            return if p.exists() { Some(p.clone()) } else { None };
+        if let Some(ref custom_path) = self.kotlinc_home {
+            return if custom_path.exists() {
+                Some(custom_path.clone())
+            } else {
+                None
+            };
         }
         for env_var in &["KOTLIN_HOME", "KOTLINC_HOME", "KOTLIN_ROOT"] {
             if let Ok(val) = std::env::var(env_var) {
-                let p = PathBuf::from(val);
-                if p.exists() {
-                    return Some(p);
+                let path = PathBuf::from(val);
+                if path.exists() {
+                    return Some(path);
                 }
             }
         }
@@ -82,37 +86,11 @@ impl GradleConfig {
 
     /// Resolve effective Gradle user home path
     pub fn resolve_gradle_user_home(&self) -> Option<PathBuf> {
-        if let Some(ref p) = self.gradle_user_home
-            && p.exists()
-        {
-            return Some(p.clone());
-        }
-        if let Ok(env_home) = std::env::var("GRADLE_USER_HOME") {
-            let p = PathBuf::from(env_home);
-            if p.exists() {
-                return Some(p);
-            }
-        }
-        dirs_home()
-            .map(|h| h.join(".gradle"))
-            .filter(|p| p.exists())
+        resolver::GradleCache::resolve_existing_home_dir(self.gradle_user_home.as_deref())
     }
 
     /// Resolve effective Maven local repository path
     pub fn resolve_m2_repository(&self) -> Option<PathBuf> {
-        if let Some(ref p) = self.m2_repository
-            && p.exists()
-        {
-            return Some(p.clone());
-        }
-        dirs_home()
-            .map(|h| h.join(".m2").join("repository"))
-            .filter(|p| p.exists())
+        resolver::GradleCache::resolve_m2_repository(self.m2_repository.as_deref())
     }
-}
-
-pub(crate) fn dirs_home() -> Option<PathBuf> {
-    std::env::var_os("HOME")
-        .or_else(|| std::env::var_os("USERPROFILE"))
-        .map(PathBuf::from)
 }

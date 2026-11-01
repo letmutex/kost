@@ -22,6 +22,7 @@ members = [
     "crates/update",
     "crates/common",
     "crates/dep",
+    "crates/resolver",
 ]
 exclude = [
     "vendor/tree-sitter-kotlin",
@@ -38,6 +39,7 @@ lint = { path = "crates/lint" }
 lsp = { path = "crates/lsp" }
 update = { path = "crates/update" }
 dep = { path = "crates/dep" }
+resolver = { path = "crates/resolver" }
 tree-sitter-kotlin = { path = "vendor/tree-sitter-kotlin" }
 dekobon-tree-sitter-groovy = "0.3.0"
 ahash = "0.8"
