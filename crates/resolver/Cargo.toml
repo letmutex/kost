@@ -14,7 +14,7 @@ quick-xml = { workspace = true }
 rayon = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-sha1 = { workspace = true }
+sha1_smol = { workspace = true }
 smol_str = { workspace = true }
 toml = "0.8"
 tree-sitter = { workspace = true }
