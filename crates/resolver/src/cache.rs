@@ -1,4 +1,4 @@
-use sha1::{Digest, Sha1};
+use sha1_smol::Sha1;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -185,7 +185,7 @@ impl GradleCache {
     ) -> Result<PathBuf, String> {
         let mut hasher = Sha1::new();
         hasher.update(data);
-        let sha1_hex = hex_digest(&hasher.finalize());
+        let sha1_hex = hex_digest(&hasher.digest().bytes());
 
         let ver_str = coord
             .version
