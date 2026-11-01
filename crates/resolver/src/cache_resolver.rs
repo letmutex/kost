@@ -73,7 +73,7 @@ impl<'a> CacheResolverContext<'a> {
         extra_paths: &'a [PathBuf],
     ) -> Self {
         let files_2_1 = gradle_home
-            .map(|gh| gh.join("caches").join("modules-2").join("files-2.1"))
+            .map(|home| home.join("caches").join("modules-2").join("files-2.1"))
             .filter(|path| path.is_dir());
         let m2_repo = m2_repo.filter(|path| path.is_dir()).map(Path::to_path_buf);
         Self {
@@ -228,7 +228,7 @@ impl GradleCacheResolver {
         let effective_bin = binary_path.or_else(|| sources_path.clone())?;
         let mut coord = dep.clone();
         if coord.version.is_none()
-            && let Some(ver_str) = ver_dir.file_name().and_then(|n| n.to_str())
+            && let Some(ver_str) = ver_dir.file_name().and_then(|file_name| file_name.to_str())
         {
             coord.version = Some(ArtifactVersion::parse(ver_str));
         }
@@ -275,7 +275,7 @@ impl GradleCacheResolver {
         let mut sources = None;
 
         for entry in walkdir_simple(root) {
-            if let Some(name) = entry.file_name().and_then(|n| n.to_str()) {
+            if let Some(name) = entry.file_name().and_then(|file_name| file_name.to_str()) {
                 if name == bin_name {
                     binary = Some(entry.clone());
                 } else if name == src_name {

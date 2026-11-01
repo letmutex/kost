@@ -230,3 +230,32 @@ async fn test_fetch_fails_fast_if_gradle_home_does_not_exist() {
     assert!(err.contains("Gradle home directory does not exist"));
     assert!(err.contains(&non_existent_home.display().to_string()));
 }
+
+#[tokio::test]
+async fn test_dep_fails_when_no_repositories_configured() {
+    let temp_dir = std::env::temp_dir().join("kost_test_no_repos_configured");
+    let _ = std::fs::remove_dir_all(&temp_dir);
+    std::fs::create_dir_all(&temp_dir).unwrap();
+
+    let script_file = temp_dir.join("build.gradle.kts");
+    std::fs::write(
+        &script_file,
+        "dependencies { implementation(\"org.example:foo:1.0.0\") }\n",
+    )
+    .unwrap();
+
+    let result = dep::run(&[
+        "list".to_string(),
+        "-p".to_string(),
+        temp_dir.display().to_string(),
+        "--gradle-home".to_string(),
+        temp_dir.display().to_string(),
+    ])
+    .await;
+
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(err.contains("No repositories"));
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

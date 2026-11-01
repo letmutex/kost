@@ -2,8 +2,10 @@ use ahash::AHashMap;
 use tree_sitter::Node;
 
 use super::groovy::parse_groovy_script_with_repos;
-use super::util::{find_child_by_kind, is_repo_url, node_text, resolve_groovy_expr};
-use super::{ParseError, RepositoriesResult};
+use super::util::{
+    find_child_by_kind, groovy_call_target, is_repo_url, node_text, resolve_groovy_expr,
+};
+use super::{DeclaredRepository, ParseError, RepositoriesResult};
 
 /// Parse repository declarations from Groovy DSL script content.
 pub fn parse_groovy_repositories(source: &str) -> Result<RepositoriesResult, ParseError> {
@@ -26,34 +28,46 @@ pub(crate) fn extract_groovy_repos_node(
     props: &AHashMap<String, String>,
     result: &mut RepositoriesResult,
 ) {
+    extract_groovy_repos_scoped(node, source, props, result, false, false);
+}
+
+fn extract_groovy_repos_scoped(
+    node: Node,
+    source: &[u8],
+    props: &AHashMap<String, String>,
+    result: &mut RepositoriesResult,
+    in_repos_block: bool,
+    in_plugin_scope: bool,
+) {
+    let mut next_repos = in_repos_block;
+    let mut next_plugin = in_plugin_scope;
+
     match node.kind() {
-        "method_invocation" => {
-            if let Some(function) = node
-                .child_by_field_name("function")
-                .or_else(|| node.child(0))
-            {
-                let func_name = node_text(function, source);
-                match func_name {
-                    "google" => result.google = true,
-                    "mavenCentral" => result.maven_central = true,
-                    "gradlePluginPortal" => result.gradle_plugin_portal = true,
-                    "mavenLocal" => result.maven_local = true,
-                    "maven" => {
-                        extract_groovy_maven_call(node, source, props, result);
-                        return;
-                    }
-                    _ => {}
-                }
-            }
+        "closure" if in_repos_block => {
+            extract_groovy_repos_closure(node, source, props, result, in_plugin_scope);
+            return;
         }
-        "command_chain" => {
-            if let Some(receiver) = node
-                .child_by_field_name("receiver")
-                .or_else(|| node.child(0))
-                && node_text(receiver, source) == "maven"
-            {
-                extract_groovy_maven_call(node, source, props, result);
-                return;
+        "method_invocation" | "command_chain" => {
+            if let Some(target) = groovy_call_target(node) {
+                let target_name = node_text(target, source).trim();
+                if target_name == "publishing" {
+                    return;
+                }
+                if target_name == "repositories" {
+                    next_repos = true;
+                } else if matches!(target_name, "pluginManagement" | "buildscript") {
+                    next_plugin = true;
+                } else if in_repos_block {
+                    handle_groovy_repo_invocation(
+                        target_name,
+                        node,
+                        source,
+                        props,
+                        result,
+                        in_plugin_scope,
+                    );
+                    return;
+                }
             }
         }
         _ => {}
@@ -61,8 +75,102 @@ pub(crate) fn extract_groovy_repos_node(
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        extract_groovy_repos_node(child, source, props, result);
+        extract_groovy_repos_scoped(child, source, props, result, next_repos, next_plugin);
     }
+}
+
+fn handle_groovy_repo_invocation(
+    target_name: &str,
+    node: Node,
+    source: &[u8],
+    props: &AHashMap<String, String>,
+    result: &mut RepositoriesResult,
+    in_plugin_scope: bool,
+) {
+    match target_name {
+        "google" => result.record(DeclaredRepository::Google, in_plugin_scope),
+        "mavenCentral" => result.record(DeclaredRepository::MavenCentral, in_plugin_scope),
+        "gradlePluginPortal" => {
+            result.record(DeclaredRepository::GradlePluginPortal, in_plugin_scope);
+        }
+        "mavenLocal" => result.record(DeclaredRepository::MavenLocal, in_plugin_scope),
+        "jcenter" => result.record(DeclaredRepository::JCenter, in_plugin_scope),
+        "maven" => extract_groovy_maven_call(node, source, props, result, in_plugin_scope),
+        _ => {}
+    }
+}
+
+fn extract_groovy_repos_closure(
+    closure: Node,
+    source: &[u8],
+    props: &AHashMap<String, String>,
+    result: &mut RepositoriesResult,
+    in_plugin_scope: bool,
+) {
+    let mut cursor = closure.walk();
+    let children: Vec<Node> = closure
+        .children(&mut cursor)
+        .filter(Node::is_named)
+        .collect();
+    let mut idx = 0;
+
+    while idx < children.len() {
+        let child = unwrap_expr_stmt(children[idx]);
+
+        if child.kind() == "identifier"
+            && node_text(child, source).trim() == "maven"
+            && let Some(&next) = children.get(idx + 1)
+            && let Some(url) = extract_split_maven_arg(next, source, props)
+        {
+            result.record(DeclaredRepository::MavenUrl(url), in_plugin_scope);
+            idx += 2;
+            continue;
+        }
+
+        if matches!(child.kind(), "method_invocation" | "command_chain")
+            && let Some(target) = groovy_call_target(child)
+        {
+            let target_name = node_text(target, source).trim();
+            handle_groovy_repo_invocation(
+                target_name,
+                child,
+                source,
+                props,
+                result,
+                in_plugin_scope,
+            );
+        }
+
+        idx += 1;
+    }
+}
+
+fn unwrap_expr_stmt(node: Node) -> Node {
+    if node.kind() == "expression_statement" {
+        node.child(0).unwrap_or(node)
+    } else {
+        node
+    }
+}
+
+fn extract_split_maven_arg(
+    next: Node,
+    source: &[u8],
+    props: &AHashMap<String, String>,
+) -> Option<String> {
+    if next.kind() == "labeled_statement" {
+        let label = next
+            .child_by_field_name("label")
+            .or_else(|| next.child(0))?;
+        if node_text(label, source).trim().trim_matches(['\'', '"']) != "url" {
+            return None;
+        }
+        let stmt = next
+            .child_by_field_name("statement")
+            .or_else(|| next.child(2))?;
+        return extract_url_from_groovy_expr(unwrap_expr_stmt(stmt), source, props);
+    }
+    extract_url_from_groovy_expr(unwrap_expr_stmt(next), source, props)
 }
 
 fn extract_groovy_maven_call(
@@ -70,26 +178,23 @@ fn extract_groovy_maven_call(
     source: &[u8],
     props: &AHashMap<String, String>,
     result: &mut RepositoriesResult,
+    in_plugin_scope: bool,
 ) {
-    if call_or_cmd.kind() == "command_chain" {
-        let mut cursor = call_or_cmd.walk();
-        for arg in call_or_cmd.children(&mut cursor).skip(1) {
-            if arg.kind() == "closure" {
-                extract_groovy_maven_closure_body(arg, source, props, result);
-            } else if let Some(url) = extract_url_from_groovy_expr(arg, source, props) {
-                result.urls.push(url);
-            }
-        }
-    } else if call_or_cmd.kind() == "method_invocation"
-        && let Some(arg_list) = find_child_by_kind(call_or_cmd, "argument_list")
-    {
-        let mut cursor = arg_list.walk();
-        for arg in arg_list.children(&mut cursor) {
-            if arg.kind() == "closure" {
-                extract_groovy_maven_closure_body(arg, source, props, result);
-            } else if let Some(url) = extract_url_from_groovy_expr(arg, source, props) {
-                result.urls.push(url);
-            }
+    let container = if call_or_cmd.kind() == "method_invocation" {
+        let Some(arg_list) = find_child_by_kind(call_or_cmd, "argument_list") else {
+            return;
+        };
+        arg_list
+    } else {
+        call_or_cmd
+    };
+    let skip = usize::from(call_or_cmd.kind() == "command_chain");
+    let mut cursor = container.walk();
+    for arg in container.children(&mut cursor).skip(skip) {
+        if arg.kind() == "closure" {
+            extract_groovy_maven_closure_body(arg, source, props, result, in_plugin_scope);
+        } else if let Some(url) = extract_url_from_groovy_expr(arg, source, props) {
+            result.record(DeclaredRepository::MavenUrl(url), in_plugin_scope);
         }
     }
 }
@@ -115,10 +220,18 @@ fn extract_url_from_groovy_expr(
                 return extract_url_from_groovy_expr(val_node, source, props);
             }
         }
+        "map_literal" => {
+            let mut cursor = expr.walk();
+            for entry in expr.children(&mut cursor) {
+                if entry.kind() == "map_entry"
+                    && let Some(url) = extract_url_from_groovy_expr(entry, source, props)
+                {
+                    return Some(url);
+                }
+            }
+        }
         "method_invocation" => {
-            let func = expr
-                .child_by_field_name("function")
-                .or_else(|| expr.child(0))?;
+            let func = groovy_call_target(expr)?;
             let func_name = node_text(func, source);
             if func_name == "uri" || func_name.ends_with("URI.create") {
                 let arg_list = find_child_by_kind(expr, "argument_list")?;
@@ -131,9 +244,7 @@ fn extract_url_from_groovy_expr(
             }
         }
         "command_chain" => {
-            let rec = expr
-                .child_by_field_name("receiver")
-                .or_else(|| expr.child(0))?;
+            let rec = groovy_call_target(expr)?;
             if node_text(rec, source) == "uri" {
                 let arg = expr
                     .child_by_field_name("argument")
@@ -151,102 +262,73 @@ fn extract_groovy_maven_closure_body(
     source: &[u8],
     props: &AHashMap<String, String>,
     result: &mut RepositoriesResult,
+    in_plugin_scope: bool,
 ) {
     let mut cursor = closure.walk();
-    for child in closure.children(&mut cursor) {
-        match child.kind() {
-            "command_chain" => {
-                extract_url_from_command_chain(child, source, props, result);
-            }
-            "expression_statement" => {
-                extract_groovy_maven_closure_body(child, source, props, result);
-            }
-            "assignment_expression" => {
-                extract_url_from_assignment_expr(child, source, props, result);
-            }
-            "method_invocation" => {
-                extract_url_from_method_invocation(child, source, props, result);
-            }
-            _ => {}
+    let children: Vec<Node> = closure
+        .children(&mut cursor)
+        .filter(Node::is_named)
+        .collect();
+    let mut idx = 0;
+
+    while idx < children.len() {
+        let child = unwrap_expr_stmt(children[idx]);
+        if child.kind() == "identifier"
+            && node_text(child, source).trim() == "url"
+            && let Some(&next) = children.get(idx + 1)
+            && let Some(url) = extract_url_from_groovy_expr(unwrap_expr_stmt(next), source, props)
+        {
+            result.record(DeclaredRepository::MavenUrl(url), in_plugin_scope);
+            idx += 2;
+            continue;
         }
-    }
-}
-
-fn extract_url_from_command_chain(
-    child: Node,
-    source: &[u8],
-    props: &AHashMap<String, String>,
-    result: &mut RepositoriesResult,
-) {
-    let Some(rec) = child
-        .child_by_field_name("receiver")
-        .or_else(|| child.child(0))
-    else {
-        return;
-    };
-    if node_text(rec, source) != "url" {
-        return;
-    }
-    let Some(arg) = child
-        .child_by_field_name("argument")
-        .or_else(|| child.child(1))
-    else {
-        return;
-    };
-    if let Some(url) = extract_url_from_groovy_expr(arg, source, props) {
-        result.urls.push(url);
-    }
-}
-
-fn extract_url_from_assignment_expr(
-    child: Node,
-    source: &[u8],
-    props: &AHashMap<String, String>,
-    result: &mut RepositoriesResult,
-) {
-    let Some(left) = child.child_by_field_name("left").or_else(|| child.child(0)) else {
-        return;
-    };
-    if node_text(left, source).trim() != "url" {
-        return;
-    }
-    let Some(right) = child
-        .child_by_field_name("right")
-        .or_else(|| child.child(2))
-    else {
-        return;
-    };
-    if let Some(url) = extract_url_from_groovy_expr(right, source, props) {
-        result.urls.push(url);
-    }
-}
-
-fn extract_url_from_method_invocation(
-    child: Node,
-    source: &[u8],
-    props: &AHashMap<String, String>,
-    result: &mut RepositoriesResult,
-) {
-    let Some(func) = child
-        .child_by_field_name("function")
-        .or_else(|| child.child(0))
-    else {
-        return;
-    };
-    let func_name = node_text(func, source);
-    if matches!(func_name, "url" | "setUrl") {
-        let Some(arg_list) = find_child_by_kind(child, "argument_list") else {
-            return;
-        };
-        let mut arg_cursor = arg_list.walk();
-        for arg in arg_list.children(&mut arg_cursor) {
-            if let Some(url) = extract_url_from_groovy_expr(arg, source, props) {
-                result.urls.push(url);
-            }
+        if let Some(url) = extract_url_from_maven_closure_stmt(child, source, props) {
+            result.record(DeclaredRepository::MavenUrl(url), in_plugin_scope);
         }
-    } else if (func_name == "uri" || func_name.ends_with("URI.create"))
-        && let Some(url) = extract_url_from_groovy_expr(child, source, props)
-    {
-        result.urls.push(url);
+        idx += 1;
+    }
+}
+
+fn extract_url_from_maven_closure_stmt(
+    stmt: Node,
+    source: &[u8],
+    props: &AHashMap<String, String>,
+) -> Option<String> {
+    match stmt.kind() {
+        "command_chain" => {
+            let rec = groovy_call_target(stmt)?;
+            if node_text(rec, source) != "url" {
+                return None;
+            }
+            let arg = stmt
+                .child_by_field_name("argument")
+                .or_else(|| stmt.child(1))?;
+            extract_url_from_groovy_expr(arg, source, props)
+        }
+        "assignment_expression" => {
+            let left = stmt.child_by_field_name("left").or_else(|| stmt.child(0))?;
+            if node_text(left, source).trim() != "url" {
+                return None;
+            }
+            let right = stmt
+                .child_by_field_name("right")
+                .or_else(|| stmt.child(2))?;
+            extract_url_from_groovy_expr(right, source, props)
+        }
+        "method_invocation" => {
+            let func = groovy_call_target(stmt)?;
+            let func_name = node_text(func, source);
+            if matches!(func_name, "url" | "setUrl") {
+                let arg_list = find_child_by_kind(stmt, "argument_list")?;
+                let mut arg_cursor = arg_list.walk();
+                for arg in arg_list.children(&mut arg_cursor) {
+                    if let Some(url) = extract_url_from_groovy_expr(arg, source, props) {
+                        return Some(url);
+                    }
+                }
+            }
+            None
+        }
+        _ => None,
     }
 }

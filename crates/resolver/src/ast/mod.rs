@@ -1,7 +1,12 @@
+pub mod dialect;
 pub mod groovy;
+pub mod groovy_android;
+pub mod groovy_dep;
 pub mod groovy_meta;
+pub mod groovy_plugins;
 pub mod groovy_prop;
 pub mod groovy_repo;
+pub mod groovy_sub;
 pub mod kotlin;
 pub mod kotlin_meta;
 pub mod kotlin_prop;
@@ -12,7 +17,6 @@ pub mod util;
 use ahash::AHashMap;
 use std::fmt;
 use std::path::Path;
-use tree_sitter::Node;
 
 use crate::catalog::VersionCatalog;
 use crate::coordinate::DependencyCoordinate;
@@ -47,142 +51,91 @@ pub enum ScriptDialect {
 impl ScriptDialect {
     /// Detects script dialect from file path extension.
     pub fn from_path(path: &Path) -> Result<Self, ParseError> {
-        let name = path
+        let file_name = path
             .file_name()
-            .and_then(|n| n.to_str())
+            .and_then(|name| name.to_str())
             .ok_or_else(|| ParseError::UnknownDialect(path.to_string_lossy().to_string()))?;
-        if name.ends_with(".kts") {
+        if file_name.ends_with(".kts") {
             Ok(ScriptDialect::Kotlin)
-        } else if name.ends_with(".gradle") {
+        } else if file_name.ends_with(".gradle") {
             Ok(ScriptDialect::Groovy)
         } else {
-            Err(ParseError::UnknownDialect(name.to_string()))
+            Err(ParseError::UnknownDialect(file_name.to_string()))
         }
     }
 
     /// Detects script dialect from source content using Kotlin and Groovy AST parsers.
     pub fn detect_from_content(source: &str) -> Self {
-        let source_bytes = source.as_bytes();
-        let kt_tree =
-            kotlin::KOTLIN_PARSER.with(|parser| parser.borrow_mut().parse(source_bytes, None));
-        let gr_tree =
-            groovy::GROOVY_PARSER.with(|parser| parser.borrow_mut().parse(source_bytes, None));
-
-        match (kt_tree, gr_tree) {
-            (Some(kt), Some(gr)) => {
-                let kt_root = kt.root_node();
-                let gr_root = gr.root_node();
-                if !kt_root.has_error() && !has_groovy_only_tokens(gr_root, source_bytes) {
-                    return Self::Kotlin;
-                }
-                if !util::has_unrecoverable_groovy_error(gr_root, source_bytes) {
-                    return Self::Groovy;
-                }
-                if has_kotlin_specific_ast(kt_root) {
-                    return Self::Kotlin;
-                }
-                if has_groovy_specific_ast(gr_root, source_bytes) {
-                    return Self::Groovy;
-                }
-                Self::Kotlin
-            }
-            (None, Some(_)) => Self::Groovy,
-            _ => Self::Kotlin,
-        }
+        dialect::detect_dialect_with_trees(source).0
     }
 }
 
-fn has_groovy_only_tokens(node: Node, source: &[u8]) -> bool {
-    match node.kind() {
-        "map_literal" | "map_entry" | "labeled_statement" => return true,
-        "local_variable_declaration" => {
-            if let Some(first) = node.child(0)
-                && util::node_text(first, source) == "def"
-            {
-                return true;
-            }
-        }
-        "string_literal" if util::node_text(node, source).starts_with('\'') => {
-            return true;
-        }
-        _ => {}
-    }
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if has_groovy_only_tokens(child, source) {
-            return true;
-        }
-    }
-    false
-}
-
-fn has_kotlin_specific_ast(node: Node) -> bool {
-    if node.kind() == "property_declaration" {
-        let mut prop_cursor = node.walk();
-        if node
-            .children(&mut prop_cursor)
-            .any(|child| matches!(child.kind(), "val" | "var"))
-        {
-            return true;
-        }
-    }
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if has_kotlin_specific_ast(child) {
-            return true;
-        }
-    }
-    false
-}
-
-fn has_groovy_specific_ast(node: Node, source: &[u8]) -> bool {
-    match node.kind() {
-        "command_chain" => {
-            if let Some(first) = node
-                .child_by_field_name("receiver")
-                .or_else(|| node.child(0))
-                && first.kind() == "identifier"
-            {
-                let name = util::node_text(first, source).trim();
-                if !matches!(
-                    name,
-                    "val" | "var" | "plugins" | "android" | "dependencies" | "repositories"
-                ) {
-                    return true;
-                }
-            }
-        }
-        "map_literal" | "map_entry" | "labeled_statement" => return true,
-        "local_variable_declaration" => {
-            if let Some(first) = node.child(0)
-                && util::node_text(first, source) == "def"
-            {
-                return true;
-            }
-        }
-        "string_literal" if util::node_text(node, source).starts_with('\'') => {
-            return true;
-        }
-        _ => {}
-    }
-
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if has_groovy_specific_ast(child, source) {
-            return true;
-        }
-    }
-    false
+/// A single repository declaration extracted in script order.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DeclaredRepository {
+    Google,
+    MavenCentral,
+    GradlePluginPortal,
+    MavenLocal,
+    JCenter,
+    MavenUrl(String),
 }
 
 /// Extracted repository definitions from a build script.
 #[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub struct RepositoriesResult {
+    pub entries: Vec<DeclaredRepository>,
+    pub plugin_entries: Vec<DeclaredRepository>,
     pub urls: Vec<String>,
     pub google: bool,
     pub maven_central: bool,
     pub gradle_plugin_portal: bool,
     pub maven_local: bool,
+    pub jcenter: bool,
+}
+
+impl RepositoriesResult {
+    pub fn record(&mut self, entry: DeclaredRepository, is_plugin_scope: bool) {
+        match &entry {
+            DeclaredRepository::Google => self.google = true,
+            DeclaredRepository::MavenCentral => self.maven_central = true,
+            DeclaredRepository::GradlePluginPortal => self.gradle_plugin_portal = true,
+            DeclaredRepository::MavenLocal => self.maven_local = true,
+            DeclaredRepository::JCenter => self.jcenter = true,
+            DeclaredRepository::MavenUrl(url) => self.urls.push(url.clone()),
+        }
+        if is_plugin_scope {
+            self.plugin_entries.push(entry);
+        } else {
+            self.entries.push(entry);
+        }
+    }
+
+    pub fn merge(&mut self, other: Self) {
+        self.entries.extend(other.entries);
+        self.plugin_entries.extend(other.plugin_entries);
+        self.urls.extend(other.urls);
+        self.google |= other.google;
+        self.maven_central |= other.maven_central;
+        self.gradle_plugin_portal |= other.gradle_plugin_portal;
+        self.maven_local |= other.maven_local;
+        self.jcenter |= other.jcenter;
+    }
+
+    pub fn ordered_entries(&self) -> impl Iterator<Item = &DeclaredRepository> {
+        self.entries.iter().chain(self.plugin_entries.iter())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+            && self.plugin_entries.is_empty()
+            && self.urls.is_empty()
+            && !self.google
+            && !self.maven_central
+            && !self.gradle_plugin_portal
+            && !self.maven_local
+            && !self.jcenter
+    }
 }
 
 /// Information extracted from a `.gradle` or `.gradle.kts` build script.
@@ -210,7 +163,30 @@ impl BuildScriptInfo {
         catalog: Option<&VersionCatalog>,
         initial_vars: &AHashMap<String, String>,
     ) -> Self {
-        let dialect = ScriptDialect::detect_from_content(content);
+        let (dialect, kotlin_tree, groovy_tree) = dialect::detect_dialect_with_trees(content);
+        let source_bytes = content.as_bytes();
+        match dialect {
+            ScriptDialect::Kotlin => {
+                if let Some(tree) = kotlin_tree {
+                    return kotlin::parse_kotlin_build_script_root(
+                        tree.root_node(),
+                        source_bytes,
+                        catalog,
+                        initial_vars,
+                    );
+                }
+            }
+            ScriptDialect::Groovy => {
+                if let Some(tree) = groovy_tree {
+                    return groovy::parse_groovy_build_script_root(
+                        tree.root_node(),
+                        source_bytes,
+                        catalog,
+                        initial_vars,
+                    );
+                }
+            }
+        }
         Self::parse_with_dialect_lenient(content, dialect, catalog, initial_vars)
     }
 

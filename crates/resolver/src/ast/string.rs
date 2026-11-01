@@ -2,7 +2,7 @@ use ahash::AHashMap;
 use common::concat_str;
 use tree_sitter::Node;
 
-use super::util::{lookup_property, node_text, resolve_kotlin_expr};
+use super::util::{lookup_property, node_text, resolve_groovy_expr, resolve_kotlin_expr};
 
 /// Interpolate `${var}` and `$var` references inside a raw string using `vars`.
 pub fn resolve_interpolated_string(input: &str, vars: &AHashMap<String, String>) -> String {
@@ -126,17 +126,24 @@ pub fn resolve_groovy_string(
             }
             "gstring_dollar_interpolation" | "gstring_brace_interpolation" => {
                 has_content = true;
-                let raw_interp = node_text(child, source);
-                let ident = raw_interp
-                    .strip_prefix("${")
-                    .and_then(|inner| inner.strip_suffix('}'))
-                    .or_else(|| raw_interp.strip_prefix('$'))
-                    .unwrap_or(raw_interp)
-                    .trim();
-                if let Some(val) = lookup_property(ident, properties) {
-                    result.push_str(val);
+                let resolved = child
+                    .child_by_field_name("value")
+                    .or_else(|| child.named_child(0))
+                    .and_then(|inner| resolve_groovy_expr(inner, source, properties))
+                    .or_else(|| {
+                        let raw_interp = node_text(child, source);
+                        let ident = raw_interp
+                            .strip_prefix("${")
+                            .and_then(|inner| inner.strip_suffix('}'))
+                            .or_else(|| raw_interp.strip_prefix('$'))
+                            .unwrap_or(raw_interp)
+                            .trim();
+                        lookup_property(ident, properties).cloned()
+                    });
+                if let Some(val) = resolved {
+                    result.push_str(&val);
                 } else {
-                    result.push_str(raw_interp);
+                    result.push_str(node_text(child, source));
                 }
             }
             _ => {}

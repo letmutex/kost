@@ -66,9 +66,9 @@ impl DependencyGraph {
             AHashMap::default();
         let mut queue: VecDeque<DependencyCoordinate> = VecDeque::new();
 
-        for dep in direct_deps {
+        for dep in crate::coordinate::deduplicate_newest(direct_deps.iter().cloned()) {
             final_deps.insert(dep.kmp_key(), dep.clone());
-            queue.push_back(dep.clone());
+            queue.push_back(dep);
         }
 
         let direct_count = final_deps.len();

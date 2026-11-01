@@ -96,18 +96,25 @@ async fn probe_remote_metadata(
         return None;
     }
     if repos.len() == 1 {
-        return probe_repo_metadata(downloader, &repos[0], coord, cache).await;
+        return probe_repo_metadata(downloader, &repos[0], registry, coord, cache).await;
     }
 
     let mut join_set = tokio::task::JoinSet::new();
     for (idx, repo) in repos.iter().enumerate() {
         let downloader_clone = downloader.clone();
         let repo_clone = repo.clone();
+        let registry_clone = registry.clone();
         let coord_clone = coord.clone();
         let cache_ref = cache.clone();
         join_set.spawn(async move {
-            let res =
-                probe_repo_metadata(&downloader_clone, &repo_clone, &coord_clone, &cache_ref).await;
+            let res = probe_repo_metadata(
+                &downloader_clone,
+                &repo_clone,
+                &registry_clone,
+                &coord_clone,
+                &cache_ref,
+            )
+            .await;
             (idx, res)
         });
     }
@@ -129,6 +136,7 @@ async fn probe_remote_metadata(
 async fn probe_repo_metadata(
     downloader: &Downloader,
     repo: &Repository,
+    registry: &RepositoryRegistry,
     coord: &DependencyCoordinate,
     cache: &GradleCache,
 ) -> Option<Vec<DependencyCoordinate>> {
@@ -160,7 +168,7 @@ async fn probe_repo_metadata(
             downloader.record_connection_success(&repo.url).await;
             if let Ok(mut pom) = PomModel::parse(&content) {
                 let _ = cache.store_file(coord, &coord.pom_file_name(), content.as_bytes());
-                pom.resolve_parent_from_cache(cache);
+                resolve_and_inherit_parent_poms(downloader, repo, registry, &mut pom, cache).await;
                 pom.interpolate(&ahash::AHashMap::default());
                 return Some(pom.direct_dependencies());
             }
@@ -168,6 +176,76 @@ async fn probe_repo_metadata(
         Err(err) => downloader.record_probe_error(&repo.url, &err).await,
     }
 
+    None
+}
+
+async fn resolve_and_inherit_parent_poms(
+    downloader: &Downloader,
+    primary_repo: &Repository,
+    registry: &RepositoryRegistry,
+    pom: &mut PomModel,
+    cache: &GradleCache,
+) {
+    let mut ancestors = Vec::new();
+    let mut next_parent = pom.parent.clone();
+    for _ in 0..4 {
+        let Some(parent_info) = next_parent else {
+            break;
+        };
+        let parent_coord = DependencyCoordinate::new(
+            parent_info.group,
+            parent_info.name,
+            Some(&parent_info.version),
+        );
+        let parent_pom = if let Some(cached_path) = cache.find_pom(&parent_coord) {
+            std::fs::read_to_string(cached_path)
+                .ok()
+                .and_then(|xml| PomModel::parse(&xml).ok())
+        } else {
+            fetch_and_cache_parent_pom(downloader, primary_repo, registry, &parent_coord, cache)
+                .await
+        };
+        let Some(parsed_parent) = parent_pom else {
+            break;
+        };
+        next_parent = parsed_parent.parent.clone();
+        ancestors.push(parsed_parent);
+    }
+    for parent_pom in ancestors {
+        pom.inherit_from_parent(&parent_pom);
+    }
+}
+
+async fn fetch_and_cache_parent_pom(
+    downloader: &Downloader,
+    primary_repo: &Repository,
+    registry: &RepositoryRegistry,
+    parent_coord: &DependencyCoordinate,
+    cache: &GradleCache,
+) -> Option<PomModel> {
+    let candidate_repos = std::iter::once(primary_repo).chain(
+        registry
+            .repositories
+            .iter()
+            .filter(|repo| repo.url != primary_repo.url),
+    );
+    for repo in candidate_repos {
+        if downloader.is_repo_unreachable(&repo.url).await {
+            continue;
+        }
+        let parent_url = repo.pom_url(parent_coord);
+        if let Ok(content) = downloader.fetch_text_internal(&parent_url).await
+            && let Ok(parent_pom) = PomModel::parse(&content)
+        {
+            downloader.record_connection_success(&repo.url).await;
+            let _ = cache.store_file(
+                parent_coord,
+                &parent_coord.pom_file_name(),
+                content.as_bytes(),
+            );
+            return Some(parent_pom);
+        }
+    }
     None
 }
 

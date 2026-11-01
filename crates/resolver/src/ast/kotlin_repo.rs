@@ -5,7 +5,7 @@ use super::kotlin::parse_kotlin_script_with_repos;
 use super::util::{
     find_child_by_kind, is_repo_url, node_text, resolve_kotlin_expr, unpack_kotlin_value_argument,
 };
-use super::{ParseError, RepositoriesResult};
+use super::{DeclaredRepository, ParseError, RepositoriesResult};
 
 /// Parse repository declarations from Kotlin DSL script content.
 pub fn parse_kotlin_repositories(source: &str) -> Result<RepositoriesResult, ParseError> {
@@ -28,26 +28,79 @@ pub(crate) fn extract_kotlin_repos_node(
     props: &AHashMap<String, String>,
     result: &mut RepositoriesResult,
 ) {
+    extract_kotlin_repos_scoped(node, source, props, result, false, false);
+}
+
+fn extract_kotlin_repos_scoped(
+    node: Node,
+    source: &[u8],
+    props: &AHashMap<String, String>,
+    result: &mut RepositoriesResult,
+    in_repos_block: bool,
+    in_plugin_scope: bool,
+) {
     if node.kind() == "call_expression"
         && let Some(callee) = node.child(0)
     {
-        let callee_name = node_text(callee, source);
-        match callee_name {
-            "google" => result.google = true,
-            "mavenCentral" => result.maven_central = true,
-            "gradlePluginPortal" => result.gradle_plugin_portal = true,
-            "mavenLocal" => result.maven_local = true,
-            "maven" => {
-                extract_kotlin_maven_call(node, source, props, result);
-                return;
+        let callee_name = node_text(callee, source).trim();
+        if callee_name == "publishing" {
+            return;
+        }
+        if callee_name == "repositories" {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                extract_kotlin_repos_scoped(child, source, props, result, true, in_plugin_scope);
             }
-            _ => {}
+            return;
+        }
+        if matches!(callee_name, "pluginManagement" | "buildscript") {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                extract_kotlin_repos_scoped(child, source, props, result, in_repos_block, true);
+            }
+            return;
+        }
+        if in_repos_block {
+            match callee_name {
+                "google" => {
+                    result.record(DeclaredRepository::Google, in_plugin_scope);
+                    return;
+                }
+                "mavenCentral" => {
+                    result.record(DeclaredRepository::MavenCentral, in_plugin_scope);
+                    return;
+                }
+                "gradlePluginPortal" => {
+                    result.record(DeclaredRepository::GradlePluginPortal, in_plugin_scope);
+                    return;
+                }
+                "mavenLocal" => {
+                    result.record(DeclaredRepository::MavenLocal, in_plugin_scope);
+                    return;
+                }
+                "jcenter" => {
+                    result.record(DeclaredRepository::JCenter, in_plugin_scope);
+                    return;
+                }
+                "maven" => {
+                    extract_kotlin_maven_call(node, source, props, result, in_plugin_scope);
+                    return;
+                }
+                _ => {}
+            }
         }
     }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        extract_kotlin_repos_node(child, source, props, result);
+        extract_kotlin_repos_scoped(
+            child,
+            source,
+            props,
+            result,
+            in_repos_block,
+            in_plugin_scope,
+        );
     }
 }
 
@@ -56,6 +109,7 @@ fn extract_kotlin_maven_call(
     source: &[u8],
     props: &AHashMap<String, String>,
     result: &mut RepositoriesResult,
+    in_plugin_scope: bool,
 ) {
     let Some(call_suffix) = find_child_by_kind(call_node, "call_suffix") else {
         return;
@@ -67,7 +121,7 @@ fn extract_kotlin_maven_call(
             if arg.kind() == "value_argument"
                 && let Some(url) = extract_url_from_argument(arg, source, props)
             {
-                result.urls.push(url);
+                result.record(DeclaredRepository::MavenUrl(url), in_plugin_scope);
             }
         }
     }
@@ -81,7 +135,7 @@ fn extract_kotlin_maven_call(
 
     let mut cursor = statements.walk();
     for stmt in statements.children(&mut cursor) {
-        extract_url_from_lambda_stmt(stmt, source, props, result);
+        extract_url_from_lambda_stmt(stmt, source, props, result, in_plugin_scope);
     }
 }
 
@@ -90,6 +144,7 @@ fn extract_url_from_lambda_stmt(
     source: &[u8],
     props: &AHashMap<String, String>,
     result: &mut RepositoriesResult,
+    in_plugin_scope: bool,
 ) {
     if stmt.kind() == "assignment" {
         let Some(lhs) = stmt.child(0) else {
@@ -102,7 +157,7 @@ fn extract_url_from_lambda_stmt(
             return;
         };
         if let Some(url) = extract_url_from_expr(rhs, source, props) {
-            result.urls.push(url);
+            result.record(DeclaredRepository::MavenUrl(url), in_plugin_scope);
         }
     } else if stmt.kind() == "call_expression" {
         let Some(callee) = stmt.child(0) else {
@@ -123,7 +178,7 @@ fn extract_url_from_lambda_stmt(
             if arg.kind() == "value_argument"
                 && let Some(url) = extract_url_from_argument(arg, source, props)
             {
-                result.urls.push(url);
+                result.record(DeclaredRepository::MavenUrl(url), in_plugin_scope);
             }
         }
     }

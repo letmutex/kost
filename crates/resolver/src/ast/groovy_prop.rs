@@ -47,7 +47,7 @@ fn extract_groovy_properties_scoped(
     }
 }
 
-fn is_ext_invocation(node: Node, source: &[u8]) -> bool {
+pub(crate) fn is_ext_invocation(node: Node, source: &[u8]) -> bool {
     let target = match node.kind() {
         "command_chain" => node
             .child_by_field_name("receiver")

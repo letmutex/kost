@@ -9,6 +9,8 @@ use ignore::WalkBuilder;
 pub use crate::ast::{BuildScriptInfo, ParseError, RepositoriesResult, ScriptDialect};
 use crate::catalog::VersionCatalog;
 use crate::coordinate::{DependencyCoordinate, deduplicate_newest};
+pub use crate::properties::{collect_gradle_properties, parse_gradle_properties};
+use crate::properties::{inherit_ancestor_vars, populate_gradle_properties_by_dir, store_dir_vars};
 use crate::version::ArtifactVersion;
 
 pub mod script {
@@ -84,8 +86,22 @@ pub fn discover_gradle_files(root: &Path) -> (Vec<PathBuf>, Vec<PathBuf>) {
     }
 
     catalogs.sort_by(|a, b| (a.components().count(), a).cmp(&(b.components().count(), b)));
-    scripts.sort_by(|a, b| (a.components().count(), a).cmp(&(b.components().count(), b)));
+    scripts.sort_by(|a, b| {
+        (a.components().count(), script_lifecycle_order(a), a).cmp(&(
+            b.components().count(),
+            script_lifecycle_order(b),
+            b,
+        ))
+    });
     (catalogs, scripts)
+}
+
+fn script_lifecycle_order(path: &Path) -> u8 {
+    match path.file_name().and_then(|file_name| file_name.to_str()) {
+        Some("gradle.properties") => 0,
+        Some("settings.gradle" | "settings.gradle.kts") => 1,
+        _ => 2,
+    }
 }
 
 /// Alias for `discover_gradle_files`.
@@ -110,7 +126,8 @@ pub fn collect_project_dependencies_and_repos(
 ) -> Result<(Vec<DependencyCoordinate>, RepositoriesResult), ParseError> {
     let mut deps = Vec::new();
     let mut repos = RepositoriesResult::default();
-    let mut properties = collect_gradle_properties(scripts);
+    let mut dir_vars: AHashMap<PathBuf, AHashMap<String, String>> = AHashMap::default();
+    populate_gradle_properties_by_dir(scripts, &mut dir_vars);
     let mut primary_catalog: Option<VersionCatalog> = None;
 
     if collect_deps {
@@ -131,13 +148,14 @@ pub fn collect_project_dependencies_and_repos(
             && let Ok(content) = std::fs::read_to_string(script_path)
         {
             let dialect = ScriptDialect::from_path(script_path)?;
+            let inherited = inherit_ancestor_vars(script_path, &dir_vars);
             let info = BuildScriptInfo::parse_with_dialect(
                 &content,
                 dialect,
                 primary_catalog.as_ref(),
-                &properties,
+                &inherited,
             )?;
-            properties = info.variables;
+            store_dir_vars(script_path, info.variables, &mut dir_vars);
             if collect_deps {
                 deps.extend(info.dependencies);
             }
@@ -153,30 +171,6 @@ pub fn collect_project_dependencies_and_repos(
     Ok((final_deps, repos))
 }
 
-pub fn collect_gradle_properties(scripts: &[PathBuf]) -> AHashMap<String, String> {
-    let mut properties = AHashMap::default();
-    for script_path in scripts {
-        if script_path.file_name().and_then(|name| name.to_str()) == Some("gradle.properties")
-            && let Ok(content) = std::fs::read_to_string(script_path)
-        {
-            parse_gradle_properties(&content, &mut properties);
-        }
-    }
-    properties
-}
-
-pub fn parse_gradle_properties(content: &str, props: &mut AHashMap<String, String>) {
-    for line in content.lines() {
-        let trimmed = line.trim();
-        if trimmed.is_empty() || trimmed.starts_with('#') || trimmed.starts_with('!') {
-            continue;
-        }
-        if let Some((key, value)) = trimmed.split_once('=').or_else(|| trimmed.split_once(':')) {
-            props.insert(key.trim().to_string(), value.trim().to_string());
-        }
-    }
-}
-
 pub fn collect_declared_dependencies(
     catalogs: &[PathBuf],
     scripts: &[PathBuf],
@@ -185,7 +179,8 @@ pub fn collect_declared_dependencies(
     let mut all_deps = Vec::new();
     let mut kotlin_vers = Vec::new();
     let mut pref_sdk: Option<u32> = None;
-    let mut shared_vars = collect_gradle_properties(scripts);
+    let mut dir_vars: AHashMap<PathBuf, AHashMap<String, String>> = AHashMap::default();
+    populate_gradle_properties_by_dir(scripts, &mut dir_vars);
 
     for cat_path in catalogs {
         if let Ok(content) = std::fs::read_to_string(cat_path)
@@ -201,26 +196,25 @@ pub fn collect_declared_dependencies(
     for script_path in scripts {
         if script_path
             .file_name()
-            .and_then(|n| n.to_str())
-            .is_some_and(|n| n == "gradle.properties")
+            .and_then(|file_name| file_name.to_str())
+            .is_some_and(|file_name| file_name == "gradle.properties")
         {
             continue;
         }
         if let Ok(content) = std::fs::read_to_string(script_path) {
+            let inherited = inherit_ancestor_vars(script_path, &dir_vars);
             let info = match ScriptDialect::from_path(script_path) {
                 Ok(dialect) => BuildScriptInfo::parse_with_dialect_lenient(
                     &content,
                     dialect,
                     primary_catalog.as_ref(),
-                    &shared_vars,
+                    &inherited,
                 ),
-                Err(_) => BuildScriptInfo::parse_with_vars(
-                    &content,
-                    primary_catalog.as_ref(),
-                    &shared_vars,
-                ),
+                Err(_) => {
+                    BuildScriptInfo::parse_with_vars(&content, primary_catalog.as_ref(), &inherited)
+                }
             };
-            shared_vars.extend(info.variables);
+            store_dir_vars(script_path, info.variables, &mut dir_vars);
             all_deps.extend(info.dependencies);
             kotlin_vers.extend(info.kotlin_versions);
             if info.has_android_block

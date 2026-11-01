@@ -70,10 +70,16 @@ fn resolve_deps_and_registry(
         discovery::collect_project_dependencies_and_repos(catalogs, scripts, !explicit_coords)
             .map_err(|err| err.to_string())?;
 
-    let mut registry = RepositoryRegistry::with_defaults();
+    let mut registry = RepositoryRegistry::new();
     registry.apply_repositories_result(repo_result);
     for repo_url in extra_repos {
         registry.add_url(repo_url);
+    }
+
+    if registry.is_empty() {
+        return Err(
+            "No repositories found in project build scripts. Configure a repositories block or provide --maven-repo.".to_string(),
+        );
     }
 
     if explicit_coords {

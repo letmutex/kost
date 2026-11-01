@@ -5,8 +5,8 @@ use super::kotlin_meta::extract_kotlin_metadata;
 use super::kotlin_prop::extract_kotlin_properties;
 use super::kotlin_repo::extract_kotlin_repos_node;
 use super::util::{
-    find_child_by_kind, is_catalog_accessor, is_dependency_configuration, node_text,
-    resolve_kotlin_expr, resolve_kotlin_string, unpack_kotlin_value_argument,
+    find_child_by_kind, is_dependency_configuration, node_text, resolve_kotlin_expr,
+    resolve_kotlin_string, unpack_kotlin_value_argument,
 };
 use super::{BuildScriptInfo, ParseError, RepositoriesResult};
 use crate::catalog::VersionCatalog;
@@ -51,11 +51,7 @@ pub(crate) fn parse_kotlin_script_with_repos(
 }
 
 pub(crate) fn merge_repositories(target: &mut RepositoriesResult, source: RepositoriesResult) {
-    target.urls.extend(source.urls);
-    target.google |= source.google;
-    target.maven_central |= source.maven_central;
-    target.gradle_plugin_portal |= source.gradle_plugin_portal;
-    target.maven_local |= source.maven_local;
+    target.merge(source);
 }
 
 /// Parse full `BuildScriptInfo` from a Kotlin `.gradle.kts` script.
@@ -80,6 +76,20 @@ pub fn parse_kotlin_build_script(
         ));
     }
 
+    Ok(parse_kotlin_build_script_root(
+        root,
+        source_bytes,
+        catalog,
+        initial_vars,
+    ))
+}
+
+pub(crate) fn parse_kotlin_build_script_root(
+    root: Node,
+    source_bytes: &[u8],
+    catalog: Option<&VersionCatalog>,
+    initial_vars: &AHashMap<String, String>,
+) -> BuildScriptInfo {
     let mut info = BuildScriptInfo {
         variables: initial_vars.clone(),
         ..Default::default()
@@ -90,7 +100,7 @@ pub fn parse_kotlin_build_script(
     extract_kotlin_dependencies(root, source_bytes, catalog, &mut info);
     extract_kotlin_repos_node(root, source_bytes, &info.variables, &mut info.repositories);
 
-    Ok(info)
+    info
 }
 
 fn extract_kotlin_dependencies(
@@ -132,9 +142,8 @@ fn extract_infix_dependency(
     let Some(rhs) = infix_node.child(2) else {
         return;
     };
-    let rhs_text = node_text(rhs, source).trim();
-    if is_catalog_accessor(rhs_text) {
-        record_catalog_accessor(rhs_text, catalog, info);
+    if let Some(accessor) = extract_catalog_accessor_node(rhs, source) {
+        record_catalog_accessor(&accessor, catalog, info);
         return;
     }
     if let Some(raw_coord) = resolve_kotlin_expr(rhs, source, &info.variables).or_else(|| {
@@ -197,9 +206,10 @@ fn extract_call_dependency(
             continue;
         }
 
-        let expr_text = node_text(val_expr, source).trim();
-        if val_expr.kind() == "navigation_expression" && is_catalog_accessor(expr_text) {
-            record_catalog_accessor(expr_text, catalog, info);
+        if val_expr.kind() == "navigation_expression"
+            && let Some(accessor) = extract_catalog_accessor_node(val_expr, source)
+        {
+            record_catalog_accessor(&accessor, catalog, info);
             continue;
         }
 
@@ -217,18 +227,42 @@ fn extract_call_dependency(
     );
 }
 
+pub(crate) fn extract_catalog_accessor_node(node: Node, source: &[u8]) -> Option<String> {
+    let mut segments = Vec::new();
+    collect_accessor_segments(node, source, &mut segments);
+    if segments.len() >= 2 && matches!(segments[0], "libs" | "libraries") {
+        Some(segments.join("."))
+    } else {
+        None
+    }
+}
+
+fn collect_accessor_segments<'a>(node: Node<'a>, source: &'a [u8], out: &mut Vec<&'a str>) {
+    match node.kind() {
+        "simple_identifier" | "identifier" => {
+            let text = node_text(node, source).trim();
+            if !text.is_empty() {
+                out.push(text);
+            }
+        }
+        "navigation_expression" | "navigation_suffix" | "field_access" => {
+            let mut cursor = node.walk();
+            for child in node.children(&mut cursor) {
+                collect_accessor_segments(child, source, out);
+            }
+        }
+        _ => {}
+    }
+}
+
 pub(crate) fn record_catalog_accessor(
-    raw_accessor: &str,
+    accessor: &str,
     catalog: Option<&VersionCatalog>,
     info: &mut BuildScriptInfo,
 ) {
-    let clean: String = raw_accessor
-        .chars()
-        .filter(|ch| !ch.is_whitespace())
-        .collect();
-    info.catalog_accessors.push(clean.clone());
+    info.catalog_accessors.push(accessor.to_string());
     if let Some(cat) = catalog {
-        info.dependencies.extend(cat.resolve_accessor(&clean));
+        info.dependencies.extend(cat.resolve_accessor(accessor));
     }
 }
 

@@ -108,7 +108,6 @@ fn resolve_parent_pom_depth(pom: &mut PomModel, cache: &GradleCache, depth: usiz
         && let Ok(mut parent_pom) = PomModel::parse(&content)
     {
         resolve_parent_pom_depth(&mut parent_pom, cache, depth + 1);
-        parent_pom.interpolate(&AHashMap::default());
         pom.inherit_from_parent(&parent_pom);
     }
 }

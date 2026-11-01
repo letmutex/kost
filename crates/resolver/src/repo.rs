@@ -1,12 +1,12 @@
 use ahash::AHashMap;
 use common::concat_str;
 
-use crate::coordinate::DependencyCoordinate;
-use crate::discovery::ast::{
-    ParseError, RepositoriesResult, ScriptDialect,
+use crate::ast::{
+    DeclaredRepository, ParseError, RepositoriesResult, ScriptDialect,
     groovy_repo::parse_groovy_repositories_with_props,
     kotlin_repo::parse_kotlin_repositories_with_props,
 };
+use crate::coordinate::DependencyCoordinate;
 
 /// Represents a Maven repository with an ID and base URL.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -43,7 +43,11 @@ impl Repository {
         Self::new("jitpack", "https://jitpack.io/")
     }
 
-    /// Construct URL for an artifact binary or source jar
+    pub fn jcenter() -> Self {
+        Self::new("jcenter", "https://jcenter.bintray.com/")
+    }
+
+    /// Construct URL for an artifact binary or source jar.
     pub fn artifact_url(&self, coord: &DependencyCoordinate, is_sources: bool) -> String {
         let group_path = coord.group.replace('.', "/");
         let file_name = coord.artifact_file_name(is_sources);
@@ -65,7 +69,7 @@ impl Repository {
         )
     }
 
-    /// Construct URL for POM file
+    /// Construct URL for POM file.
     pub fn pom_url(&self, coord: &DependencyCoordinate) -> String {
         let group_path = coord.group.replace('.', "/");
         let file_name = coord.pom_file_name();
@@ -87,7 +91,7 @@ impl Repository {
         )
     }
 
-    /// Construct URL for Gradle Module Metadata (.module)
+    /// Construct URL for Gradle Module Metadata (`.module`).
     pub fn module_url(&self, coord: &DependencyCoordinate) -> String {
         let group_path = coord.group.replace('.', "/");
         let file_name = coord.module_file_name();
@@ -111,22 +115,9 @@ impl Repository {
 }
 
 /// Registry of repositories to query in priority order.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct RepositoryRegistry {
     pub repositories: Vec<Repository>,
-}
-
-impl Default for RepositoryRegistry {
-    fn default() -> Self {
-        Self {
-            repositories: vec![
-                Repository::google(),
-                Repository::maven_central(),
-                Repository::gradle_plugin_portal(),
-                Repository::jitpack(),
-            ],
-        }
-    }
 }
 
 impl RepositoryRegistry {
@@ -136,12 +127,16 @@ impl RepositoryRegistry {
         }
     }
 
-    pub fn with_defaults() -> Self {
-        Self::default()
+    pub fn is_empty(&self) -> bool {
+        self.repositories.is_empty()
     }
 
     pub fn add(&mut self, repo: Repository) {
-        if !self.repositories.iter().any(|r| r.url == repo.url) {
+        if !self
+            .repositories
+            .iter()
+            .any(|existing| existing.url == repo.url)
+        {
             self.repositories.push(repo);
         }
     }
@@ -175,7 +170,23 @@ impl RepositoryRegistry {
         Ok(())
     }
 
-    pub(crate) fn apply_repositories_result(&mut self, repo_result: RepositoriesResult) {
+    pub fn apply_repositories_result(&mut self, repo_result: RepositoriesResult) {
+        if !repo_result.entries.is_empty() || !repo_result.plugin_entries.is_empty() {
+            for entry in repo_result.ordered_entries() {
+                match entry {
+                    DeclaredRepository::Google => self.add(Repository::google()),
+                    DeclaredRepository::MavenCentral => self.add(Repository::maven_central()),
+                    DeclaredRepository::GradlePluginPortal => {
+                        self.add(Repository::gradle_plugin_portal());
+                    }
+                    DeclaredRepository::MavenLocal => self.add_maven_local(),
+                    DeclaredRepository::JCenter => self.add(Repository::jcenter()),
+                    DeclaredRepository::MavenUrl(url) => self.add_url(url),
+                }
+            }
+            return;
+        }
+
         for url in repo_result.urls {
             self.add_url(&url);
         }
@@ -190,6 +201,9 @@ impl RepositoryRegistry {
         }
         if repo_result.maven_local {
             self.add_maven_local();
+        }
+        if repo_result.jcenter {
+            self.add(Repository::jcenter());
         }
     }
 

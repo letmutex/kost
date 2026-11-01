@@ -3,6 +3,7 @@ use common::concat_str;
 use tree_sitter::Node;
 
 use super::BuildScriptInfo;
+use super::kotlin::extract_catalog_accessor_node;
 use super::util::{
     find_child_by_kind, node_text, resolve_kotlin_expr, unpack_kotlin_value_argument,
 };
@@ -56,14 +57,8 @@ fn extract_kotlin_plugins_block(
             extract_kotlin_plugin_node(node, source, catalog, info);
             return;
         }
-        "call_expression" => {
-            if let Some(callee) = node.child(0) {
-                let callee_name = node_text(callee, source).trim();
-                if matches!(callee_name, "id" | "kotlin" | "alias") {
-                    extract_kotlin_plugin_node(node, source, catalog, info);
-                    return;
-                }
-            }
+        "call_expression" if extract_kotlin_plugin_call_node(node, source, catalog, info) => {
+            return;
         }
         _ => {}
     }
@@ -159,25 +154,70 @@ fn extract_kotlin_plugin_node(
             }
         }
         "call_expression" => {
-            if let Some(callee) = node.child(0) {
-                let callee_text = node_text(callee, source).trim();
-                if callee_text == "alias" {
-                    if let Some(arg_expr) = first_kotlin_call_arg(node, source)
-                        && let Some(cat) = catalog
-                        && let Some((id, ver)) =
-                            cat.resolve_plugin_accessor(node_text(arg_expr, source))
-                    {
-                        record_plugin(id, ver, info);
-                    }
-                    return;
-                }
-                if let Some(plugin_id) = extract_plugin_call_id(node, source, &info.variables) {
-                    record_plugin(plugin_id, None, info);
-                }
-            }
+            let _ = extract_kotlin_plugin_call_node(node, source, catalog, info);
         }
         _ => {}
     }
+}
+
+fn extract_kotlin_plugin_call_node(
+    node: Node,
+    source: &[u8],
+    catalog: Option<&VersionCatalog>,
+    info: &mut BuildScriptInfo,
+) -> bool {
+    let Some(callee) = node.child(0) else {
+        return false;
+    };
+    if callee.kind() == "navigation_expression" {
+        return extract_chained_plugin_call(node, callee, source, catalog, info);
+    }
+    let callee_text = node_text(callee, source).trim();
+    if callee_text == "alias" {
+        if let Some(arg_expr) = first_kotlin_call_arg(node, source)
+            && let Some(cat) = catalog
+        {
+            let accessor = extract_catalog_accessor_node(arg_expr, source)
+                .unwrap_or_else(|| node_text(arg_expr, source).to_string());
+            if let Some((id, ver)) = cat.resolve_plugin_accessor(&accessor) {
+                record_plugin(id, ver, info);
+            }
+        }
+        return true;
+    }
+    if let Some(plugin_id) = extract_plugin_call_id(node, source, &info.variables) {
+        record_plugin(plugin_id, None, info);
+        return true;
+    }
+    false
+}
+
+fn extract_chained_plugin_call(
+    call_node: Node,
+    nav_callee: Node,
+    source: &[u8],
+    catalog: Option<&VersionCatalog>,
+    info: &mut BuildScriptInfo,
+) -> bool {
+    let Some(receiver) = nav_callee.child(0) else {
+        return false;
+    };
+    let member_name = nav_callee
+        .child(1)
+        .map(|member| node_text(member, source).trim().trim_start_matches('.'))
+        .unwrap_or("");
+    if member_name == "apply" {
+        return extract_kotlin_plugin_call_node(receiver, source, catalog, info);
+    }
+    if member_name == "version"
+        && let Some(plugin_id) = extract_plugin_call_id(receiver, source, &info.variables)
+    {
+        let version = first_kotlin_call_arg(call_node, source)
+            .and_then(|arg| resolve_kotlin_expr(arg, source, &info.variables));
+        record_plugin(plugin_id, version, info);
+        return true;
+    }
+    false
 }
 
 fn extract_plugin_call_id(

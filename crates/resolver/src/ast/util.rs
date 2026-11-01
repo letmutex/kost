@@ -200,6 +200,46 @@ pub fn has_unrecoverable_groovy_error(node: Node, source: &[u8]) -> bool {
     false
 }
 
+/// Extracts key-value coordinates from a Groovy `labeled_statement` (`group: '...', name: '...'`).
+pub fn extract_labeled_pair(
+    labeled: Node,
+    source: &[u8],
+    properties: &AHashMap<String, String>,
+    group: &mut Option<String>,
+    name: &mut Option<String>,
+    version: &mut Option<String>,
+) {
+    let Some(label_node) = labeled
+        .child_by_field_name("label")
+        .or_else(|| labeled.child(0))
+    else {
+        return;
+    };
+    let Some(stmt_node) = labeled
+        .child_by_field_name("statement")
+        .or_else(|| labeled.child(2))
+    else {
+        return;
+    };
+    let val_node = if stmt_node.kind() == "expression_statement" {
+        stmt_node.child(0).unwrap_or(stmt_node)
+    } else {
+        stmt_node
+    };
+    let key = node_text(label_node, source)
+        .trim()
+        .trim_matches(['\'', '"']);
+    let Some(val) = resolve_groovy_expr(val_node, source, properties) else {
+        return;
+    };
+    match key {
+        "group" => *group = Some(val),
+        "name" => *name = Some(val),
+        "version" => *version = Some(val),
+        _ => {}
+    }
+}
+
 /// Extracts key-value coordinates from a Groovy named argument or map entry.
 pub fn extract_named_pair(
     pair_node: Node,
@@ -238,4 +278,27 @@ pub fn extract_named_pair(
         "version" => *version = Some(val),
         _ => {}
     }
+}
+
+/// Extracts the target node (`function` or `receiver`) from a Groovy `method_invocation` or `command_chain`.
+pub fn groovy_call_target(node: Node) -> Option<Node> {
+    match node.kind() {
+        "method_invocation" => node
+            .child_by_field_name("function")
+            .or_else(|| node.child(0)),
+        "command_chain" => node
+            .child_by_field_name("receiver")
+            .or_else(|| node.child(0)),
+        _ => None,
+    }
+}
+
+/// Checks if a Groovy `method_invocation` or `command_chain` targets `platform` or `enforcedPlatform`.
+pub fn is_groovy_platform_call(node: Node, source: &[u8]) -> bool {
+    groovy_call_target(node).is_some_and(|target_node| {
+        matches!(
+            node_text(target_node, source),
+            "platform" | "enforcedPlatform"
+        )
+    })
 }

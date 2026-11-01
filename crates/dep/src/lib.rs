@@ -1,11 +1,10 @@
-pub use resolver::{cache, coordinate, discovery, module, pom, version};
+pub use resolver::{cache, coordinate, discovery, module, pom, repo, version};
 
 pub mod downloader;
 pub mod graph;
 pub mod metadata;
 pub mod progress;
 pub mod renderer;
-pub mod repo;
 pub mod runner;
 
 pub use cache::GradleCache;
