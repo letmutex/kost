@@ -28,33 +28,35 @@ pub(crate) fn parse_pom(xml_content: &str) -> Result<PomModel, String> {
 
     loop {
         match reader.read_event_into(&mut buf) {
-            Ok(Event::Start(ref e)) => {
-                let tag_name = SmolStr::new(String::from_utf8_lossy(e.name().as_ref()).as_ref());
+            Ok(Event::Start(ref start_elem)) => {
+                let tag_name =
+                    SmolStr::new(String::from_utf8_lossy(start_elem.name().as_ref()).as_ref());
                 path.push(tag_name);
                 current_text.clear();
             }
-            Ok(Event::Text(ref e)) => {
-                if let Ok(txt) = e.unescape() {
+            Ok(Event::Text(ref text_elem)) => {
+                if let Ok(txt) = text_elem.unescape() {
                     current_text.push_str(&txt);
                 }
             }
-            Ok(Event::CData(ref e)) => {
-                if let Ok(txt) = std::str::from_utf8(e.as_ref()) {
+            Ok(Event::CData(ref cdata_elem)) => {
+                if let Ok(txt) = std::str::from_utf8(cdata_elem.as_ref()) {
                     current_text.push_str(txt);
                 }
             }
-            Ok(Event::End(ref e)) => {
+            Ok(Event::End(ref end_elem)) => {
                 process_end_element(&path, &current_text, &mut model, &mut state);
                 if path
                     .last()
-                    .is_some_and(|s| s.as_bytes() == e.name().as_ref())
+                    .is_some_and(|tag| tag.as_bytes() == end_elem.name().as_ref())
                 {
                     path.pop();
                 }
                 current_text.clear();
             }
-            Ok(Event::Empty(ref e)) => {
-                let tag_name = SmolStr::new(String::from_utf8_lossy(e.name().as_ref()).as_ref());
+            Ok(Event::Empty(ref empty_elem)) => {
+                let tag_name =
+                    SmolStr::new(String::from_utf8_lossy(empty_elem.name().as_ref()).as_ref());
                 path.push(tag_name);
                 process_end_element(&path, "", &mut model, &mut state);
                 path.pop();

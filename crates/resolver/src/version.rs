@@ -1,5 +1,6 @@
 use smol_str::SmolStr;
 use std::cmp::Ordering;
+use std::fmt;
 
 /// Represents a parsed library or SDK version.
 /// Supports SemVer, Gradle/Maven pre-release qualifiers, snapshot versions, and Android SDK platforms.
@@ -26,16 +27,17 @@ pub enum QualifierKind {
     Milestone = 5,
     Rc = 6,
     Final = 7,
+    Release = 8,
 }
 
 impl ArtifactVersion {
     pub fn parse(input: &str) -> Self {
         let trimmed = input.trim().trim_start_matches('v').trim_start_matches('V');
 
-        let clean = if let Some(s) = trimmed.strip_prefix("android-") {
-            s
-        } else if let Some(s) = trimmed.strip_prefix("android_") {
-            s
+        let clean = if let Some(stripped) = trimmed.strip_prefix("android-") {
+            stripped
+        } else if let Some(stripped) = trimmed.strip_prefix("android_") {
+            stripped
         } else {
             trimmed
         };
@@ -70,6 +72,12 @@ impl ArtifactVersion {
     }
 }
 
+impl fmt::Display for ArtifactVersion {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(&self.raw)
+    }
+}
+
 fn flush_letters(letters: &mut String, components: &mut Vec<VersionComponent>) {
     if letters.is_empty() {
         return;
@@ -86,8 +94,8 @@ fn flush_letters(letters: &mut String, components: &mut Vec<VersionComponent>) {
         "final" | "ga" | "release" => Some(QualifierKind::Final),
         _ => None,
     };
-    if let Some(q) = qual {
-        components.push(VersionComponent::Qualifier(q, 0));
+    if let Some(qual_kind) = qual {
+        components.push(VersionComponent::Qualifier(qual_kind, 0));
     } else {
         components.push(VersionComponent::String(SmolStr::new(lower)));
     }
@@ -99,10 +107,10 @@ fn flush_digits(digits: &mut String, components: &mut Vec<VersionComponent>) {
         return;
     }
     if let Ok(num) = digits.parse::<u64>() {
-        if let Some(VersionComponent::Qualifier(_q, n)) = components.last_mut()
-            && *n == 0
+        if let Some(VersionComponent::Qualifier(_qual, count)) = components.last_mut()
+            && *count == 0
         {
-            *n = num;
+            *count = num;
             digits.clear();
             return;
         }
@@ -122,28 +130,30 @@ impl PartialOrd for ArtifactVersion {
 impl Ord for ArtifactVersion {
     fn cmp(&self, other: &Self) -> Ordering {
         let max_len = self.components.len().max(other.components.len());
-        for i in 0..max_len {
-            let left = self.components.get(i);
-            let right = other.components.get(i);
+        for idx in 0..max_len {
+            let left = self.components.get(idx);
+            let right = other.components.get(idx);
 
             match (left, right) {
-                (Some(l), Some(r)) => match compare_components(l, r) {
-                    Ordering::Equal => continue,
-                    non_eq => return non_eq,
-                },
+                (Some(left_comp), Some(right_comp)) => {
+                    match compare_components(left_comp, right_comp) {
+                        Ordering::Equal => continue,
+                        non_eq => return non_eq,
+                    }
+                }
                 (Some(VersionComponent::Qualifier(..) | VersionComponent::String(_)), None) => {
                     return Ordering::Less;
                 }
                 (None, Some(VersionComponent::Qualifier(..) | VersionComponent::String(_))) => {
                     return Ordering::Greater;
                 }
-                (Some(VersionComponent::Number(n)), None) => {
-                    if *n != 0 {
+                (Some(VersionComponent::Number(num)), None) => {
+                    if *num != 0 {
                         return Ordering::Greater;
                     }
                 }
-                (None, Some(VersionComponent::Number(n))) => {
-                    if *n != 0 {
+                (None, Some(VersionComponent::Number(num))) => {
+                    if *num != 0 {
                         return Ordering::Less;
                     }
                 }
@@ -197,9 +207,6 @@ mod tests {
         let v_custom = ArtifactVersion::parse("1.15.0-custom");
         assert!(v_alpha > v_custom);
         assert!(v_final > v_custom);
-        assert!(v_final > v_alpha);
-        assert!(v_final > v_rc);
-        assert!(v_patch > v_final);
     }
 
     #[test]

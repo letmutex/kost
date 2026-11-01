@@ -94,7 +94,7 @@ async fn test_path_traversal_rejection() {
 async fn test_kmp_candidate_probing_order() {
     let generic_coord =
         DependencyCoordinate::parse("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0").unwrap();
-    let candidates = generic_coord.kmp_candidate_names();
+    let candidates = generic_coord.kmp_probe_candidates();
     assert_eq!(candidates[0], "kotlinx-coroutines-core");
     assert_eq!(candidates[1], "kotlinx-coroutines-core-jvm");
     assert_eq!(candidates[2], "kotlinx-coroutines-core-desktop");
@@ -102,7 +102,7 @@ async fn test_kmp_candidate_probing_order() {
     let explicit_jvm_coord =
         DependencyCoordinate::parse("org.jetbrains.kotlinx:kotlinx-coroutines-core-jvm:1.8.0")
             .unwrap();
-    let jvm_candidates = explicit_jvm_coord.kmp_candidate_names();
+    let jvm_candidates = explicit_jvm_coord.kmp_probe_candidates();
     assert_eq!(jvm_candidates, vec!["kotlinx-coroutines-core-jvm"]);
 }
 

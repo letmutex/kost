@@ -3,7 +3,7 @@ use tree_sitter::Node;
 
 use super::util::{find_child_by_kind, node_text, resolve_groovy_expr};
 
-/// Extracts declared local variables, ext assignments, and ext { ... } blocks.
+/// Extracts declared local variables, `ext` assignments, and `ext { ... }` blocks.
 pub(crate) fn extract_groovy_properties(
     root: Node,
     source: &[u8],
@@ -63,7 +63,7 @@ fn is_ext_invocation(node: Node, source: &[u8]) -> bool {
     })
 }
 
-fn find_invocation_closure(node: Node) -> Option<Node> {
+pub(crate) fn find_invocation_closure(node: Node) -> Option<Node> {
     find_child_by_kind(node, "closure").or_else(|| {
         let arg_list = find_child_by_kind(node, "argument_list")?;
         find_child_by_kind(arg_list, "closure")
@@ -95,7 +95,7 @@ fn extract_local_variable_declaration(
         if let (Some(ident_node), Some(expr_node)) = (name_node, val_node) {
             let name = node_text(ident_node, source).trim();
             if !name.is_empty()
-                && let Some(val) = resolve_groovy_expr(expr_node, source, properties)
+                && let Some(val) = resolve_groovy_prop_val(expr_node, source, properties)
             {
                 properties.insert(name.to_string(), val);
             }
@@ -138,8 +138,19 @@ fn extract_assignment_expression(
 
     if let Some(name) = var_name
         && !name.is_empty()
-        && let Some(val) = resolve_groovy_expr(right, source, properties)
+        && let Some(val) = resolve_groovy_prop_val(right, source, properties)
     {
         properties.insert(name.to_string(), val);
     }
+}
+
+fn resolve_groovy_prop_val(
+    expr_node: Node,
+    source: &[u8],
+    properties: &AHashMap<String, String>,
+) -> Option<String> {
+    if matches!(expr_node.kind(), "number_literal" | "integer_literal") {
+        return Some(node_text(expr_node, source).trim().to_string());
+    }
+    resolve_groovy_expr(expr_node, source, properties)
 }

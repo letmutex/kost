@@ -1,0 +1,27 @@
+[package]
+name = "resolver"
+version.workspace = true
+edition = "2024"
+license = "Apache-2.0"
+description = "Fast JVM-free Gradle build script and cached dependency resolver"
+
+[dependencies]
+ahash = { workspace = true }
+common = { workspace = true }
+dekobon-tree-sitter-groovy = { workspace = true }
+ignore = { workspace = true }
+quick-xml = { workspace = true }
+rayon = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha1 = { workspace = true }
+smol_str = { workspace = true }
+toml = "0.8"
+tree-sitter = { workspace = true }
+tree-sitter-kotlin = { workspace = true }
+
+[dev-dependencies]
+common = { workspace = true }
+
+[lints]
+workspace = true

@@ -1,12 +1,15 @@
 use ahash::AHashMap;
 use tree_sitter::Node;
 
+use super::kotlin_meta::extract_kotlin_metadata;
+use super::kotlin_prop::extract_kotlin_properties;
 use super::kotlin_repo::extract_kotlin_repos_node;
 use super::util::{
-    find_child_by_kind, is_dependency_configuration, node_text, resolve_kotlin_expr,
-    resolve_kotlin_string, unpack_kotlin_value_argument,
+    find_child_by_kind, is_catalog_accessor, is_dependency_configuration, node_text,
+    resolve_kotlin_expr, resolve_kotlin_string, unpack_kotlin_value_argument,
 };
-use super::{ParseError, RepositoriesResult};
+use super::{BuildScriptInfo, ParseError, RepositoriesResult};
+use crate::catalog::VersionCatalog;
 use crate::coordinate::DependencyCoordinate;
 
 thread_local! {
@@ -37,6 +40,31 @@ pub(crate) fn parse_kotlin_script_with_repos(
     deps: Option<&mut Vec<DependencyCoordinate>>,
     repos: Option<&mut RepositoriesResult>,
 ) -> Result<(), ParseError> {
+    let info = parse_kotlin_build_script(source, None, properties, true)?;
+    if let Some(deps_out) = deps {
+        deps_out.extend(info.dependencies);
+    }
+    if let Some(repos_out) = repos {
+        merge_repositories(repos_out, info.repositories);
+    }
+    Ok(())
+}
+
+pub(crate) fn merge_repositories(target: &mut RepositoriesResult, source: RepositoriesResult) {
+    target.urls.extend(source.urls);
+    target.google |= source.google;
+    target.maven_central |= source.maven_central;
+    target.gradle_plugin_portal |= source.gradle_plugin_portal;
+    target.maven_local |= source.maven_local;
+}
+
+/// Parse full `BuildScriptInfo` from a Kotlin `.gradle.kts` script.
+pub fn parse_kotlin_build_script(
+    source: &str,
+    catalog: Option<&VersionCatalog>,
+    initial_vars: &AHashMap<String, String>,
+    strict: bool,
+) -> Result<BuildScriptInfo, ParseError> {
     let source_bytes = source.as_bytes();
     let tree = KOTLIN_PARSER.with(|parser| parser.borrow_mut().parse(source_bytes, None));
     let Some(tree) = tree else {
@@ -46,99 +74,36 @@ pub(crate) fn parse_kotlin_script_with_repos(
     };
 
     let root = tree.root_node();
-    if root.has_error() {
+    if strict && root.has_error() {
         return Err(ParseError::SyntaxError(
             "Kotlin script contains syntax errors".to_string(),
         ));
     }
 
-    let mut active_props = properties.clone();
-    extract_kotlin_properties(root, source_bytes, &mut active_props);
-    if let Some(deps_out) = deps {
-        extract_kotlin_dependencies(root, source_bytes, &active_props, deps_out);
-    }
-    if let Some(repos_out) = repos {
-        extract_kotlin_repos_node(root, source_bytes, &active_props, repos_out);
-    }
-    Ok(())
-}
+    let mut info = BuildScriptInfo {
+        variables: initial_vars.clone(),
+        ..Default::default()
+    };
 
-pub(crate) fn extract_kotlin_properties(
-    node: Node,
-    source: &[u8],
-    properties: &mut AHashMap<String, String>,
-) {
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "property_declaration" {
-            extract_property_declaration(child, source, properties);
-        } else {
-            extract_kotlin_properties(child, source, properties);
-        }
-    }
-}
+    extract_kotlin_properties(root, source_bytes, &mut info.variables);
+    extract_kotlin_metadata(root, source_bytes, catalog, &mut info);
+    extract_kotlin_dependencies(root, source_bytes, catalog, &mut info);
+    extract_kotlin_repos_node(root, source_bytes, &info.variables, &mut info.repositories);
 
-fn extract_property_declaration(
-    node: Node,
-    source: &[u8],
-    properties: &mut AHashMap<String, String>,
-) {
-    let mut var_name: Option<&str> = None;
-    let mut var_val: Option<String> = None;
-
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if child.kind() == "variable_declaration" {
-            if let Some(ident) = find_child_by_kind(child, "simple_identifier") {
-                var_name = Some(node_text(ident, source));
-            }
-        } else if child.kind() == "property_delegate" {
-            var_val = extract_delegate_string_value(child, source, properties);
-        } else if child.is_named()
-            && let Some(resolved) = resolve_kotlin_expr(child, source, properties)
-        {
-            var_val = Some(resolved);
-        }
-    }
-
-    if let (Some(name), Some(val)) = (var_name, var_val)
-        && !name.is_empty()
-    {
-        properties.insert(name.to_string(), val);
-    }
-}
-
-fn extract_delegate_string_value(
-    delegate_node: Node,
-    source: &[u8],
-    properties: &AHashMap<String, String>,
-) -> Option<String> {
-    let call_node = find_child_by_kind(delegate_node, "call_expression")?;
-    let suffix = find_child_by_kind(call_node, "call_suffix")?;
-    let val_args = find_child_by_kind(suffix, "value_arguments")?;
-    let mut cursor = val_args.walk();
-    for arg in val_args.children(&mut cursor) {
-        if arg.kind() == "value_argument"
-            && let Some((_, expr)) = unpack_kotlin_value_argument(arg, source)
-            && let Some(resolved) = resolve_kotlin_expr(expr, source, properties)
-        {
-            return Some(resolved);
-        }
-    }
-    None
+    Ok(info)
 }
 
 fn extract_kotlin_dependencies(
     node: Node,
     source: &[u8],
-    properties: &AHashMap<String, String>,
-    deps: &mut Vec<DependencyCoordinate>,
+    catalog: Option<&VersionCatalog>,
+    info: &mut BuildScriptInfo,
 ) {
     if node.kind() == "call_expression" {
         if let Some(callee) = node.child(0) {
             let callee_name = node_text(callee, source).trim_matches('"');
             if is_dependency_configuration(callee_name) {
-                extract_call_dependency(node, source, properties, deps);
+                extract_call_dependency(node, source, catalog, info);
                 return;
             }
         }
@@ -147,39 +112,45 @@ fn extract_kotlin_dependencies(
     {
         let op_name = node_text(operator_node, source);
         if is_dependency_configuration(op_name) {
-            extract_infix_dependency(node, source, properties, deps);
+            extract_infix_dependency(node, source, catalog, info);
             return;
         }
     }
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        extract_kotlin_dependencies(child, source, properties, deps);
+        extract_kotlin_dependencies(child, source, catalog, info);
     }
 }
 
 fn extract_infix_dependency(
     infix_node: Node,
     source: &[u8],
-    properties: &AHashMap<String, String>,
-    deps: &mut Vec<DependencyCoordinate>,
+    catalog: Option<&VersionCatalog>,
+    info: &mut BuildScriptInfo,
 ) {
     let Some(rhs) = infix_node.child(2) else {
         return;
     };
-    if let Some(raw_coord) = resolve_kotlin_expr(rhs, source, properties).or_else(|| {
-        (rhs.kind() == "string_literal").then(|| resolve_kotlin_string(rhs, source, properties))
+    let rhs_text = node_text(rhs, source).trim();
+    if is_catalog_accessor(rhs_text) {
+        record_catalog_accessor(rhs_text, catalog, info);
+        return;
+    }
+    if let Some(raw_coord) = resolve_kotlin_expr(rhs, source, &info.variables).or_else(|| {
+        (rhs.kind() == "string_literal")
+            .then(|| resolve_kotlin_string(rhs, source, &info.variables))
     }) && let Some(coord) = DependencyCoordinate::parse(&raw_coord)
     {
-        deps.push(coord);
+        info.dependencies.push(coord);
     }
 }
 
 fn extract_call_dependency(
     call_node: Node,
     source: &[u8],
-    properties: &AHashMap<String, String>,
-    deps: &mut Vec<DependencyCoordinate>,
+    catalog: Option<&VersionCatalog>,
+    info: &mut BuildScriptInfo,
 ) {
     let Some(call_suffix) = find_child_by_kind(call_node, "call_suffix") else {
         return;
@@ -203,7 +174,7 @@ fn extract_call_dependency(
         };
 
         if let Some(key) = param_name {
-            if let Some(val) = resolve_kotlin_expr(val_expr, source, properties) {
+            if let Some(val) = resolve_kotlin_expr(val_expr, source, &info.variables) {
                 match key {
                     "group" => named_group = Some(val),
                     "name" => named_name = Some(val),
@@ -221,17 +192,44 @@ fn extract_call_dependency(
                     "platform" | "enforcedPlatform"
                 )
             {
-                extract_call_dependency(val_expr, source, properties, deps);
+                extract_call_dependency(val_expr, source, catalog, info);
             }
             continue;
         }
 
-        if let Some(val) = resolve_kotlin_expr(val_expr, source, properties) {
+        let expr_text = node_text(val_expr, source).trim();
+        if val_expr.kind() == "navigation_expression" && is_catalog_accessor(expr_text) {
+            record_catalog_accessor(expr_text, catalog, info);
+            continue;
+        }
+
+        if let Some(val) = resolve_kotlin_expr(val_expr, source, &info.variables) {
             positional_vals.push(val);
         }
     }
 
-    push_extracted_coordinates(positional_vals, named_group, named_name, named_ver, deps);
+    push_extracted_coordinates(
+        positional_vals,
+        named_group,
+        named_name,
+        named_ver,
+        &mut info.dependencies,
+    );
+}
+
+pub(crate) fn record_catalog_accessor(
+    raw_accessor: &str,
+    catalog: Option<&VersionCatalog>,
+    info: &mut BuildScriptInfo,
+) {
+    let clean: String = raw_accessor
+        .chars()
+        .filter(|ch| !ch.is_whitespace())
+        .collect();
+    info.catalog_accessors.push(clean.clone());
+    if let Some(cat) = catalog {
+        info.dependencies.extend(cat.resolve_accessor(&clean));
+    }
 }
 
 pub(crate) fn push_extracted_coordinates(

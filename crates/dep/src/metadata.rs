@@ -5,6 +5,9 @@ use crate::module::GradleModuleMetadata;
 use crate::pom::PomModel;
 use crate::repo::{Repository, RepositoryRegistry};
 
+pub use resolver::graph::resolve_offline_transitives;
+use resolver::graph::try_resolve_cached_transitives;
+
 /// Resolve metadata for a dependency coordinate across repositories.
 pub async fn resolve_metadata(
     downloader: &Downloader,
@@ -20,7 +23,7 @@ pub async fn resolve_metadata(
         return Ok(cached_deps);
     }
 
-    let candidates = coord.kmp_candidate_names();
+    let candidates = coord.kmp_probe_candidates();
     if candidates.is_empty() {
         return Ok(Vec::new());
     }
@@ -80,30 +83,6 @@ async fn probe_candidate_variants(
     }
 
     evaluate_earliest_resolved(&results).flatten()
-}
-
-fn resolve_parent_pom_inheritance(pom: &mut PomModel, cache: &GradleCache) {
-    resolve_parent_pom_depth(pom, cache, 0);
-}
-
-fn resolve_parent_pom_depth(pom: &mut PomModel, cache: &GradleCache, depth: usize) {
-    if depth >= 4 {
-        return;
-    }
-    if let Some(ref parent_info) = pom.parent
-        && let parent_coord = DependencyCoordinate::new(
-            parent_info.group.clone(),
-            parent_info.name.clone(),
-            Some(&parent_info.version),
-        )
-        && let Some(parent_path) = cache.find_pom(&parent_coord)
-        && let Ok(content) = std::fs::read_to_string(&parent_path)
-        && let Ok(mut parent_pom) = PomModel::parse(&content)
-    {
-        resolve_parent_pom_depth(&mut parent_pom, cache, depth + 1);
-        parent_pom.interpolate(&ahash::AHashMap::default());
-        pom.inherit_from_parent(&parent_pom);
-    }
 }
 
 async fn probe_remote_metadata(
@@ -181,7 +160,7 @@ async fn probe_repo_metadata(
             downloader.record_connection_success(&repo.url).await;
             if let Ok(mut pom) = PomModel::parse(&content) {
                 let _ = cache.store_file(coord, &coord.pom_file_name(), content.as_bytes());
-                resolve_parent_pom_inheritance(&mut pom, cache);
+                pom.resolve_parent_from_cache(cache);
                 pom.interpolate(&ahash::AHashMap::default());
                 return Some(pom.direct_dependencies());
             }
@@ -203,39 +182,4 @@ fn evaluate_earliest_resolved(
         }
     }
     Some(None)
-}
-
-fn try_resolve_cached_transitives(
-    coord: &DependencyCoordinate,
-    cache: &GradleCache,
-) -> Option<Vec<DependencyCoordinate>> {
-    if coord.version.is_none() {
-        return Some(Vec::new());
-    }
-
-    if let Some(module_path) = cache.find_module(coord)
-        && let Ok(content) = std::fs::read_to_string(module_path)
-        && let Ok(meta) = GradleModuleMetadata::parse(&content)
-    {
-        return Some(meta.resolved_dependencies());
-    }
-
-    if let Some(pom_path) = cache.find_pom(coord)
-        && let Ok(content) = std::fs::read_to_string(pom_path)
-        && let Ok(mut pom) = PomModel::parse(&content)
-    {
-        resolve_parent_pom_inheritance(&mut pom, cache);
-        pom.interpolate(&ahash::AHashMap::default());
-        return Some(pom.direct_dependencies());
-    }
-
-    None
-}
-
-/// Resolves transitive dependencies from locally cached Gradle module metadata or POM file.
-pub fn resolve_offline_transitives(
-    coord: &DependencyCoordinate,
-    cache: &GradleCache,
-) -> Vec<DependencyCoordinate> {
-    try_resolve_cached_transitives(coord, cache).unwrap_or_default()
 }

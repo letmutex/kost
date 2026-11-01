@@ -1,7 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use crate::gradle::config::{GradleConfig, dirs_home};
+use crate::gradle::config::GradleConfig;
 use crate::gradle::version::ArtifactVersion;
+use resolver::cache::dirs_home;
 
 /// Resolved Android SDK Platform information.
 #[derive(Debug, Clone)]

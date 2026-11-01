@@ -4,6 +4,7 @@ pub mod parser;
 use ahash::AHashMap;
 use smol_str::SmolStr;
 
+use crate::cache::GradleCache;
 use crate::coordinate::DependencyCoordinate;
 
 /// A parsed dependency from POM `<dependencies>` or `<dependencyManagement>`.
@@ -66,6 +67,11 @@ impl PomModel {
         }
     }
 
+    /// Resolves parent POM inheritance up to 4 levels deep from the local Gradle cache.
+    pub fn resolve_parent_from_cache(&mut self, cache: &GradleCache) {
+        resolve_parent_pom_depth(self, cache, 0);
+    }
+
     /// Extract resolved direct dependencies (excluding optional and test-scoped).
     pub fn direct_dependencies(&self) -> Vec<DependencyCoordinate> {
         self.dependencies
@@ -84,5 +90,25 @@ impl PomModel {
                 )
             })
             .collect()
+    }
+}
+
+fn resolve_parent_pom_depth(pom: &mut PomModel, cache: &GradleCache, depth: usize) {
+    if depth >= 4 {
+        return;
+    }
+    if let Some(ref parent_info) = pom.parent
+        && let parent_coord = DependencyCoordinate::new(
+            parent_info.group.clone(),
+            parent_info.name.clone(),
+            Some(&parent_info.version),
+        )
+        && let Some(parent_path) = cache.find_pom(&parent_coord)
+        && let Ok(content) = std::fs::read_to_string(&parent_path)
+        && let Ok(mut parent_pom) = PomModel::parse(&content)
+    {
+        resolve_parent_pom_depth(&mut parent_pom, cache, depth + 1);
+        parent_pom.interpolate(&AHashMap::default());
+        pom.inherit_from_parent(&parent_pom);
     }
 }

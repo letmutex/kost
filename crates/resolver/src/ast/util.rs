@@ -2,6 +2,10 @@ use ahash::AHashMap;
 use common::concat_str;
 use tree_sitter::Node;
 
+pub use super::string::{
+    resolve_groovy_string, resolve_interpolated_string, resolve_kotlin_string,
+};
+
 /// Extracts string slice from source bytes corresponding to node's byte range.
 pub fn node_text<'a>(node: Node, source: &'a [u8]) -> &'a str {
     std::str::from_utf8(&source[node.byte_range()]).unwrap_or("")
@@ -39,6 +43,13 @@ fn is_prefixed_config(name: &str, prefix: &str) -> bool {
     name.strip_prefix(prefix)
         .and_then(|rest| rest.as_bytes().first())
         .is_some_and(u8::is_ascii_uppercase)
+}
+
+/// Check if an expression text represents a Gradle version catalog accessor (e.g. `libs.androidx.core.ktx`).
+#[inline]
+pub fn is_catalog_accessor(text: &str) -> bool {
+    let trimmed = text.trim();
+    trimmed.starts_with("libs.") || trimmed.starts_with("libraries.")
 }
 
 /// Check if a string represents a valid repository URL scheme.
@@ -91,7 +102,7 @@ pub fn unpack_kotlin_value_argument<'a>(
     Some((param_name, value_expr))
 }
 
-/// Resolves a Kotlin expression (string literal, property identifier, or `+` concatenation).
+/// Resolves a Kotlin expression (string literal, property identifier, indexing, or `+` concatenation).
 pub fn resolve_kotlin_expr(
     node: Node,
     source: &[u8],
@@ -102,9 +113,30 @@ pub fn resolve_kotlin_expr(
         "simple_identifier" | "navigation_expression" => {
             lookup_property(node_text(node, source), properties).cloned()
         }
+        "indexing_expression" => resolve_kotlin_indexing_expr(node, source, properties),
         "additive_expression" => resolve_binary_concat(node, source, properties, true),
         _ => None,
     }
+}
+
+fn resolve_kotlin_indexing_expr(
+    node: Node,
+    source: &[u8],
+    properties: &AHashMap<String, String>,
+) -> Option<String> {
+    let target = node.child(0)?;
+    let target_text = node_text(target, source).trim();
+    if target_text != "extra"
+        && target_text != "ext"
+        && !target_text.ends_with(".extra")
+        && !target_text.ends_with(".ext")
+    {
+        return None;
+    }
+    let suffix = find_child_by_kind(node, "indexing_suffix")?;
+    let key_node = find_child_by_kind(suffix, "string_literal")?;
+    let key = resolve_kotlin_string(key_node, source, properties);
+    properties.get(&key).cloned()
 }
 
 /// Resolves a Groovy expression (string literal, property identifier, or `+` concatenation).
@@ -148,145 +180,24 @@ fn resolve_binary_concat(
     Some(concat_str!(&left_val, &right_val))
 }
 
-/// Resolves a Kotlin string literal node, interpolating variables and unescaping characters.
-pub fn resolve_kotlin_string(
-    node: Node,
-    source: &[u8],
-    properties: &AHashMap<String, String>,
-) -> String {
-    let raw_node = node_text(node, source);
-    let is_raw_string = raw_node.starts_with("\"\"\"");
-    let mut result = String::new();
+/// Check if a Groovy AST contains unrecoverable syntax errors (ignoring bare map comma separators).
+pub fn has_unrecoverable_groovy_error(node: Node, source: &[u8]) -> bool {
+    if !node.has_error() {
+        return false;
+    }
+    if node.is_missing() {
+        return true;
+    }
+    if node.kind() == "ERROR" {
+        return node_text(node, source).trim() != ",";
+    }
     let mut cursor = node.walk();
-    let mut has_content = false;
-
     for child in node.children(&mut cursor) {
-        match child.kind() {
-            "string_content" => {
-                has_content = true;
-                let text = node_text(child, source);
-                if is_raw_string || !text.contains('\\') {
-                    result.push_str(text);
-                } else {
-                    append_unescaped_text(&mut result, text);
-                }
-            }
-            "character_escape_seq" => {
-                has_content = true;
-                append_unescaped_text(&mut result, node_text(child, source));
-            }
-            "interpolated_identifier" => {
-                has_content = true;
-                let ident = node_text(child, source);
-                if let Some(val) = lookup_property(ident, properties) {
-                    result.push_str(val);
-                } else {
-                    result.push('$');
-                    result.push_str(ident);
-                }
-            }
-            "interpolated_expression" => {
-                has_content = true;
-                let expr = node_text(child, source).trim();
-                if let Some(val) = lookup_property(expr, properties) {
-                    result.push_str(val);
-                } else {
-                    result.push_str("${");
-                    result.push_str(expr);
-                    result.push('}');
-                }
-            }
-            _ => {}
+        if has_unrecoverable_groovy_error(child, source) {
+            return true;
         }
     }
-
-    if !has_content {
-        let trimmed = raw_node
-            .strip_prefix("\"\"\"")
-            .and_then(|inner| inner.strip_suffix("\"\"\""))
-            .or_else(|| {
-                raw_node
-                    .strip_prefix('"')
-                    .and_then(|inner| inner.strip_suffix('"'))
-            })
-            .unwrap_or(raw_node);
-        if !is_raw_string && trimmed.contains('\\') {
-            append_unescaped_text(&mut result, trimmed);
-            return result;
-        }
-        return trimmed.to_string();
-    }
-
-    result
-}
-
-/// Resolves a Groovy string literal or GString node, interpolating variables if present.
-pub fn resolve_groovy_string(
-    node: Node,
-    source: &[u8],
-    properties: &AHashMap<String, String>,
-) -> String {
-    let mut result = String::new();
-    let mut cursor = node.walk();
-    let mut has_content = false;
-
-    for child in node.children(&mut cursor) {
-        match child.kind() {
-            "string_fragment" => {
-                has_content = true;
-                let text = node_text(child, source);
-                if text.contains('\\') {
-                    append_unescaped_text(&mut result, text);
-                } else {
-                    result.push_str(text);
-                }
-            }
-            "escape_sequence" => {
-                has_content = true;
-                append_unescaped_text(&mut result, node_text(child, source));
-            }
-            "gstring_dollar_interpolation" | "gstring_brace_interpolation" => {
-                has_content = true;
-                let raw_interp = node_text(child, source);
-                let ident = raw_interp
-                    .strip_prefix("${")
-                    .and_then(|inner| inner.strip_suffix('}'))
-                    .or_else(|| raw_interp.strip_prefix('$'))
-                    .unwrap_or(raw_interp)
-                    .trim();
-                if let Some(val) = lookup_property(ident, properties) {
-                    result.push_str(val);
-                } else {
-                    result.push_str(raw_interp);
-                }
-            }
-            _ => {}
-        }
-    }
-
-    if !has_content {
-        let raw = node_text(node, source);
-        let trimmed = strip_groovy_quotes(raw);
-        if trimmed.contains('\\') {
-            append_unescaped_text(&mut result, trimmed);
-            return result;
-        }
-        return trimmed.to_string();
-    }
-
-    result
-}
-
-fn strip_groovy_quotes(raw: &str) -> &str {
-    for delim in ["'''", "\"\"\"", "'", "\""] {
-        if let Some(inner) = raw
-            .strip_prefix(delim)
-            .and_then(|rest| rest.strip_suffix(delim))
-        {
-            return inner;
-        }
-    }
-    raw
+    false
 }
 
 /// Extracts key-value coordinates from a Groovy named argument or map entry.
@@ -326,22 +237,5 @@ pub fn extract_named_pair(
         "name" => *name = Some(val),
         "version" => *version = Some(val),
         _ => {}
-    }
-}
-
-fn append_unescaped_text(result: &mut String, text: &str) {
-    let mut chars = text.chars();
-    while let Some(ch) = chars.next() {
-        if ch == '\\' {
-            match chars.next() {
-                Some('n') => result.push('\n'),
-                Some('t') => result.push('\t'),
-                Some('r') => result.push('\r'),
-                Some(other) => result.push(other),
-                None => result.push('\\'),
-            }
-        } else {
-            result.push(ch);
-        }
     }
 }

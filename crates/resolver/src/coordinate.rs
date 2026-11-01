@@ -92,6 +92,7 @@ impl DependencyCoordinate {
         })
     }
 
+    /// Key for exact deduplication: `(group, name)`.
     pub fn key(&self) -> (SmolStr, SmolStr) {
         (self.group.clone(), self.name.clone())
     }
@@ -104,11 +105,25 @@ impl DependencyCoordinate {
         KmpTarget::from_artifact_name(&self.name).0
     }
 
+    /// Key for KMP-aware deduplication: `(group, base_name)`.
     pub fn kmp_key(&self) -> (SmolStr, SmolStr) {
         (self.group.clone(), self.kmp_base_name())
     }
 
+    /// Return candidate artifact names in KMP target preference order:
+    /// `-desktop` suffix, `-jvm` suffix, then base name without suffix.
     pub fn kmp_candidate_names(&self) -> Vec<String> {
+        let (base, _) = KmpTarget::from_artifact_name(&self.name);
+        vec![
+            concat_str!(base, "-desktop"),
+            concat_str!(base, "-jvm"),
+            base.to_string(),
+        ]
+    }
+
+    /// Return candidate artifact names in repository/metadata probing order:
+    /// exact name if target-qualified, otherwise `[base, base-jvm, base-desktop]`.
+    pub fn kmp_probe_candidates(&self) -> Vec<String> {
         let (base, target) = KmpTarget::from_artifact_name(&self.name);
         if target != KmpTarget::None {
             return vec![self.name.to_string()];
@@ -154,7 +169,8 @@ impl DependencyCoordinate {
     }
 }
 
-/// Kotlin Multiplatform target variant priority.
+/// Kotlin Multiplatform target variant priority:
+/// Prefer `-desktop` suffix -> `-jvm` suffix -> no suffix.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum KmpTarget {
     None = 0,
@@ -189,11 +205,11 @@ impl KmpTarget {
 impl fmt::Display for DependencyCoordinate {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.group, self.name)?;
-        if let Some(ref v) = self.version {
-            write!(f, ":{}", v.raw())?;
+        if let Some(ref ver) = self.version {
+            write!(f, ":{}", ver.raw())?;
         }
-        if let Some(ref c) = self.classifier {
-            write!(f, ":{}", c)?;
+        if let Some(ref classifier) = self.classifier {
+            write!(f, ":{}", classifier)?;
         }
         if self.extension != "jar" {
             write!(f, "@{}", self.extension)?;
@@ -202,6 +218,9 @@ impl fmt::Display for DependencyCoordinate {
     }
 }
 
+/// Deduplicate a collection of dependencies by `(group, kmp_base_name)`,
+/// picking the newest version, and breaking version ties by preferring
+/// `-desktop` suffix -> `-jvm` suffix -> no suffix.
 pub fn deduplicate_newest(
     deps: impl IntoIterator<Item = DependencyCoordinate>,
 ) -> Vec<DependencyCoordinate> {

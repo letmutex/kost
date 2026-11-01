@@ -6,22 +6,14 @@ license = "Apache-2.0"
 description = "Fast JVM-free Gradle dependency resolver and fetcher for kost"
 
 [dependencies]
-bytes = { workspace = true }
 ahash = { workspace = true }
+bytes = { workspace = true }
 cli = { workspace = true }
 common = { workspace = true }
-ignore = { workspace = true }
-quick-xml = { workspace = true }
 reqwest = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-sha1 = { workspace = true }
+resolver = { workspace = true }
 smol_str = { workspace = true }
 tokio = { workspace = true }
-toml = "0.8"
-tree-sitter = { workspace = true }
-tree-sitter-kotlin = { workspace = true }
-dekobon-tree-sitter-groovy = { workspace = true }
 
 [dev-dependencies]
 common = { workspace = true }
@@ -29,4 +21,3 @@ tokio = { workspace = true }
 
 [lints]
 workspace = true
-

@@ -3,9 +3,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 
+use crate::coordinate::DependencyCoordinate;
+
 static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(1);
 
-fn is_safe_component(component: &str) -> bool {
+pub(crate) fn is_safe_component(component: &str) -> bool {
     !component.is_empty()
         && component != "."
         && !component.contains('/')
@@ -21,9 +23,7 @@ fn is_safe_component(component: &str) -> bool {
         && !component.contains('\0')
 }
 
-use crate::coordinate::DependencyCoordinate;
-
-/// Manages interaction with the canonical local Gradle cache (~/.gradle/caches/modules-2/files-2.1).
+/// Manages interaction with the canonical local Gradle cache (`~/.gradle/caches/modules-2/files-2.1`).
 #[derive(Debug, Clone)]
 pub struct GradleCache {
     home_dir: PathBuf,
@@ -40,6 +40,34 @@ impl GradleCache {
             let home_dir = dirs_home()?;
             Some(home_dir.join(".gradle"))
         }
+    }
+
+    pub fn resolve_existing_home_dir(custom_gradle_home: Option<&Path>) -> Option<PathBuf> {
+        if let Some(custom_path) = custom_gradle_home
+            && custom_path.exists()
+        {
+            return Some(custom_path.to_path_buf());
+        }
+        if let Ok(env_home) = std::env::var("GRADLE_USER_HOME") {
+            let path = PathBuf::from(env_home);
+            if path.exists() {
+                return Some(path);
+            }
+        }
+        dirs_home()
+            .map(|home| home.join(".gradle"))
+            .filter(|path| path.exists())
+    }
+
+    pub fn resolve_m2_repository(custom_m2: Option<&Path>) -> Option<PathBuf> {
+        if let Some(custom_path) = custom_m2
+            && custom_path.exists()
+        {
+            return Some(custom_path.to_path_buf());
+        }
+        dirs_home()
+            .map(|home| home.join(".m2").join("repository"))
+            .filter(|path| path.exists())
     }
 
     pub fn new(custom_gradle_home: Option<&Path>) -> Option<Self> {
@@ -59,9 +87,9 @@ impl GradleCache {
         &self.files_dir
     }
 
-    /// Locate an existing artifact (JAR or AAR or sources) in the Gradle cache.
+    /// Locate an existing artifact (JAR, AAR, or sources) in the Gradle cache.
     pub fn find_artifact(&self, coord: &DependencyCoordinate, is_sources: bool) -> Option<PathBuf> {
-        for cand_name in coord.kmp_candidate_names() {
+        for cand_name in coord.kmp_probe_candidates() {
             let mut cand_coord = coord.clone();
             cand_coord.name = smol_str::SmolStr::new(&cand_name);
             let file_name = cand_coord.artifact_file_name(is_sources);
@@ -82,7 +110,7 @@ impl GradleCache {
 
     /// Locate an existing POM file in the Gradle cache.
     pub fn find_pom(&self, coord: &DependencyCoordinate) -> Option<PathBuf> {
-        for cand_name in coord.kmp_candidate_names() {
+        for cand_name in coord.kmp_probe_candidates() {
             let mut cand_coord = coord.clone();
             cand_coord.name = smol_str::SmolStr::new(&cand_name);
             let file_name = cand_coord.pom_file_name();
@@ -93,9 +121,9 @@ impl GradleCache {
         None
     }
 
-    /// Locate an existing .module metadata file in the Gradle cache.
+    /// Locate an existing `.module` metadata file in the Gradle cache.
     pub fn find_module(&self, coord: &DependencyCoordinate) -> Option<PathBuf> {
-        for cand_name in coord.kmp_candidate_names() {
+        for cand_name in coord.kmp_probe_candidates() {
             let mut cand_coord = coord.clone();
             cand_coord.name = smol_str::SmolStr::new(&cand_name);
             let file_name = cand_coord.module_file_name();
@@ -255,7 +283,7 @@ pub fn hex_digest(bytes: &[u8]) -> String {
     output
 }
 
-pub(crate) fn dirs_home() -> Option<PathBuf> {
+pub fn dirs_home() -> Option<PathBuf> {
     if cfg!(windows) {
         if let Ok(user_profile) = std::env::var("USERPROFILE") {
             return Some(PathBuf::from(user_profile));
@@ -272,34 +300,4 @@ pub(crate) fn dirs_home() -> Option<PathBuf> {
         }
     }
     None
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_gradle_cache_store_and_lookup() {
-        let temp_dir = std::env::temp_dir().join("kost_test_gradle_cache");
-        let _ = fs::remove_dir_all(&temp_dir);
-
-        let cache = GradleCache {
-            home_dir: temp_dir.clone(),
-            files_dir: temp_dir.join("caches").join("modules-2").join("files-2.1"),
-        };
-
-        let coord = DependencyCoordinate::parse("org.example:sample:1.0.0").unwrap();
-        let payload = b"sample jar payload content";
-
-        let stored = cache
-            .store_file(&coord, "sample-1.0.0.jar", payload)
-            .unwrap();
-        assert!(stored.is_file());
-        assert_eq!(fs::read(&stored).unwrap(), payload);
-
-        let found = cache.find_artifact(&coord, false).unwrap();
-        assert_eq!(found, stored);
-
-        let _ = fs::remove_dir_all(&temp_dir);
-    }
 }

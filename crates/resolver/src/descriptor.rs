@@ -2,7 +2,9 @@ use ahash::AHashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use crate::gradle::dependency::DependencyCoordinate;
+use crate::cache::is_safe_component;
+use crate::coordinate::DependencyCoordinate;
+use crate::version::ArtifactVersion;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ModuleDescriptor {
@@ -38,9 +40,11 @@ impl ModuleDescriptor {
         let mut seen_artifacts = AHashSet::default();
         let mut seen_dependencies = AHashSet::default();
 
-        for s in &strings {
-            if (s.ends_with(".aar") || s.ends_with(".jar")) && seen_artifacts.insert(s.as_str()) {
-                artifacts.push(s.clone());
+        for item in &strings {
+            if (item.ends_with(".aar") || item.ends_with(".jar"))
+                && seen_artifacts.insert(item.as_str())
+            {
+                artifacts.push(item.clone());
             }
         }
 
@@ -93,7 +97,7 @@ impl ModuleDescriptor {
                     && entry
                         .file_name()
                         .to_str()
-                        .is_some_and(|n| n.starts_with("metadata-"))
+                        .is_some_and(|name| name.starts_with("metadata-"))
                 {
                     metadata_dirs.push(entry.path());
                 }
@@ -111,6 +115,15 @@ impl ModuleDescriptor {
         metadata_dirs: &[PathBuf],
         coord: &DependencyCoordinate,
     ) -> Option<PathBuf> {
+        if !is_safe_component(coord.group.as_str()) || !is_safe_component(coord.name.as_str()) {
+            return None;
+        }
+        if let Some(ref ver) = coord.version
+            && !is_safe_component(ver.raw())
+        {
+            return None;
+        }
+
         for meta_dir in metadata_dirs {
             let desc_dir = meta_dir
                 .join("descriptors")
@@ -119,27 +132,23 @@ impl ModuleDescriptor {
 
             if let Some(ref ver) = coord.version {
                 let ver_dir = desc_dir.join(ver.raw());
-                if let Some(p) = find_descriptor_under(&ver_dir) {
-                    return Some(p);
+                if let Some(path) = find_descriptor_under(&ver_dir) {
+                    return Some(path);
                 }
             } else if let Ok(ver_entries) = fs::read_dir(&desc_dir) {
-                let mut version_dirs: Vec<(crate::gradle::version::ArtifactVersion, PathBuf)> =
-                    ver_entries
-                        .flatten()
-                        .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
-                        .filter_map(|e| {
-                            let name = e.file_name();
-                            let name_str = name.to_str()?;
-                            Some((
-                                crate::gradle::version::ArtifactVersion::parse(name_str),
-                                e.path(),
-                            ))
-                        })
-                        .collect();
+                let mut version_dirs: Vec<(ArtifactVersion, PathBuf)> = ver_entries
+                    .flatten()
+                    .filter(|entry| entry.file_type().map(|t| t.is_dir()).unwrap_or(false))
+                    .filter_map(|entry| {
+                        let name = entry.file_name();
+                        let name_str = name.to_str()?;
+                        Some((ArtifactVersion::parse(name_str), entry.path()))
+                    })
+                    .collect();
                 version_dirs.sort_by(|a, b| b.0.cmp(&a.0));
                 for (_, version_dir) in version_dirs {
-                    if let Some(p) = find_descriptor_under(&version_dir) {
-                        return Some(p);
+                    if let Some(path) = find_descriptor_under(&version_dir) {
+                        return Some(path);
                     }
                 }
             }
@@ -178,10 +187,10 @@ impl ModuleDescriptor {
         write_kryo_string(&mut buf, "org.gradle.status");
         write_kryo_string(&mut buf, "release");
 
-        for (g, n, v) in dependencies {
-            write_kryo_string(&mut buf, g);
-            write_kryo_string(&mut buf, n);
-            write_kryo_string(&mut buf, v);
+        for (dep_group, dep_name, dep_ver) in dependencies {
+            write_kryo_string(&mut buf, dep_group);
+            write_kryo_string(&mut buf, dep_name);
+            write_kryo_string(&mut buf, dep_ver);
         }
 
         for art in artifacts {
@@ -213,19 +222,19 @@ fn find_descriptor_under(dir: &Path) -> Option<PathBuf> {
 
 fn decode_all_strings(bytes: &[u8]) -> Vec<String> {
     let mut strings = Vec::new();
-    let mut i = 0;
-    while i < bytes.len() {
-        let b = bytes[i];
-        i += 1;
-        if (0x82..=0xFF).contains(&b) {
-            let len = ((b & 0x7F) - 1) as usize;
-            if len >= 1 && i + len <= bytes.len() {
-                let slice = &bytes[i..i + len];
-                if slice.iter().all(|c| (0x20..=0x7E).contains(c))
-                    && let Ok(s) = std::str::from_utf8(slice)
+    let mut idx = 0;
+    while idx < bytes.len() {
+        let byte = bytes[idx];
+        idx += 1;
+        if (0x82..=0xFF).contains(&byte) {
+            let len = ((byte & 0x7F) - 1) as usize;
+            if len >= 1 && idx + len <= bytes.len() {
+                let slice = &bytes[idx..idx + len];
+                if slice.iter().all(|ch| (0x20..=0x7E).contains(ch))
+                    && let Ok(text) = std::str::from_utf8(slice)
                 {
-                    strings.push(s.to_string());
-                    i += len;
+                    strings.push(text.to_string());
+                    idx += len;
                 }
             }
         }
@@ -233,48 +242,48 @@ fn decode_all_strings(bytes: &[u8]) -> Vec<String> {
     strings
 }
 
-fn write_kryo_string(buf: &mut Vec<u8>, s: &str) {
-    let len = s.len();
+fn write_kryo_string(buf: &mut Vec<u8>, text: &str) {
+    let len = text.len();
     buf.push(((len + 1) as u8) | 0x80);
-    buf.extend_from_slice(s.as_bytes());
+    buf.extend_from_slice(text.as_bytes());
 }
 
-fn is_valid_group(s: &str) -> bool {
-    if s.is_empty() || s.starts_with("org.gradle.") {
+fn is_valid_group(text: &str) -> bool {
+    if text.is_empty() || text.starts_with("org.gradle.") {
         return false;
     }
-    match s {
+    match text {
         "release" | "debug" | "integration" | "milestone" | "library" | "external" | "sources"
         | "documentation" | "aar" | "jar" => false,
-        _ => s
+        _ => text
             .bytes()
             .all(|b| b.is_ascii_alphanumeric() || b == b'.' || b == b'-' || b == b'_'),
     }
 }
 
-fn is_valid_artifact(s: &str) -> bool {
-    if s.is_empty()
-        || s.ends_with(".aar")
-        || s.ends_with(".jar")
-        || s.ends_with(".pom")
-        || s.ends_with(".module")
+fn is_valid_artifact(text: &str) -> bool {
+    if text.is_empty()
+        || text.ends_with(".aar")
+        || text.ends_with(".jar")
+        || text.ends_with(".pom")
+        || text.ends_with(".module")
     {
         return false;
     }
-    match s {
+    match text {
         "release" | "debug" | "java-api" | "java-runtime" | "library" | "external" => false,
         _ => {
-            if s.contains("Publication") || s.contains("Elements") {
+            if text.contains("Publication") || text.contains("Elements") {
                 return false;
             }
-            s.bytes()
+            text.bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.')
         }
     }
 }
 
-fn is_valid_version(s: &str) -> bool {
-    let bytes = s.as_bytes();
+fn is_valid_version(text: &str) -> bool {
+    let bytes = text.as_bytes();
     if bytes.is_empty() {
         return false;
     }

@@ -1,16 +1,12 @@
-pub mod cache;
-pub mod coordinate;
-pub mod discovery;
+pub use resolver::{cache, coordinate, discovery, module, pom, version};
+
 pub mod downloader;
 pub mod graph;
 pub mod metadata;
-pub mod module;
-pub mod pom;
 pub mod progress;
 pub mod renderer;
 pub mod repo;
 pub mod runner;
-pub mod version;
 
 pub use cache::GradleCache;
 pub use coordinate::{DependencyCoordinate, KmpTarget, deduplicate_newest};
