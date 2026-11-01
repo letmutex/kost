@@ -300,7 +300,9 @@ fn test_repo_script_parsing_ignores_commented_repositories() {
             maven("https://active.example.com/repo")
         }
     "#;
-    registry.parse_from_script(script);
+    registry
+        .parse_from_script(script, dep::ScriptDialect::Kotlin)
+        .unwrap();
     assert_eq!(registry.repositories.len(), 1);
     assert_eq!(
         registry.repositories[0].url,

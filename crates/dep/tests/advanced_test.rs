@@ -182,12 +182,12 @@ fn test_script_dependencies_with_classifier() {
     let script = r#"
         dependencies {
             implementation("io.netty:netty-transport-native-epoll:4.1.100.Final:linux-x86_64")
-            api 'androidx.annotation:annotation-experimental:1.4.1@aar'
+            api("androidx.annotation:annotation-experimental:1.4.1@aar")
         }
     "#;
     std::fs::write(&script_file, script).unwrap();
 
-    let deps = dep::discovery::collect_project_dependencies(&[], &[script_file]);
+    let deps = dep::discovery::collect_project_dependencies(&[], &[script_file]).unwrap();
     assert_eq!(deps.len(), 2);
     let netty = deps
         .iter()
@@ -209,7 +209,9 @@ fn test_repo_kotlin_dsl_shorthand_parsing() {
         }
     "#;
 
-    registry.parse_from_script(kts_content);
+    registry
+        .parse_from_script(kts_content, dep::ScriptDialect::Kotlin)
+        .unwrap();
 
     let urls: Vec<&str> = registry
         .repositories

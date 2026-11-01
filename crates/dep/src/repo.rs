@@ -1,8 +1,12 @@
+use ahash::AHashMap;
 use common::concat_str;
-use regex::Regex;
-use std::sync::OnceLock;
 
 use crate::coordinate::DependencyCoordinate;
+use crate::discovery::ast::{
+    ParseError, RepositoriesResult, ScriptDialect,
+    groovy_repo::parse_groovy_repositories_with_props,
+    kotlin_repo::parse_kotlin_repositories_with_props,
+};
 
 /// Represents a Maven repository with an ID and base URL.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -147,25 +151,50 @@ impl RepositoryRegistry {
         self.add(Repository::new(id, url));
     }
 
-    /// Parse repository definitions from Gradle build script / settings content.
-    pub fn parse_from_script(&mut self, content: &str) {
-        let cleaned = crate::discovery::strip_script_comments(content);
-        for url in extract_maven_urls(&cleaned) {
+    /// Parse repository definitions from Gradle build script with explicit dialect.
+    pub fn parse_from_script(
+        &mut self,
+        content: &str,
+        dialect: ScriptDialect,
+    ) -> Result<(), ParseError> {
+        self.parse_from_script_with_props(content, dialect, &AHashMap::default())
+    }
+
+    /// Parse repository definitions from Gradle build script with inherited properties.
+    pub fn parse_from_script_with_props(
+        &mut self,
+        content: &str,
+        dialect: ScriptDialect,
+        properties: &AHashMap<String, String>,
+    ) -> Result<(), ParseError> {
+        let repo_result = match dialect {
+            ScriptDialect::Kotlin => parse_kotlin_repositories_with_props(content, properties)?,
+            ScriptDialect::Groovy => parse_groovy_repositories_with_props(content, properties)?,
+        };
+        self.apply_repositories_result(repo_result);
+        Ok(())
+    }
+
+    pub(crate) fn apply_repositories_result(&mut self, repo_result: RepositoriesResult) {
+        for url in repo_result.urls {
             self.add_url(&url);
         }
-
-        if cleaned.contains("google()") {
+        if repo_result.google {
             self.add(Repository::google());
         }
-        if cleaned.contains("mavenCentral()") {
+        if repo_result.maven_central {
             self.add(Repository::maven_central());
         }
-        if cleaned.contains("gradlePluginPortal()") {
+        if repo_result.gradle_plugin_portal {
             self.add(Repository::gradle_plugin_portal());
         }
-        if cleaned.contains("mavenLocal()")
-            && let Some(home) = crate::cache::dirs_home()
-        {
+        if repo_result.maven_local {
+            self.add_maven_local();
+        }
+    }
+
+    fn add_maven_local(&mut self) {
+        if let Some(home) = crate::cache::dirs_home() {
             let m2 = home.join(".m2").join("repository");
             if m2.is_dir() {
                 let m2_str = m2.to_string_lossy().replace('\\', "/");
@@ -179,21 +208,6 @@ impl RepositoryRegistry {
             }
         }
     }
-}
-
-fn extract_maven_urls(content: &str) -> Vec<String> {
-    static MAVEN_CALL_RE: OnceLock<Regex> = OnceLock::new();
-    let maven_call_re = MAVEN_CALL_RE.get_or_init(|| {
-        Regex::new(r#"(?s)maven\s*(?:\(\s*(?:url\s*=\s*)?(?:uri\s*\(\s*)?["']((?:https?|file)://[^"']+)["']|\{[^}]*?(?:url\s*=\s*|url\s+|setUrl\s*\(\s*)(?:uri\s*\(\s*)?["']((?:https?|file)://[^"']+)["'])"#).unwrap()
-    });
-
-    let mut urls = Vec::new();
-    for cap in maven_call_re.captures_iter(content) {
-        if let Some(m) = cap.get(1).or_else(|| cap.get(2)) {
-            urls.push(m.as_str().to_string());
-        }
-    }
-    urls
 }
 
 #[cfg(test)]

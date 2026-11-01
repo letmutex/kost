@@ -12,7 +12,6 @@ cli = { workspace = true }
 common = { workspace = true }
 ignore = { workspace = true }
 quick-xml = { workspace = true }
-regex = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -20,6 +19,9 @@ sha1 = { workspace = true }
 smol_str = { workspace = true }
 tokio = { workspace = true }
 toml = "0.8"
+tree-sitter = { workspace = true }
+tree-sitter-kotlin = { workspace = true }
+dekobon-tree-sitter-groovy = { workspace = true }
 
 [dev-dependencies]
 common = { workspace = true }
