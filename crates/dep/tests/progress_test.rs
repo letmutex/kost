@@ -147,6 +147,43 @@ fn test_coordinator_renders_active_and_overall_lines() {
     assert_eq!(coord.completed_count, 1);
 }
 
+#[test]
+fn test_coordinator_caps_rendered_active_tasks_to_head() {
+    let mut coord = ProgressCoordinator::new(20, true, false);
+    for id in 1..=12 {
+        let name = common::concat_smol_str!("dep-", &id.to_string());
+        coord.on_started(id, name, None);
+    }
+    coord.render_active_lines();
+    // Up to 8 head active lines + 1 overall progress line = 9 rendered lines
+    assert_eq!(coord.rendered_lines, 9);
+
+    // Finishing task 1 (one of the 8 head tasks) shifts task 9 into the head window
+    coord.on_finished(1, SmolStr::new("dep-1"), 500, Duration::from_millis(50));
+    coord.render_active_lines();
+    // 11 active tasks remaining -> capped to 8 head + 1 overall = 9 lines
+    assert_eq!(coord.rendered_lines, 9);
+}
+
+#[test]
+fn test_downloader_concurrency_clamping_and_fallback() {
+    assert_eq!(Downloader::DEFAULT_CONCURRENCY, 32);
+    assert_eq!(Downloader::MAX_CONCURRENCY, 256);
+
+    assert_eq!(Downloader::resolve_concurrency(Some("16")), 16);
+    assert_eq!(Downloader::resolve_concurrency(Some("0")), 1);
+    assert_eq!(Downloader::resolve_concurrency(Some("1000")), 256);
+    assert_eq!(Downloader::resolve_concurrency(Some("invalid")), 32);
+    assert_eq!(Downloader::resolve_concurrency(Some("  64  ")), 64);
+    assert_eq!(Downloader::resolve_concurrency(None), 32);
+
+    let bounded = Downloader::new(1000);
+    assert_eq!(bounded.concurrency(), 256);
+
+    let min_bounded = Downloader::new(0);
+    assert_eq!(min_bounded.concurrency(), 1);
+}
+
 #[tokio::test]
 async fn test_downloader_concurrency_limits_simultaneous_starts() {
     let temp_dir = std::env::temp_dir().join("kost_test_downloader_concurrency_limits");

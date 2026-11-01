@@ -3,7 +3,7 @@ pub mod cursor;
 pub mod event;
 pub mod resolve;
 
-pub use coordinator::{ProgressCoordinator, run_coordinator};
+pub use coordinator::{MAX_DISPLAYED_TASKS, ProgressCoordinator, run_coordinator};
 pub use cursor::CursorGuard;
 pub use event::ProgressEvent;
 pub use resolve::ResolveProgress;
