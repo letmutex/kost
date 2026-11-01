@@ -22,6 +22,7 @@ pub enum FetchError {
 #[derive(Clone)]
 pub struct Downloader {
     client: Client,
+    concurrency: usize,
     semaphore: Arc<Semaphore>,
     unreachable_repos: Arc<RwLock<AHashSet<String>>>,
     connection_failures: Arc<RwLock<AHashMap<String, usize>>>,
@@ -29,11 +30,39 @@ pub struct Downloader {
 
 impl Default for Downloader {
     fn default() -> Self {
-        Self::new(8)
+        let concurrency = Self::concurrency_from_env().unwrap_or(Self::DEFAULT_CONCURRENCY);
+        Self::new(concurrency)
     }
 }
 
 impl Downloader {
+    pub const DEFAULT_CONCURRENCY: usize = 32;
+    pub const MAX_CONCURRENCY: usize = 256;
+
+    pub fn parse_concurrency(val: &str) -> Option<usize> {
+        val.trim()
+            .parse::<usize>()
+            .ok()
+            .map(|c| c.clamp(1, Self::MAX_CONCURRENCY))
+    }
+
+    pub fn resolve_concurrency(env_val: Option<&str>) -> usize {
+        env_val
+            .and_then(Self::parse_concurrency)
+            .unwrap_or(Self::DEFAULT_CONCURRENCY)
+    }
+
+    pub fn concurrency_from_env() -> Option<usize> {
+        let val = std::env::var("KOST_CONCURRENT_DOWNLOADS")
+            .or_else(|_| std::env::var("kost_concurrent_downloads"))
+            .ok()?;
+        Self::parse_concurrency(&val)
+    }
+
+    pub fn concurrency(&self) -> usize {
+        self.concurrency
+    }
+
     pub fn new(concurrency: usize) -> Self {
         let client = Client::builder()
             .timeout(Duration::from_secs(15))
@@ -42,9 +71,11 @@ impl Downloader {
             .build()
             .unwrap_or_else(|_| Client::new());
 
+        let bounded_concurrency = concurrency.clamp(1, Self::MAX_CONCURRENCY);
         Self {
             client,
-            semaphore: Arc::new(Semaphore::new(concurrency.max(1))),
+            concurrency: bounded_concurrency,
+            semaphore: Arc::new(Semaphore::new(bounded_concurrency)),
             unreachable_repos: Arc::new(RwLock::new(AHashSet::default())),
             connection_failures: Arc::new(RwLock::new(AHashMap::default())),
         }

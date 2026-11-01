@@ -16,6 +16,8 @@ pub(crate) struct ActiveTaskState {
     pub total_bytes: Option<u64>,
 }
 
+pub const MAX_DISPLAYED_TASKS: usize = ProgressCoordinator::MAX_DISPLAYED_TASKS;
+
 /// Coordinates terminal progress display across multiple concurrent download tasks.
 pub struct ProgressCoordinator {
     pub is_tty: bool,
@@ -30,6 +32,8 @@ pub struct ProgressCoordinator {
 }
 
 impl ProgressCoordinator {
+    pub const MAX_DISPLAYED_TASKS: usize = 8;
+
     pub fn new(total_count: usize, is_tty: bool, colorize: bool) -> Self {
         Self {
             is_tty,
@@ -122,15 +126,8 @@ impl ProgressCoordinator {
         }
     }
 
-    pub fn clear_active_lines(&mut self) {
-        if !self.is_tty {
-            for msg in self.pending_completed.drain(..) {
-                println!("{msg}");
-            }
-            return;
-        }
-
-        let mut buf = String::with_capacity(64);
+    fn prepare_render_buffer(&mut self, capacity: usize) -> String {
+        let mut buf = String::with_capacity(capacity);
         if self.rendered_lines > 1 {
             use std::fmt::Write;
             let _ = write!(buf, "\r\x1b[{}A", self.rendered_lines - 1);
@@ -142,7 +139,18 @@ impl ProgressCoordinator {
             buf.push_str(&msg);
             buf.push_str("\x1b[K\n");
         }
+        buf
+    }
 
+    pub fn clear_active_lines(&mut self) {
+        if !self.is_tty {
+            for msg in self.pending_completed.drain(..) {
+                println!("{msg}");
+            }
+            return;
+        }
+
+        let mut buf = self.prepare_render_buffer(64);
         if self.rendered_lines > 0 {
             buf.push_str("\x1b[J");
         }
@@ -178,6 +186,47 @@ impl ProgressCoordinator {
         }
     }
 
+    fn format_overall_progress_line(&self, status_text: &str) -> Option<String> {
+        if self.total_count == 0 || self.completed_count >= self.total_count {
+            return None;
+        }
+        let total_str = self.total_count.to_string();
+        let completed_str = self.completed_count.to_string();
+        let digits = total_str.len().max(2);
+        let pad_len = digits.saturating_sub(completed_str.len()).min(20);
+        let padding = &"                    "[..pad_len];
+        let bar = format_progress_bar(self.completed_count as u64, self.total_count as u64, 25);
+        let progress_text =
+            common::concat_str!("[", padding, &completed_str, "/", &total_str, "]",);
+        let pad_len = status_text.len().saturating_sub(progress_text.len());
+        let padding = &"          "[..pad_len];
+        Some(common::concat_str!(
+            padding,
+            wrap_styled(&progress_text, BOLD_CYAN, self.colorize),
+            " ",
+            &bar,
+        ))
+    }
+
+    fn collect_display_lines(&self) -> Vec<String> {
+        let status_text = " Downloading";
+        let status = wrap_styled(status_text, BOLD_CYAN, self.colorize);
+        let mut lines =
+            Vec::with_capacity(self.active_keys.len().min(Self::MAX_DISPLAYED_TASKS) + 1);
+
+        for &task_id in self.active_keys.iter().take(Self::MAX_DISPLAYED_TASKS) {
+            if let Some(task) = self.active_tasks.get(&task_id) {
+                lines.push(self.format_task_line(task, &status));
+            }
+        }
+
+        if let Some(overall) = self.format_overall_progress_line(status_text) {
+            lines.push(overall);
+        }
+
+        lines
+    }
+
     pub fn render_active_lines(&mut self) {
         if !self.is_tty {
             for msg in self.pending_completed.drain(..) {
@@ -186,49 +235,8 @@ impl ProgressCoordinator {
             return;
         }
 
-        let mut buf = String::with_capacity(1024);
-
-        if self.rendered_lines > 1 {
-            use std::fmt::Write;
-            let _ = write!(buf, "\r\x1b[{}A", self.rendered_lines - 1);
-        } else if self.rendered_lines == 1 {
-            buf.push('\r');
-        }
-
-        for msg in self.pending_completed.drain(..) {
-            buf.push_str(&msg);
-            buf.push_str("\x1b[K\n");
-        }
-
-        let status_text = " Downloading";
-        let status = wrap_styled(status_text, BOLD_CYAN, self.colorize);
-        let mut lines = Vec::with_capacity(self.active_keys.len() + 1);
-
-        for &task_id in &self.active_keys {
-            if let Some(task) = self.active_tasks.get(&task_id) {
-                lines.push(self.format_task_line(task, &status));
-            }
-        }
-
-        if self.total_count > 0 && self.completed_count < self.total_count {
-            let total_str = self.total_count.to_string();
-            let completed_str = self.completed_count.to_string();
-            let digits = total_str.len().max(2);
-            let pad_len = digits.saturating_sub(completed_str.len()).min(20);
-            let padding = &"                    "[..pad_len];
-            let bar = format_progress_bar(self.completed_count as u64, self.total_count as u64, 25);
-            let progress_text =
-                common::concat_str!("[", padding, &completed_str, "/", &total_str, "]",);
-            let pad_len = status_text.len().saturating_sub(progress_text.len());
-            let padding = &"          "[..pad_len];
-            let line = common::concat_str!(
-                padding,
-                wrap_styled(&progress_text, BOLD_CYAN, self.colorize),
-                " ",
-                &bar,
-            );
-            lines.push(line);
-        }
+        let mut buf = self.prepare_render_buffer(1024);
+        let lines = self.collect_display_lines();
 
         if lines.is_empty() {
             buf.push_str("\x1b[J");
