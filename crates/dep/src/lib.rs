@@ -1,0 +1,23 @@
+pub mod cache;
+pub mod coordinate;
+pub mod discovery;
+pub mod downloader;
+pub mod graph;
+pub mod metadata;
+pub mod module;
+pub mod pom;
+pub mod progress;
+pub mod renderer;
+pub mod repo;
+pub mod runner;
+pub mod version;
+
+pub use cache::GradleCache;
+pub use coordinate::{DependencyCoordinate, KmpTarget, deduplicate_newest};
+pub use downloader::Downloader;
+pub use graph::{GraphNode, SolvedGraph};
+pub use progress::ResolveProgress;
+pub use renderer::TreeRenderer;
+pub use repo::{Repository, RepositoryRegistry};
+pub use runner::run;
+pub use version::ArtifactVersion;

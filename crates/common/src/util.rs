@@ -67,8 +67,78 @@ pub fn format_elapsed(duration: std::time::Duration) -> String {
     } else if millis < 1000 {
         concat_str!(&millis.to_string(), "ms")
     } else {
-        format!("{:.2}s", duration.as_secs_f64())
+        let centis = (duration.as_secs_f64() * 100.0).round() as u64;
+        let secs = centis / 100;
+        let frac = centis % 100;
+        let pad = if frac < 10 { "0" } else { "" };
+        concat_str!(&secs.to_string(), ".", pad, &frac.to_string(), "s")
     }
+}
+
+/// Format byte counts into human-readable strings (B, KiB, MiB, GiB).
+pub fn format_bytes(bytes: u64) -> SmolStr {
+    const KIB: u64 = 1024;
+    const MIB: u64 = 1024 * KIB;
+    const GIB: u64 = 1024 * MIB;
+
+    if bytes >= GIB {
+        let value = (bytes as f64 / GIB as f64 * 100.0).round() / 100.0;
+        concat_smol_str!(&value.to_string(), " GiB")
+    } else if bytes >= MIB {
+        let value = (bytes as f64 / MIB as f64 * 100.0).round() / 100.0;
+        concat_smol_str!(&value.to_string(), " MiB")
+    } else if bytes >= KIB {
+        let value = (bytes as f64 / KIB as f64 * 100.0).round() / 100.0;
+        concat_smol_str!(&value.to_string(), " KiB")
+    } else {
+        concat_smol_str!(&bytes.to_string(), " B")
+    }
+}
+
+/// Format a fixed-width visual progress bar (e.g. "[=====>    ]").
+pub fn format_progress_bar(downloaded: u64, total: u64, width: usize) -> String {
+    if total == 0 || width == 0 {
+        return String::new();
+    }
+    let ratio = (downloaded as f64 / total as f64).clamp(0.0, 1.0);
+    let filled = ((width as f64) * ratio).round() as usize;
+    let mut bar = String::with_capacity(width + 2);
+    bar.push('[');
+    if filled >= width {
+        for _ in 0..width {
+            bar.push('=');
+        }
+    } else {
+        for _ in 0..filled {
+            bar.push('=');
+        }
+        bar.push('>');
+        for _ in (filled + 1)..width {
+            bar.push(' ');
+        }
+    }
+    bar.push(']');
+    bar
+}
+
+/// Truncates a label to fit within max_len columns, preserving prefix and suffix with an ellipsis.
+pub fn truncate_label(label: &str, max_len: usize) -> SmolStr {
+    let count = label.chars().count();
+    if count <= max_len || max_len < 8 {
+        return SmolStr::new(label);
+    }
+    let keep = (max_len - 3) / 2;
+    let prefix_end = label
+        .char_indices()
+        .nth(keep)
+        .map(|(idx, _)| idx)
+        .unwrap_or(label.len());
+    let suffix_start = label
+        .char_indices()
+        .nth(count - keep)
+        .map(|(idx, _)| idx)
+        .unwrap_or(0);
+    concat_smol_str!(&label[..prefix_end], "...", &label[suffix_start..])
 }
 
 /// Validates that a string is valid kebab-case (e.g. "no-semi", "long-function-1").

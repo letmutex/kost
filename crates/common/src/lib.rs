@@ -7,4 +7,4 @@ pub mod util;
 
 pub use color::{decide_color, should_colorize, should_colorize_stderr, should_colorize_stdout};
 pub use files::{is_kotlin_file, resolve_target_files};
-pub use util::format_elapsed;
+pub use util::{format_bytes, format_elapsed, format_progress_bar, truncate_label};

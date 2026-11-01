@@ -1,3 +1,4 @@
+pub mod dep;
 pub mod error;
 pub mod format;
 pub mod lint;
@@ -7,6 +8,11 @@ pub mod style;
 pub mod uninstall;
 pub mod update;
 
+pub use dep::{
+    DepArgs, DepFetchArgs, DepListArgs, DepSubcommand, DepTreeArgs, render_dep_help,
+    render_dep_help_styled, render_fetch_help, render_fetch_help_styled, render_list_help,
+    render_list_help_styled, render_tree_help, render_tree_help_styled,
+};
 pub use error::CliError;
 pub use format::{FormatArgs, FormatStyle, render_format_help, render_format_help_styled};
 pub use lint::{LintArgs, render_lint_help, render_lint_help_styled};
@@ -35,6 +41,7 @@ pub fn build_app() -> MiniClap {
     .subcommand("uninstall", "Uninstall the kost CLI binary")
     .subcommand("lint", "Lint Kotlin source files")
     .subcommand("fmt", "Format Kotlin source files")
+    .subcommand("dep", "Manage Gradle dependencies (fetch, list, tree)")
 }
 
 pub fn parse_args(arguments: &[String]) -> Result<CliCommand, CliError> {
@@ -50,21 +57,21 @@ pub fn print_version() {
 }
 
 pub(crate) fn parse_value_option<'a, I>(
-    arg: &str,
+    argument: &str,
     prefix: &str,
-    iter: &mut I,
+    iterator: &mut I,
 ) -> Result<Option<String>, CliError>
 where
     I: Iterator<Item = &'a String>,
 {
-    if let Some(val) = arg.strip_prefix(prefix) {
-        if let Some(stripped) = val.strip_prefix('=') {
+    if let Some(value_part) = argument.strip_prefix(prefix) {
+        if let Some(stripped) = value_part.strip_prefix('=') {
             if stripped.trim().is_empty() {
                 return Err(CliError::MissingOptionValue(prefix.to_string()));
             }
             return Ok(Some(stripped.to_string()));
-        } else if val.is_empty() {
-            match iter.next() {
+        } else if value_part.is_empty() {
+            match iterator.next() {
                 Some(next_val)
                     if next_val == "--"
                         || next_val.starts_with('-')
@@ -76,7 +83,7 @@ where
                 None => return Err(CliError::MissingOptionValue(prefix.to_string())),
             }
         } else if !prefix.starts_with("--") {
-            let trimmed = val.trim();
+            let trimmed = value_part.trim();
             if trimmed.is_empty() {
                 return Err(CliError::MissingOptionValue(prefix.to_string()));
             }
