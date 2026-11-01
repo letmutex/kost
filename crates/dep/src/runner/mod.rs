@@ -49,8 +49,8 @@ pub(crate) fn prepare_context(
         .ok_or_else(|| "Could not determine Gradle cache home directory.".to_string())?;
 
     let (catalogs, scripts) = discovery::discover_gradle_files(&project_path);
-    let direct_deps = resolve_input_deps(coordinates, &catalogs, &scripts)?;
-    let registry = build_repository_registry(&scripts, extra_repos);
+    let (direct_deps, registry) =
+        resolve_deps_and_registry(coordinates, &catalogs, &scripts, extra_repos)?;
     Ok(DepContext {
         project_path,
         cache,
@@ -59,19 +59,42 @@ pub(crate) fn prepare_context(
     })
 }
 
-fn build_repository_registry(scripts: &[PathBuf], extra_repos: &[String]) -> RepositoryRegistry {
+fn resolve_deps_and_registry(
+    coordinates: &[String],
+    catalogs: &[PathBuf],
+    scripts: &[PathBuf],
+    extra_repos: &[String],
+) -> Result<(Vec<DependencyCoordinate>, RepositoryRegistry), String> {
+    let explicit_coords = !coordinates.is_empty();
+    let (discovered_deps, repo_result) =
+        discovery::collect_project_dependencies_and_repos(catalogs, scripts, !explicit_coords)
+            .map_err(|err| err.to_string())?;
+
     let mut registry = RepositoryRegistry::with_defaults();
-    for script in scripts {
-        if script.file_name().and_then(|name| name.to_str()) != Some("gradle.properties")
-            && let Ok(content) = std::fs::read_to_string(script)
-        {
-            registry.parse_from_script(&content);
-        }
-    }
+    registry.apply_repositories_result(repo_result);
     for repo_url in extra_repos {
         registry.add_url(repo_url);
     }
-    registry
+
+    if explicit_coords {
+        let mut deps = Vec::with_capacity(coordinates.len());
+        for coord_str in coordinates {
+            let coord = DependencyCoordinate::parse(coord_str).ok_or_else(|| {
+                concat_str!(
+                    "Invalid dependency coordinate '",
+                    coord_str,
+                    "'. Expected group:artifact:version."
+                )
+            })?;
+            deps.push(coord);
+        }
+        return Ok((deduplicate_newest(deps), registry));
+    }
+
+    if discovered_deps.is_empty() {
+        return Err("No dependencies found in project build scripts or version catalogs. Provide coordinates explicitly.".to_string());
+    }
+    Ok((discovered_deps, registry))
 }
 
 async fn run_list(args: DepListArgs) -> Result<(), String> {
@@ -168,31 +191,4 @@ fn resolve_project_dir(custom_path: Option<&str>) -> PathBuf {
     custom_path
         .map(PathBuf::from)
         .unwrap_or_else(|| std::env::current_dir().unwrap_or_else(|_| PathBuf::from(".")))
-}
-
-fn resolve_input_deps(
-    coordinates: &[String],
-    catalogs: &[PathBuf],
-    scripts: &[PathBuf],
-) -> Result<Vec<DependencyCoordinate>, String> {
-    if !coordinates.is_empty() {
-        let mut deps = Vec::new();
-        for s in coordinates {
-            let coord = DependencyCoordinate::parse(s).ok_or_else(|| {
-                concat_str!(
-                    "Invalid dependency coordinate '",
-                    s,
-                    "'. Expected group:artifact:version."
-                )
-            })?;
-            deps.push(coord);
-        }
-        return Ok(deduplicate_newest(deps));
-    }
-
-    let deps = discovery::collect_project_dependencies(catalogs, scripts);
-    if deps.is_empty() {
-        return Err("No dependencies found in project build scripts or version catalogs. Provide coordinates explicitly.".to_string());
-    }
-    Ok(deps)
 }
