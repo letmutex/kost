@@ -1,0 +1,30 @@
+[package]
+name = "dep"
+version.workspace = true
+edition = "2024"
+license = "Apache-2.0"
+description = "Fast JVM-free Gradle dependency resolver and fetcher for kost"
+
+[dependencies]
+bytes = { workspace = true }
+ahash = { workspace = true }
+cli = { workspace = true }
+common = { workspace = true }
+ignore = { workspace = true }
+quick-xml = { workspace = true }
+regex = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+sha1 = { workspace = true }
+smol_str = { workspace = true }
+tokio = { workspace = true }
+toml = "0.8"
+
+[dev-dependencies]
+common = { workspace = true }
+tokio = { workspace = true }
+
+[lints]
+workspace = true
+

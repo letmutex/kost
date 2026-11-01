@@ -45,5 +45,11 @@ async fn main() {
                 std::process::exit(1);
             }
         }
+        CliCommand::Dep(sub_args) => {
+            if let Err(err) = dep::run(&sub_args).await {
+                eprintln!("{err}");
+                std::process::exit(1);
+            }
+        }
     }
 }

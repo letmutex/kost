@@ -21,6 +21,7 @@ members = [
     "crates/format",
     "crates/update",
     "crates/common",
+    "crates/dep",
 ]
 exclude = [
     "vendor/tree-sitter-kotlin",
@@ -36,6 +37,7 @@ format = { path = "crates/format" }
 lint = { path = "crates/lint" }
 lsp = { path = "crates/lsp" }
 update = { path = "crates/update" }
+dep = { path = "crates/dep" }
 tree-sitter-kotlin = { path = "vendor/tree-sitter-kotlin" }
 ahash = "0.8"
 crossbeam-channel = "0.5"
@@ -54,6 +56,10 @@ tokio = { version = "1", features = ["full"] }
 tower-lsp = "0.20"
 tree-sitter = "0.22"
 url = "2.5"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "system-proxy", "socks"] }
+quick-xml = "0.37"
+sha1 = "0.10"
+bytes = "1"
 
 [workspace.lints.clippy]
 wildcard_imports = "deny"
@@ -70,6 +76,7 @@ lint = { workspace = true }
 format = { workspace = true }
 update = { workspace = true }
 common = { workspace = true }
+dep = { workspace = true }
 tokio = { workspace = true }
 
 [dev-dependencies]

@@ -53,6 +53,14 @@ fn test_subcommand_parsing() {
         parse_args(&[String::from("format")]),
         Ok(CliCommand::Format(Vec::new()))
     );
+    assert_eq!(
+        parse_args(&[String::from("dep"), String::from("fetch")]),
+        Ok(CliCommand::Dep(vec![String::from("fetch")]))
+    );
+    assert_eq!(
+        parse_args(&[String::from("dependency"), String::from("tree")]),
+        Ok(CliCommand::Dep(vec![String::from("tree")]))
+    );
 }
 
 #[test]

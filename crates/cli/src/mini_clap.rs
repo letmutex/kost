@@ -9,6 +9,7 @@ pub enum CliCommand {
     Uninstall(Vec<String>),
     Lint(Vec<String>),
     Format(Vec<String>),
+    Dep(Vec<String>),
 }
 
 pub struct Flag {
@@ -74,6 +75,7 @@ impl MiniClap {
             "uninstall" => Ok(CliCommand::Uninstall(arguments[1..].to_vec())),
             "lint" => Ok(CliCommand::Lint(arguments[1..].to_vec())),
             "fmt" | "format" => Ok(CliCommand::Format(arguments[1..].to_vec())),
+            "dep" | "dependency" => Ok(CliCommand::Dep(arguments[1..].to_vec())),
             unrecognized if unrecognized.starts_with('-') => {
                 Err(CliError::UnknownOption(unrecognized.to_string()))
             }
