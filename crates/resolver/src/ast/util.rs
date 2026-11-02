@@ -2,9 +2,7 @@ use ahash::AHashMap;
 use common::concat_str;
 use tree_sitter::Node;
 
-pub use super::string::{
-    resolve_groovy_string, resolve_interpolated_string, resolve_kotlin_string,
-};
+use super::string::{resolve_groovy_string, resolve_kotlin_string};
 
 /// Extracts string slice from source bytes corresponding to node's byte range.
 pub fn node_text<'a>(node: Node, source: &'a [u8]) -> &'a str {

@@ -3,9 +3,9 @@ use tree_sitter::Node;
 
 use super::context::InferenceContext;
 use super::expression::infer_receiver_type_depth;
-pub use super::lambda_ast::{
-    find_enclosing_call_and_lambda, find_lambda_argument_index_in_call,
-    find_last_expression_in_lambda, find_param_index_in_lambda, lambda_has_explicit_params,
+use super::lambda_ast::{
+    find_enclosing_call_and_lambda, find_lambda_argument_index_in_call, find_param_index_in_lambda,
+    lambda_has_explicit_params,
 };
 use super::qualification::qualify_type;
 use super::signature::{SignatureInfo, SignatureParam};
@@ -101,7 +101,7 @@ fn resolve_lambda_param_from_call(
 ) -> Option<KotlinType> {
     let callee_node = call_node.child(0)?;
     let callee_raw = callee_node.utf8_text(ctx.source.as_bytes()).ok()?.trim();
-    let call_info = super::call::parse_call_expression(callee_raw);
+    let call_info = super::call_parser::parse_call_expression(callee_raw);
     let callee_clean = call_info.callee.trim();
     let ast_args = super::lambda_ast::extract_call_argument_expressions(call_node, ctx.source);
     let (effective_value_args, effective_arg_idx) = if !call_info.value_args.is_empty() {
@@ -328,5 +328,3 @@ fn find_matching_functional_param(
         .find(|p| p.kotlin_type.as_ref().is_some_and(|kt| kt.is_function()))
         .and_then(extract)
 }
-
-pub use super::lambda_return::infer_lambda_return_type;

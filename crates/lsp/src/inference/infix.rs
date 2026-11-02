@@ -2,7 +2,7 @@ use tower_lsp::lsp_types::{Position, Url};
 use tree_sitter::Node;
 
 use super::ast_eval::{AstEvalContext, infer_expression_node};
-use super::call::CallInfo;
+use super::call_parser::CallInfo;
 use super::expression::infer_receiver_type_depth_traced;
 use super::member::resolve_member_call_info_depth_traced;
 use super::trace::Tracer;

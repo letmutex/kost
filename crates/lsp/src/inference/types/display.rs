@@ -1,6 +1,6 @@
 use std::fmt;
 
-use super::model::{KotlinType, PrimitiveType, TypeArg, Variance};
+use super::model::{KotlinType, TypeArg, Variance};
 
 impl fmt::Display for Variance {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -20,12 +20,6 @@ impl fmt::Display for TypeArg {
         } else {
             write!(f, "{}{}", self.variance, self.type_ref)
         }
-    }
-}
-
-impl fmt::Display for PrimitiveType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.as_str())
     }
 }
 

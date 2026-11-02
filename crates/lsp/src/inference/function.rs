@@ -1,7 +1,8 @@
 use tower_lsp::lsp_types::{Position, SymbolKind, Url};
 use tree_sitter::Node;
 
-use super::call::{CallInfo, parse_call_expression, solve_call_decl_return_type_traced};
+use super::call::solve_call_decl_return_type_traced;
+use super::call_parser::{CallInfo, parse_call_expression};
 use super::constructor::find_constructor_return_type;
 use super::context::InferenceContext;
 use super::expression::infer_receiver_type_depth;
@@ -10,11 +11,9 @@ use super::qualification::qualify_type;
 use super::trace::Tracer;
 use super::types::KotlinType;
 use crate::indexer::{DeclarationItem, WorkspaceIndex};
-use crate::parser::{
-    extract_single_expression_body, find_enclosing_declaration_node, find_node_at_position,
-    parse_source,
-};
+use crate::parser::{find_enclosing_declaration_node, find_node_at_position, parse_source};
 use crate::syntax::ast_call_view::parse_call_arg;
+use crate::syntax::ast_extra::extract_single_expression_body;
 use crate::syntax::signature::extract_return_type_from_signature;
 
 /// Infer the return type of a function given its name and calling context

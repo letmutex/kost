@@ -2,10 +2,7 @@ use serde::{Deserialize, Serialize};
 use tower_lsp::lsp_types::{CompletionItem, Range, TextEdit, Url};
 use tree_sitter::Node;
 
-pub use super::auto_import_insertion::{
-    collect_header_nodes, detect_newline, extract_import_path, find_ast_import_insertion,
-    insert_after_header, insert_into_import_headers,
-};
+use super::auto_import_insertion::{extract_import_path, find_ast_import_insertion};
 use crate::indexer::FileSymbols;
 use common::concat_str;
 

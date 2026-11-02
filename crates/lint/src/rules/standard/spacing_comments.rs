@@ -1,8 +1,8 @@
 //! Built-in AST rule enforcing a blank line before declarations preceded by comments (Ktlint rule 11).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::node_kind;
 
 /// Rule that enforces a blank line before a declaration preceded by a comment.
 pub struct SpacingBetweenDeclarationsWithComments;

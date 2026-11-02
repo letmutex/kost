@@ -1,13 +1,16 @@
 //! Single-pass DFS tree-sitter AST traversal engine.
 
 use crate::context::LintCtx;
+use crate::diagnostic::Diagnostic;
 use crate::eval::{
     evaluate_scope_stat_rules, finalize_file_scope, init_file_scope, update_max_indent_if_needed,
 };
 use crate::extractor::enter_scope_if_matching;
+use crate::property::PropertyKey;
 use crate::registry::RuleRegistry;
-use crate::types::{Diagnostic, PropertyKey, Scope};
-use crate::util::{is_declaration_kind, node_kind};
+use crate::registry::node_kind;
+use crate::types::Scope;
+use crate::util::is_declaration_kind;
 
 thread_local! {
     static THREAD_PARSER: std::cell::RefCell<tree_sitter::Parser> = std::cell::RefCell::new({

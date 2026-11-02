@@ -1,7 +1,8 @@
 //! Declarative condition tree evaluation for statistical rules.
 
 use crate::config::error::ConfigError;
-use crate::types::{Numeric, Operand, PropertyKey, PropertyValue, Scope};
+use crate::property::PropertyKey;
+use crate::types::{Numeric, Operand, PropertyValue, Scope};
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 use smol_str::SmolStr;

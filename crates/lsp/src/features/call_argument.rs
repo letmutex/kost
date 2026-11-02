@@ -31,9 +31,9 @@ pub fn collect_call_argument_completions(
     let Some(loc) = query
         .receiver
         .and_then(|r| {
-            super::definition::find_receiver_member_definition(
+            crate::features::definition_receiver::find_receiver_member_definition(
                 query.index,
-                super::definition::ReceiverMemberQuery {
+                crate::features::definition_receiver::ReceiverMemberQuery {
                     current_url: query.current_url,
                     symbol_name: query.callee,
                     pos: query.pos,

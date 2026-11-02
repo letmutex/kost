@@ -1,11 +1,11 @@
 //! Traversal context and lexical scope tracking during AST walk.
 
 use crate::condition::{PropertyBag, PropertyLookup};
+use crate::diagnostic::{Diagnostic, ReportTarget};
+use crate::property::PropertyKey;
 use crate::registry::RuleRegistry;
 use crate::suppression::SuppressionLocator;
-use crate::types::{
-    CommentType, Diagnostic, PropertyKey, PropertyValue, ReportTarget, Scope, Severity, TextRange,
-};
+use crate::types::{CommentType, PropertyValue, Scope, Severity, TextRange};
 use smallvec::SmallVec;
 use smol_str::SmolStr;
 

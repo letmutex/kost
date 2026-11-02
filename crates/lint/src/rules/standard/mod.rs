@@ -111,4 +111,5 @@ pub mod value_parameter_comment;
 pub mod when_entry_bracing;
 pub mod wrapping;
 
-pub use catalog::{create_standard_ast_rule, register_standard_ast_rules, standard_ast_rule_ids};
+pub use catalog::{register_standard_ast_rules, standard_ast_rule_ids};
+pub use factory::create_standard_ast_rule;

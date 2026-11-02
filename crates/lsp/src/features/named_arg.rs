@@ -1,13 +1,12 @@
+use super::definition_receiver::{ReceiverMemberQuery, find_receiver_member_definition};
 use tower_lsp::lsp_types::{Location, Position, Url};
 use tree_sitter::Node;
 
-use super::definition::{
-    ReceiverMemberQuery, find_definition_with_root, find_receiver_member_definition,
-};
+use super::definition::find_definition_with_root;
 use crate::indexer::WorkspaceIndex;
 use crate::parser::{find_enclosing_declaration_node, find_node_at_position, parse_source};
 use crate::position::{node_to_range, point_to_position};
-use crate::syntax::scope::find_parameter;
+use crate::syntax::scope_enclosing::find_parameter;
 use crate::syntax::symbol_item::find_identifier_node;
 
 pub fn find_named_argument_definition(

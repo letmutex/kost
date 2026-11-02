@@ -2,7 +2,9 @@
 
 use crate::condition::{Condition, PropertyLookup};
 use crate::context::LintCtx;
-use crate::types::{OptionValue, PropertyKey, ReportTarget, Scope, Severity, WherePolicy};
+use crate::diagnostic::ReportTarget;
+use crate::property::PropertyKey;
+use crate::types::{OptionValue, Scope, Severity, WherePolicy};
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 use smol_str::SmolStr;
@@ -113,7 +115,7 @@ impl StatRule {
         if let Some((scope_prefix, field_name)) = placeholder.split_once('.')
             && let Some(scope) = Scope::parse(scope_prefix)
             && let Some(property_key) =
-                crate::types::PropertyKey::from_scope_and_field(scope, field_name)
+                crate::property::PropertyKey::from_scope_and_field(scope, field_name)
             && let Some(value) = properties.get_property(property_key)
         {
             return Some(match value {

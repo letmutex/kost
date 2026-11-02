@@ -171,8 +171,6 @@ pub fn is_binary_kind(kind: &str) -> bool {
     )
 }
 
-pub use super::ast_literal::infer_literal;
-
 pub fn infer_as_cast(
     index: &WorkspaceIndex,
     current_url: &Url,

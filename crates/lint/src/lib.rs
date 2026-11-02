@@ -25,12 +25,13 @@ pub use condition::{CondOp, Condition, PropertyBag, PropertyCondition, PropertyL
 pub use config::ConfigLoader;
 pub use config::error::ConfigError;
 pub use context::{LintCtx, ScopeFrame, ScopeTracker, StackPropertyResolver};
+pub use diagnostic::{Diagnostic, ReportTarget};
 pub use linter::{LintReport, Linter};
+pub use property::PropertyKey;
 pub use registry::{RuleRegistry, RuleRegistryBuilder};
 pub use rule::{AstRule, StatRule};
 pub use suppression::{SuppressionHint, SuppressionLocator};
 pub use types::{
-    Diagnostic, Numeric, Operand, OptionValue, PropertyKey, PropertyValue, ReportTarget, Scope,
-    Severity, TextRange, WherePolicy,
+    Numeric, Operand, OptionValue, PropertyValue, Scope, Severity, TextRange, WherePolicy,
 };
 pub use walker::{lint_source, lint_source_with_path};

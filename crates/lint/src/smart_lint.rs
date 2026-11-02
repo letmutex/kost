@@ -1,7 +1,8 @@
 //! Smart presentation for lint diagnostics across multiple files.
 
+use crate::diagnostic::Diagnostic;
 use crate::linter::LintReport;
-use crate::types::Diagnostic;
+use crate::snippet::render_full_snippet_diagnostic;
 use cli::PrintMode;
 use common::color::{BOLD, BOLD_RED, BOLD_YELLOW, CYAN, DIM, RESET, YELLOW};
 use std::io::Write;
@@ -76,8 +77,6 @@ fn render_full_reports<W: Write>(
     }
     Ok(())
 }
-
-pub use crate::snippet::render_full_snippet_diagnostic;
 
 fn render_truncated_reports<W: Write>(
     writer: &mut W,

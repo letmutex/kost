@@ -21,11 +21,6 @@ pub use type_args::{
 };
 pub use type_params::{extract_param_name, parse_signature_type_params};
 
-pub use crate::syntax::dedent::{
-    dedent_and_normalize, dedent_with_base, find_base_indent, strip_comments_from_signature,
-    strip_comments_from_signature_with_base,
-};
-
 #[inline]
 pub fn is_kotlin_modifier(word: &str) -> bool {
     matches!(

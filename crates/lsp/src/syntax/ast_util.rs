@@ -1,6 +1,6 @@
 use tree_sitter::Node;
 
-use crate::parser::extract_extension_receiver;
+use super::ast_extra::extract_extension_receiver;
 
 /// Check if an identifier node is the callee of a function invocation (e.g. `fib(5)` or `obj.fib(5)`)
 pub fn is_call_callee(node: &Node, source: &str) -> bool {

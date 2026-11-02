@@ -2,7 +2,6 @@
 #![deny(clippy::too_many_arguments)]
 
 pub mod ast;
-pub mod build_script;
 pub mod cache;
 pub mod cache_resolver;
 pub mod catalog;

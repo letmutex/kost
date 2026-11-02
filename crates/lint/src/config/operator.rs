@@ -272,5 +272,3 @@ fn parse_regex_pattern<'a>(
         Ok((unquote(arg), None))
     }
 }
-
-pub use super::validate::validate_property_operator;

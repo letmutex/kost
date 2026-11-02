@@ -13,10 +13,11 @@ use url::Url;
 
 use container::{index_container_variants, remove_container_variants};
 
-pub use segment::{IndexSegment, SegmentKey};
-pub use types::{
-    DeclarationItem, DeclarationMetadata, DeclarationRef, FileSymbols, ImportItem, is_source_url,
+pub use crate::syntax::symbol_item::{
+    DeclarationItem, DeclarationMetadata, FileSymbols, ImportItem,
 };
+pub use segment::{IndexSegment, SegmentKey};
+pub use types::{DeclarationRef, is_source_url};
 
 use crate::parser::KotlinParser;
 use crate::symbols::parse_file_symbols;

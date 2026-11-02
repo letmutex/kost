@@ -3,8 +3,9 @@ pub mod display;
 pub mod model;
 pub mod standard;
 
+pub use crate::inference::model::PrimitiveType;
 pub use ast_type::ast_node_to_kotlin_type;
-pub use model::{KotlinType, PrimitiveType, TypeArg, Variance};
+pub use model::{KotlinType, TypeArg, Variance};
 pub use standard::{StandardInterface, is_lub_ignored_name};
 
 use crate::indexer::WorkspaceIndex;

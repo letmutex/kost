@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use crate::gradle::cache_resolver::ResolvedArtifact;
 use crate::gradle::config::GradleConfig;
 use crate::gradle::dependency::DependencyCoordinate;
+use resolver::cache_resolver::ResolvedArtifact;
 
 /// Resolver for standalone Kotlin compiler (`kotlinc`) installation and standard library.
 pub struct KotlincResolver;

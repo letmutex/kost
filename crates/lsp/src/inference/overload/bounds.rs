@@ -1,4 +1,3 @@
-pub use super::primitive::clean_variance;
 use super::primitive::{get_primitive_type, is_primitive_conforming};
 use crate::indexer::WorkspaceIndex;
 use crate::inference::signature::{GenericParamInfo, SignatureInfo};

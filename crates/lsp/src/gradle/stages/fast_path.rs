@@ -5,10 +5,11 @@ use tower_lsp::lsp_types::Url;
 use super::{log_resolved_artifact, prepare_archive_paths};
 use crate::gradle::android_sdk::{AndroidSdkPlatform, AndroidSdkResolver};
 use crate::gradle::archive::{ArchiveIndexer, ArchiveProcessingMetric};
-use crate::gradle::cache_resolver::{GradleCacheResolver, ResolvedArtifact};
+use crate::gradle::cache_resolver::GradleCacheResolver;
 use crate::gradle::config::GradleConfig;
 use crate::gradle::kotlinc::KotlincResolver;
 use crate::indexer::FileSymbols;
+use resolver::cache_resolver::ResolvedArtifact;
 
 pub struct FastPathResult {
     pub android_platform: Option<AndroidSdkPlatform>,

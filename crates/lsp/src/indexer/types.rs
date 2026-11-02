@@ -1,9 +1,7 @@
 use std::sync::Arc;
 use url::Url;
 
-pub use crate::syntax::symbol_item::{
-    DeclarationItem, DeclarationMetadata, FileSymbols, ImportItem,
-};
+use crate::syntax::symbol_item::DeclarationItem;
 
 pub type DeclarationRef = (Arc<Url>, Arc<DeclarationItem>);
 

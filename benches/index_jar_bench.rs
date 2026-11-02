@@ -1,10 +1,11 @@
 use lsp::gradle::archive::ArchiveIndexer;
-use lsp::gradle::cache_resolver::{GradleCacheResolver, ResolvedArtifact};
+use lsp::gradle::cache_resolver::GradleCacheResolver;
 use lsp::gradle::catalog::VersionCatalog;
 use lsp::gradle::config::GradleConfig;
 use lsp::gradle::dependency::deduplicate_newest;
 use lsp::gradle::graph::DependencyGraph;
 use lsp::indexer::WorkspaceIndex;
+use resolver::ResolvedArtifact;
 use std::path::Path;
 use std::time::Instant;
 

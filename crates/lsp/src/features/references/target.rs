@@ -75,7 +75,7 @@ fn check_is_extension_target(
         while !matches!(curr.kind(), "function_declaration" | "property_declaration") {
             curr = curr.parent()?;
         }
-        Some(crate::parser::extract_extension_receiver(&curr, source).is_some())
+        Some(crate::syntax::ast_extra::extract_extension_receiver(&curr, source).is_some())
     };
 
     if location.uri == *query.current_url

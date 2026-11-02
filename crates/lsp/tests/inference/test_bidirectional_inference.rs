@@ -4,8 +4,9 @@ use lsp::indexer::{DeclarationItem, DeclarationMetadata, WorkspaceIndex};
 use lsp::inference::ast_eval::{AstEvalContext, infer_expression_node};
 use lsp::inference::solver::ConstraintSystem;
 use lsp::inference::types::KotlinType;
-use lsp::inference::variable::{extract_initializer_node, infer_variable_type};
+use lsp::inference::variable::infer_variable_type;
 use lsp::inference::{InferenceContext, SignatureInfo, Tracer};
+use lsp::syntax::ast_util::extract_initializer_node;
 
 #[test]
 fn test_declaration_signature_info_on_demand_derivation() {
@@ -92,7 +93,7 @@ fun test() {
 
     let lambda_text = "{ 42 }";
     let lambda_tree = lsp::syntax::parser::parse_source(lambda_text).unwrap();
-    let lambda_node = lsp::inference::ast_eval::find_root_expression_node(lambda_tree.root_node())
+    let lambda_node = lsp::inference::ast_match::find_root_expression_node(lambda_tree.root_node())
         .expect("lambda node");
 
     let mut tracer = Tracer::Noop;
@@ -122,7 +123,7 @@ fn test_solve_call_decl_consumes_on_demand_signature_info() {
         DeclarationMetadata::signature(sig),
     );
 
-    let call_info = lsp::inference::call::CallInfo {
+    let call_info = lsp::inference::call_parser::CallInfo {
         callee: "formatItem",
         value_args: vec!["\"kotlin\""],
         explicit_type_args: vec![],

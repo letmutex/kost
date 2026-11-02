@@ -6,12 +6,13 @@ use super::class_hierarchy::{apply_class_signature, collect_supertypes};
 use super::class_metadata::{
     is_kotlin_file_facade, is_skippable_class_file, read_class_attributes,
 };
+use super::constant_pool::get_utf8;
 use super::constant_pool::{CpEntry, get_class_name, parse_constant_pool};
 use super::jvm_signature::{
     jvm_method_sig_to_kotlin, parse_jvm_method_signature, parse_jvm_type_signature,
 };
 use super::jvm_type::{
-    descriptor_to_type, extract_extension_info_from_desc, get_utf8, is_extension_method,
+    descriptor_to_type, extract_extension_info_from_desc, is_extension_method,
     method_descriptor_to_sig, read_u16, read_u32,
 };
 use crate::syntax::modifiers::ClassModifiers;

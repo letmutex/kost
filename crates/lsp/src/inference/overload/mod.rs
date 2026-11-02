@@ -13,12 +13,13 @@ pub mod candidate;
 pub mod primitive;
 pub mod score_typed;
 
-pub use bounds::{clean_variance, is_subtype, satisfies_bound};
+pub use bounds::{is_subtype, satisfies_bound};
 pub use call_args::{
     extract_call_args_and_inferred_types, extract_call_args_and_inferred_types_opts,
     extract_call_site_arguments, extract_call_site_arguments_opts,
 };
 pub use candidate::TypedCandidate;
+pub use primitive::clean_variance;
 pub use score_typed::{
     compute_type_matches, is_primitive_incompatible, score_typed_candidate, type_match_score,
 };

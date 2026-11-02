@@ -64,7 +64,7 @@ fn test_groovy_repo_uri_wrapper() {
 #[test]
 fn test_groovy_ext_block_properties() {
     let mut deps = Vec::new();
-    dep::discovery::ast::groovy::parse_groovy_script(
+    resolver::ast::groovy::parse_groovy_script(
         r#"
         ext {
             ktorVersion = "2.3.12"
@@ -94,7 +94,7 @@ fn test_groovy_ext_block_properties() {
 #[test]
 fn test_groovy_dependencies_closure_argument_list() {
     let mut deps = Vec::new();
-    dep::discovery::ast::groovy::parse_groovy_script(
+    resolver::ast::groovy::parse_groovy_script(
         r#"
         dependencies({
             implementation 'org.example:wrapped-in-call:1.0.0'
@@ -114,7 +114,7 @@ fn test_string_escape_sequences_in_kotlin_and_groovy() {
     let mut kt_props = ahash::AHashMap::default();
     kt_props.insert("notInterpolated".to_string(), "WRONG".to_string());
     let mut kt_deps = Vec::new();
-    dep::discovery::ast::kotlin::parse_kotlin_script(
+    resolver::ast::kotlin::parse_kotlin_script(
         r#"
         val ver = "1.0.0"
         dependencies {
@@ -130,7 +130,7 @@ fn test_string_escape_sequences_in_kotlin_and_groovy() {
     assert_eq!(kt_deps[0].version.as_ref().unwrap().raw(), "1.0.0");
 
     let mut gr_deps = Vec::new();
-    dep::discovery::ast::groovy::parse_groovy_script(
+    resolver::ast::groovy::parse_groovy_script(
         r#"
         def ver = "2.0.0"
         dependencies {
@@ -149,7 +149,7 @@ fn test_string_escape_sequences_in_kotlin_and_groovy() {
 #[test]
 fn test_configuration_matching_camel_case_api() {
     let mut deps = Vec::new();
-    dep::discovery::ast::kotlin::parse_kotlin_script(
+    resolver::ast::kotlin::parse_kotlin_script(
         r#"
         dependencies {
             commonMainApi("org.example:kmp-api:1.0.0")
@@ -168,7 +168,7 @@ fn test_configuration_matching_camel_case_api() {
 #[test]
 fn test_groovy_command_chain_platform_bom() {
     let mut deps = Vec::new();
-    dep::discovery::ast::groovy::parse_groovy_script(
+    resolver::ast::groovy::parse_groovy_script(
         r#"
         dependencies {
             implementation platform 'org.example.bom:bom-core:1.2.3'
@@ -186,7 +186,7 @@ fn test_groovy_command_chain_platform_bom() {
 #[test]
 fn test_named_arguments_with_variable_and_three_positional_args() {
     let mut kt_deps = Vec::new();
-    dep::discovery::ast::kotlin::parse_kotlin_script(
+    resolver::ast::kotlin::parse_kotlin_script(
         r#"
         val ktVer = "3.2.1"
         val fullCoord = "org.example:var-coord:4.0.0"
@@ -216,7 +216,7 @@ fn test_named_arguments_with_variable_and_three_positional_args() {
     );
 
     let mut gr_deps = Vec::new();
-    dep::discovery::ast::groovy::parse_groovy_script(
+    resolver::ast::groovy::parse_groovy_script(
         r#"
         def grVer = "2.4.0"
         def fullGrCoord = "org.example:var-gr:5.0.0"
@@ -249,7 +249,7 @@ fn test_named_arguments_with_variable_and_three_positional_args() {
 #[test]
 fn test_nested_buildscript_and_delegate_properties() {
     let mut kt_deps = Vec::new();
-    dep::discovery::ast::kotlin::parse_kotlin_script(
+    resolver::ast::kotlin::parse_kotlin_script(
         r#"
         val roomVersion by extra("2.6.1")
         dependencies {
@@ -273,7 +273,7 @@ fn test_nested_buildscript_and_delegate_properties() {
     ));
 
     let mut gr_deps = Vec::new();
-    dep::discovery::ast::groovy::parse_groovy_script(
+    resolver::ast::groovy::parse_groovy_script(
         r#"
         buildscript {
             ext {

@@ -267,8 +267,7 @@ fn test_duplicate_resolved_archives_skipped_across_stages() {
     for art in &trans_res.delta_artifacts {
         let target = art.target_path(config.prefer_sources);
         assert!(
-            !processed_archives
-                .contains(&lsp::gradle::cache_resolver::normalize_archive_path(target)),
+            !processed_archives.contains(&resolver::cache_resolver::normalize_archive_path(target)),
             "Stage 3 must not re-process already indexed archive: {:?}",
             target
         );

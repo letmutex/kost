@@ -1,7 +1,5 @@
 //! Core data types and contracts for the linting engine.
 
-pub use crate::diagnostic::{Diagnostic, ReportTarget};
-pub use crate::property::PropertyKey;
 use smallvec::SmallVec;
 use smol_str::SmolStr;
 

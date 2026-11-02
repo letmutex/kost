@@ -22,11 +22,6 @@ pub fn descriptor_to_type(desc: &str) -> String {
     }
 }
 
-pub use super::jvm_signature::{
-    JvmClassSignature, JvmMethodSignature, jvm_method_sig_to_kotlin, parse_jvm_class_signature,
-    parse_jvm_method_signature, parse_jvm_type_signature,
-};
-
 pub fn method_descriptor_to_sig(desc: &str) -> String {
     let (Some(open), Some(close)) = (desc.find('('), desc.find(')')) else {
         return "()".to_string();
@@ -176,7 +171,7 @@ pub fn read_u32(bytes: &[u8], cursor: &mut usize) -> Option<u32> {
     }
 }
 
-pub(crate) use super::constant_pool::{CpEntry, get_utf8};
+use super::constant_pool::{CpEntry, get_utf8};
 
 fn check_local_variable_table(bytes: &[u8], mut cur: usize, cp: &[CpEntry]) -> Option<bool> {
     let lvt_len = read_u16(bytes, &mut cur)? as usize;

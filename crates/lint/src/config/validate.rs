@@ -2,7 +2,9 @@
 
 use crate::condition::{CondOp, Condition};
 use crate::config::error::ConfigError;
-use crate::types::{Operand, PropertyKey, PropertyValue, ReportTarget};
+use crate::diagnostic::ReportTarget;
+use crate::property::PropertyKey;
+use crate::types::{Operand, PropertyValue};
 use indexmap::IndexMap;
 use smallvec::SmallVec;
 use smol_str::SmolStr;

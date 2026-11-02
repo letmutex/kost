@@ -210,7 +210,7 @@ fn register_local_decl_in_branch(ctx: &mut AstEvalContext, decl: Node) {
         return;
     };
     let ty = resolve_decl_annotation_type(ctx, &decl).or_else(|| {
-        super::variable::extract_initializer_node(&decl)
+        crate::syntax::ast_util::extract_initializer_node(&decl)
             .and_then(|init| infer_expression_node(&mut ctx.sub(), init))
     });
     if let Some(t) = ty {

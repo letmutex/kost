@@ -1,15 +1,11 @@
-pub use crate::ast;
-pub use crate::catalog;
-
 use std::path::{Path, PathBuf};
 
 use ahash::AHashMap;
 use ignore::WalkBuilder;
 
-pub use crate::ast::{BuildScriptInfo, ParseError, RepositoriesResult, ScriptDialect};
+use crate::ast::{self, BuildScriptInfo, ParseError, RepositoriesResult, ScriptDialect};
 use crate::catalog::VersionCatalog;
 use crate::coordinate::{DependencyCoordinate, deduplicate_newest};
-pub use crate::properties::{collect_gradle_properties, parse_gradle_properties};
 use crate::properties::{inherit_ancestor_vars, populate_gradle_properties_by_dir, store_dir_vars};
 use crate::version::ArtifactVersion;
 

@@ -1,8 +1,6 @@
 use tree_sitter::Node;
 
-pub use super::destructuring::{
-    lower_multi_variable_declaration, lower_multi_variable_declaration_with_gid,
-};
+use super::destructuring::lower_multi_variable_declaration_with_gid;
 use crate::doc::{Doc, GroupId, IndentKind};
 use crate::lower::builders::{format_assign_with_comments_ext, is_block_like_rhs, is_scoping_call};
 use crate::lower::context::LowerContext;

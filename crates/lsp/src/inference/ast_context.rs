@@ -38,7 +38,7 @@ pub fn find_enclosing_initializer_expected_type(
     while let Some(parent) = current.parent() {
         let pk = parent.kind();
         if pk == "property_declaration" || pk == "variable_declaration" {
-            if let Some(init) = super::variable::extract_initializer_node(&parent)
+            if let Some(init) = crate::syntax::ast_util::extract_initializer_node(&parent)
                 && (init == current || init == node)
             {
                 return resolve_decl_annotation_type(ctx, &parent);

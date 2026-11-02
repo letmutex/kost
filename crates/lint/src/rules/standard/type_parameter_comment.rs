@@ -1,8 +1,8 @@
 //! Built-in AST rule forbidding comments in type parameter lists (Ktlint rule 99).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::node_kind;
 
 /// Rule that disallows misplaced comments inside generic type parameter lists.
 pub struct TypeParameterComment;

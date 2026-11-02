@@ -1,4 +1,4 @@
-use lsp::features::auto_import::{find_ast_import_insertion, insert_into_import_headers};
+use lsp::features::auto_import_insertion::{find_ast_import_insertion, insert_into_import_headers};
 use lsp::syntax::parser::parse_source;
 
 #[test]

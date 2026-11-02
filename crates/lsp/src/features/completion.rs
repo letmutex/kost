@@ -1,3 +1,4 @@
+use super::completion_candidate::CompletionCandidateTracker;
 use std::collections::HashSet;
 use tower_lsp::lsp_types::{CompletionItem, Position, Url};
 use tree_sitter::Node;
@@ -8,8 +9,7 @@ use super::call_argument::{
 };
 use super::completion_context::{CompletionContext, determine_completion_context};
 use super::completion_item::{
-    CompletionCandidateTracker, contains_ignore_ascii_case, decl_completion_key,
-    starts_with_ignore_ascii_case,
+    contains_ignore_ascii_case, decl_completion_key, starts_with_ignore_ascii_case,
 };
 use super::completion_member::find_member_completions;
 use super::completion_scope::collect_local_scope_completions;
@@ -17,11 +17,10 @@ use super::lex_context::is_inside_comment_or_string;
 use crate::indexer::{WorkspaceIndex, is_source_url};
 use crate::parser::{find_node_at_position, parse_source};
 use crate::position::position_to_byte_offset;
-use crate::syntax::scope::collect_enclosing_classes;
+use crate::syntax::scope_enclosing::collect_enclosing_classes;
 
 const MAX_COMPLETIONS: usize = 1000;
-pub use super::completion_item::{declaration_to_completion_item, map_symbol_kind};
-pub use super::receiver_type::resolve_receiver_type;
+use super::completion_item::declaration_to_completion_item;
 
 /// Find completions at given cursor position
 pub fn find_completions(

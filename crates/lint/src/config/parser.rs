@@ -2,13 +2,13 @@
 
 use crate::condition::{Condition, PropertyCondition};
 use crate::config::error::ConfigError;
-use crate::config::operator::{parse_operator, validate_property_operator};
+use crate::config::operator::parse_operator;
 use crate::config::options;
-use crate::types::{PropertyKey, PropertyValue, Scope};
+use crate::config::validate::validate_property_operator;
+use crate::property::PropertyKey;
+use crate::types::{PropertyValue, Scope};
 use indexmap::IndexMap;
 use smol_str::SmolStr;
-
-pub use common::util::is_valid_kebab_case;
 
 /// Parses a raw rule definition into validated options, condition, scope, and message.
 pub struct RuleParser;

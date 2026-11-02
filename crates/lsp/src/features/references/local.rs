@@ -7,9 +7,10 @@ use super::{
     MAX_SLOWEST_OCCURRENCES, OccurrenceTiming, ReferenceQuery, merge_top_slowest,
     should_record_slowest,
 };
-use crate::features::definition::{BindingRole, find_local_binding_node};
+use crate::features::definition_local::find_local_binding_node;
 use crate::position::node_to_range;
 use crate::syntax::ast_util::{is_call_callee, is_callable_reference_target};
+use crate::syntax::scope::BindingRole;
 use crate::syntax::symbol_item::find_identifier_node;
 
 pub fn resolve_local_target(

@@ -1,8 +1,8 @@
 //! Built-in AST rule forbidding comments in value argument lists (Ktlint rule 100).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::node_kind;
 
 /// Rule that disallows misplaced comments inside call argument lists.
 pub struct ValueArgumentComment;

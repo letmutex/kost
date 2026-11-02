@@ -1,8 +1,9 @@
 //! Built-in AST rule forbidding redundant Unit return types (Ktlint rule 75).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::{BuiltinType, node_kind};
+use crate::util::BuiltinType;
 
 /// Rule that flags unnecessary explicit `Unit` return types on functions.
 pub struct NoUnitReturn;

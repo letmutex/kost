@@ -1,7 +1,8 @@
 use smol_str::SmolStr;
 use tree_sitter::Node;
 
-use super::model::{KotlinType, PrimitiveType, TypeArg, Variance};
+use super::model::{KotlinType, TypeArg, Variance};
+use crate::inference::model::PrimitiveType;
 use crate::syntax::parser::with_parser;
 
 /// Check if a Tree-sitter node represents a Kotlin type AST node

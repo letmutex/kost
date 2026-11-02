@@ -4,7 +4,8 @@ use tower_lsp::lsp_types::{
 };
 use tree_sitter::Node;
 
-use super::signature_parser::{CallContext, parse_signature_parameters};
+use super::signature_param::parse_signature_parameters;
+use super::signature_parser::CallContext;
 use crate::indexer::{DeclarationItem, WorkspaceIndex};
 use crate::inference::KotlinType;
 use crate::inference::overload::{OverloadScore, score_overload_candidate_parsed};

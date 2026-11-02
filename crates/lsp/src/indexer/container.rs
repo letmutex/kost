@@ -3,7 +3,8 @@ use smol_str::SmolStr;
 use std::sync::Arc;
 use url::Url;
 
-use super::types::{DeclarationItem, DeclarationRef};
+use super::types::DeclarationRef;
+use crate::syntax::symbol_item::DeclarationItem;
 
 pub fn index_container_variants(
     map: &mut AHashMap<SmolStr, Vec<DeclarationRef>>,

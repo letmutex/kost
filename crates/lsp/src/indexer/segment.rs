@@ -6,7 +6,8 @@ use url::Url;
 
 use super::container::index_container_variants;
 use super::is_type_alias_private;
-use super::types::{DeclarationRef, FileSymbols};
+use super::types::DeclarationRef;
+use crate::syntax::symbol_item::FileSymbols;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct SegmentKey(pub SmolStr);
@@ -109,7 +110,7 @@ impl IndexSegment {
         }
         for (k, v) in &file_symbols.type_aliases {
             if !is_type_alias_private(&file_symbols.declarations, k) {
-                self.type_aliases.insert(k.clone(), v.clone());
+                self.type_aliases.insert(k.to_string(), v.to_string());
             }
         }
 

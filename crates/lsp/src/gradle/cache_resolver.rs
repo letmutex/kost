@@ -1,11 +1,8 @@
+use resolver::cache_resolver::ResolvedArtifact;
 use std::path::{Path, PathBuf};
 
 use crate::gradle::config::GradleConfig;
 use crate::gradle::dependency::DependencyCoordinate;
-
-pub use resolver::cache_resolver::{
-    CacheResolverContext, ResolvedArtifact, normalize_archive_path,
-};
 
 pub struct GradleCacheResolver;
 

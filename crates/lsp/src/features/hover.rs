@@ -2,16 +2,13 @@ use tower_lsp::lsp_types::{Hover, HoverContents, MarkedString, Position, Url};
 use tree_sitter::Node;
 
 use super::hover_format::{
-    extract_package_name_from_ast, format_index_declaration_markdown, format_local_node_markdown,
-    format_source_footer,
+    extract_package_name_from_ast, format_index_declaration_markdown, format_source_footer,
 };
+use super::hover_local::format_local_node_markdown;
 use crate::config::VariableHoverTypeInference;
 use crate::indexer::WorkspaceIndex;
 use crate::parser::{find_node_at_position, parse_source};
 use crate::position::node_to_range;
-
-pub use super::hover_augment::augment_variable_signature_with_type;
-pub use super::hover_format::build_qualifying_path;
 
 pub fn find_hover(
     index: &WorkspaceIndex,
@@ -99,7 +96,7 @@ pub fn find_hover_with_config(
     ) {
         format_hover_for_location(ctx, &loc, symbol_name)
     } else if symbol_name == "it" {
-        super::hover_format::format_implicit_it_hover(
+        super::hover_local::format_implicit_it_hover(
             index,
             current_url,
             pos,

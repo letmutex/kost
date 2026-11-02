@@ -1,4 +1,4 @@
-use lsp::gradle::jvm_type::{
+use lsp::gradle::jvm_signature::{
     jvm_method_sig_to_kotlin, parse_jvm_class_signature, parse_jvm_method_signature,
     parse_jvm_type_signature,
 };

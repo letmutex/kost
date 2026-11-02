@@ -1,9 +1,10 @@
 use tower_lsp::lsp_types::{Position, Url};
 
-use super::call::{CallInfo, parse_call_expression};
+use super::call_parser::{CallInfo, parse_call_expression};
 use super::context::InferenceContext;
 use super::member_container::resolve_container_members;
-use super::member_extension::{infer_call_argument_types, resolve_extension_members};
+use super::member_extension::resolve_extension_members;
+use super::member_ranking::infer_call_argument_types;
 use super::trace::Tracer;
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;

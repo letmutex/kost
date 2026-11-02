@@ -2,8 +2,9 @@
 
 use super::helpers::has_blank_line_between_decls_with_context;
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::{has_declaration_annotations, node_kind};
+use crate::util::has_declaration_annotations;
 
 /// Rule that enforces a blank line before major declarations.
 pub struct BlankLineBeforeDeclaration;

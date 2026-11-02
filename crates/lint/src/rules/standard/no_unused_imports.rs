@@ -3,8 +3,8 @@
 use ahash::AHashSet;
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::node_kind;
 
 /// Rule that detects unused import statements.
 pub struct NoUnusedImports;

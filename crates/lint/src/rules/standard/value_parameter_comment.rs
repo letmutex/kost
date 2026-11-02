@@ -1,8 +1,9 @@
 //! Built-in AST rule forbidding comments in value parameter lists (Ktlint rule 101).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::{is_kdoc, node_kind};
+use crate::util::is_kdoc;
 
 /// Rule that disallows misplaced comments inside parameter lists.
 pub struct ValueParameterComment;

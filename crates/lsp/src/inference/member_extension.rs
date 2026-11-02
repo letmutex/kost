@@ -1,11 +1,9 @@
 use tower_lsp::lsp_types::{SymbolKind, Url};
 
-use super::call::{CallInfo, solve_call_decl_return_type_traced};
+use super::call::solve_call_decl_return_type_traced;
+use super::call_parser::CallInfo;
 use super::context::InferenceContext;
-pub use super::member_ranking::{
-    format_candidate_score, infer_call_argument_types, record_ranked_candidates,
-    sort_by_overload_score,
-};
+use super::member_ranking::{record_ranked_candidates, sort_by_overload_score};
 use super::qualification::qualify_type;
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;

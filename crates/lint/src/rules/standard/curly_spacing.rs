@@ -1,8 +1,9 @@
 //! Built-in AST rule enforcing spacing around curly braces (Ktlint rule 16).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::{WhitespaceAfter, WhitespaceBefore, node_kind, spaces_after, spaces_before};
+use crate::util::{WhitespaceAfter, WhitespaceBefore, spaces_after, spaces_before};
 
 /// Rule that enforces proper spacing around curly braces.
 pub struct CurlySpacing;

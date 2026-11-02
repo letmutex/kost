@@ -214,5 +214,3 @@ impl TrackedCallable {
             .get_or_insert_with(|| get_signature_param_types(self.signature.as_deref()))
     }
 }
-
-pub use super::completion_candidate::CompletionCandidateTracker;

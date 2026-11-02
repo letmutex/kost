@@ -1,8 +1,8 @@
 //! Built-in AST rule forbidding line breaks before '=' in assignments and property declarations (Ktlint rule 59).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::node_kind;
 
 /// Rule that forbids placing a line break immediately before '=' in assignments and declarations.
 pub struct NoLineBreakBeforeAssignment;

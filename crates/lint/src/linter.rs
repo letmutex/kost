@@ -2,8 +2,9 @@
 
 use crate::config::ConfigLoader;
 use crate::config::error::ConfigError;
+use crate::diagnostic::Diagnostic;
 use crate::registry::RuleRegistry;
-use crate::types::{Diagnostic, Severity};
+use crate::types::Severity;
 use std::sync::Arc;
 
 /// An immutable, thread-safe Kotlin static analysis engine.

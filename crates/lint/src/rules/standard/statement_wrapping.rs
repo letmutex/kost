@@ -1,8 +1,8 @@
 //! Built-in AST rule forbidding multiple statements on a single line (Ktlint rule 63).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::node_kind;
 
 /// Rule that enforces individual statements are placed on separate lines.
 pub struct StatementWrapping;

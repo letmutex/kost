@@ -251,7 +251,7 @@ fn is_toplevel_target_visible(
     target: &ReferenceTarget,
     target_pkg: Option<&str>,
     cand_pkg: Option<&str>,
-    cand_file: Option<&crate::symbols::FileSymbols>,
+    cand_file: Option<&crate::syntax::symbol_item::FileSymbols>,
 ) -> bool {
     cand_url == &target.location.uri
         || target_pkg.unwrap_or("") == cand_pkg.unwrap_or("")

@@ -268,7 +268,7 @@ pub fn resolve_lambda_type_for_call_and_lambda(
         .and_then(|v| v.callee_node)
         .or_else(|| call_node.child(0))?;
     let callee_raw = callee_node.utf8_text(source.as_bytes()).ok()?.trim();
-    let call_info = super::call::parse_call_expression(callee_raw);
+    let call_info = super::call_parser::parse_call_expression(callee_raw);
     let callee_clean = call_info.callee.trim();
     let ast_args = super::lambda_ast::extract_call_argument_expressions(call_node, source);
     let (effective_value_args, effective_arg_idx) = if !call_info.value_args.is_empty() {

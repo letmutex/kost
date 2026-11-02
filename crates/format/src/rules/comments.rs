@@ -239,5 +239,3 @@ pub fn push_context_receiver_doc<'a>(
     modifier_docs.push(lower_fn(child, ctx));
     modifier_docs.push(crate::doc::Doc::HardLine);
 }
-
-pub use crate::rules::kdoc::format_kdoc;

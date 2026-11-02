@@ -167,7 +167,7 @@ fun test() {
 
     let total_decl = find_decl_by_name(root, code, "total").expect("total decl");
     let init_node =
-        lsp::inference::variable::extract_initializer_node(&total_decl).expect("initializer node");
+        lsp::syntax::ast_util::extract_initializer_node(&total_decl).expect("initializer node");
     assert_eq!(init_node.kind(), "additive_expression");
 
     let pos_total = Position::new(4, 8);
