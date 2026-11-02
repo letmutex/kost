@@ -163,8 +163,8 @@ fn resolve_container_decl_from_source(
     url: &Url,
     decl: &crate::indexer::DeclarationItem,
 ) -> Option<KotlinType> {
-    if url == ctx.current_url {
-        if let Some(inferred) = super::function::infer_single_expression_function_return_type(
+    if url == ctx.current_url
+        && let Some(inferred) = super::function::infer_single_expression_function_return_type(
             ctx.index,
             url,
             decl,
@@ -175,9 +175,9 @@ fn resolve_container_decl_from_source(
             super::delegate::resolve_property_delegate_from_source(
                 ctx.index, url, decl, ctx.source, ctx.depth,
             )
-        }) {
-            return Some(inferred);
-        }
+        })
+    {
+        return Some(inferred);
     }
     if url.as_str().starts_with("jar:") {
         return None;
