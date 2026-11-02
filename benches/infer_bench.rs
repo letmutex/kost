@@ -1,10 +1,15 @@
+use ahash::AHashSet;
 use common::concat_str;
 use lsp::WorkspaceIndex;
 use lsp::gradle::archive::ArchiveIndexer;
 use lsp::gradle::cache_resolver::GradleCacheResolver;
 use lsp::gradle::config::GradleConfig;
+use lsp::gradle::dependency::deduplicate_newest;
+use lsp::gradle::discovery::discover_workspace_pipeline_context;
+use lsp::gradle::graph::DependencyGraph;
 use lsp::gradle::kotlinc::KotlincResolver;
 use lsp::inference::infer_variable_type;
+use resolver::ResolvedArtifact;
 use std::path::Path;
 use std::time::{Duration, Instant};
 use tower_lsp::lsp_types::{Position, Url};
@@ -109,35 +114,72 @@ fn print_results_summary_table(results: &[BenchmarkResult], total_elapsed: Durat
     );
 }
 
-fn index_stdlib_if_available(index: &mut WorkspaceIndex) {
-    let config = GradleConfig::new();
-    let stdlib_artifact = KotlincResolver::find_kotlinc_stdlib(&config)
-        .or_else(|| GradleCacheResolver::find_kotlin_stdlib(None, &config));
+fn resolve_dependency_artifacts(
+    abs_workspace_dir: &Path,
+    config: &GradleConfig,
+) -> Vec<ResolvedArtifact> {
+    let discovery = discover_workspace_pipeline_context(abs_workspace_dir);
+    let deduped_deps = deduplicate_newest(discovery.declared_dependencies);
 
+    let gradle_home = config.resolve_gradle_user_home();
+    let graph_result =
+        DependencyGraph::resolve_transitive_graph(&deduped_deps, gradle_home.as_deref());
+
+    let mut resolved_artifacts =
+        GradleCacheResolver::resolve_all(&graph_result.resolved_dependencies, config);
+
+    let stdlib_artifact = KotlincResolver::find_kotlinc_stdlib(config)
+        .or_else(|| GradleCacheResolver::find_kotlin_stdlib(None, config));
     if let Some(stdlib) = stdlib_artifact {
-        let archive_path = if config.prefer_sources
-            && let Some(ref src) = stdlib.sources_path
+        if !resolved_artifacts
+            .iter()
+            .any(|artifact| artifact.binary_path == stdlib.binary_path)
         {
+            resolved_artifacts.push(stdlib);
+        }
+    }
+
+    resolved_artifacts
+}
+
+fn prepare_dependency_archives<'a>(
+    resolved_artifacts: &'a [ResolvedArtifact],
+    prefer_sources: bool,
+) -> Vec<&'a Path> {
+    let mut archives = Vec::new();
+    let mut seen = AHashSet::default();
+    for artifact in resolved_artifacts {
+        let path = if prefer_sources && let Some(ref src) = artifact.sources_path {
             src.as_path()
         } else {
-            stdlib.binary_path.as_path()
+            artifact.binary_path.as_path()
         };
-        let start = Instant::now();
-        let (symbols, _) =
-            ArchiveIndexer::index_archives_parallel(&[archive_path], config.prefer_sources);
-        let sym_count = symbols.len();
-        for (url, file_symbols) in symbols {
-            index.insert_file_symbols(url, file_symbols);
+        if seen.insert(path) {
+            archives.push(path);
         }
-        println!(
-            "Indexed Kotlin stdlib ({} files) in {:.2} ms ({})",
-            sym_count,
-            start.elapsed().as_secs_f64() * 1000.0,
-            archive_path.display()
-        );
-    } else {
-        println!("Kotlin stdlib not found in kotlinc path or gradle cache.");
     }
+    archives
+}
+
+fn index_dependency_jars(index: &mut WorkspaceIndex, abs_workspace_dir: &Path) {
+    let config = GradleConfig::new();
+    let start = Instant::now();
+
+    let resolved_artifacts = resolve_dependency_artifacts(abs_workspace_dir, &config);
+    let archives = prepare_dependency_archives(&resolved_artifacts, config.prefer_sources);
+
+    let (symbols, _) = ArchiveIndexer::index_archives_parallel(&archives, config.prefer_sources);
+    let sym_count = symbols.len();
+    for (url, file_symbols) in symbols {
+        index.insert_file_symbols(url, file_symbols);
+    }
+
+    println!(
+        "Indexed {} dependency archive(s) ({} symbols) in {:.2} ms",
+        archives.len(),
+        sym_count,
+        start.elapsed().as_secs_f64() * 1000.0,
+    );
 }
 
 fn index_workspace_directory(abs_workspace_dir: &Path) -> WorkspaceIndex {
@@ -161,7 +203,7 @@ fn index_workspace_directory(abs_workspace_dir: &Path) -> WorkspaceIndex {
         index_elapsed.as_secs_f64() * 1000.0
     );
 
-    index_stdlib_if_available(&mut index);
+    index_dependency_jars(&mut index, abs_workspace_dir);
     index
 }
 
