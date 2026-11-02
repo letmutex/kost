@@ -20,23 +20,28 @@ pub fn try_resolve_cached_transitives(
         return Some(Vec::new());
     }
 
-    if let Some(module_path) = cache.find_module(coord)
+    if let Some(cached) = cache.get_resolved(coord) {
+        return Some(cached);
+    }
+
+    let deps = if let Some(module_path) = cache.find_module(coord)
         && let Ok(content) = std::fs::read_to_string(module_path)
         && let Ok(meta) = GradleModuleMetadata::parse(&content)
     {
-        return Some(meta.resolved_dependencies());
-    }
-
-    if let Some(pom_path) = cache.find_pom(coord)
+        Some(meta.resolved_dependencies())
+    } else if let Some(pom_path) = cache.find_pom(coord)
         && let Ok(content) = std::fs::read_to_string(pom_path)
         && let Ok(mut pom) = PomModel::parse(&content)
     {
         pom.resolve_parent_from_cache(cache);
         pom.interpolate(&AHashMap::default());
-        return Some(pom.direct_dependencies());
-    }
+        Some(pom.direct_dependencies())
+    } else {
+        None
+    }?;
 
-    None
+    cache.insert_resolved(coord.clone(), deps.clone());
+    Some(deps)
 }
 
 /// Resolves transitive dependencies from locally cached Gradle module metadata or POM file.

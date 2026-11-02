@@ -199,14 +199,14 @@ impl Downloader {
         Ok(String::from_utf8_lossy(&bytes).into_owned())
     }
 
-    /// Resolve metadata for a dependency coordinate across repositories.
+    /// Resolve metadata for a dependency coordinate across repositories in online mode (`offline: false`).
     pub async fn resolve_metadata(
         &self,
         registry: &RepositoryRegistry,
         coord: &DependencyCoordinate,
         cache: &GradleCache,
     ) -> Result<Vec<DependencyCoordinate>, String> {
-        crate::metadata::resolve_metadata(self, registry, coord, cache).await
+        crate::metadata::resolve_metadata(self, registry, coord, cache, false).await
     }
 
     /// Download an artifact (binary or sources) across repositories to the Gradle cache.
