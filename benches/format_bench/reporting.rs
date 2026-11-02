@@ -1,5 +1,6 @@
 use crate::{
-    BenchmarkDataset, FormatCheckResult, FormatResult, SlowFileRecord, run_parallel_format,
+    BenchmarkDataset, FormatCheckResult, FormatResult, SlowFileRecord, run_parallel_check,
+    run_parallel_format, run_sequential_check, run_sequential_format,
 };
 use format::{Formatter, StylePreset};
 use std::path::Path;
@@ -16,6 +17,22 @@ pub fn format_number(value: usize) -> String {
         result.push(c);
     }
     result
+}
+
+pub fn print_benchmark_header(resolved_dir: &Path, dataset: &BenchmarkDataset) {
+    let mb_size = dataset.total_bytes as f64 / (1024.0 * 1024.0);
+    println!(
+        "=== Kotlin Code Formatter Benchmark ===\n\
+         Target directory: {}\n\
+         Files loaded:     {} Kotlin source files\n\
+         Total size:       {mb_size:.2} MB ({} bytes)\n\
+         Total lines:      {} lines\n\
+         Active style:     Kotlinlang preset (default)",
+        resolved_dir.display(),
+        format_number(dataset.files.len()),
+        format_number(dataset.total_bytes),
+        format_number(dataset.total_lines),
+    );
 }
 
 pub fn print_format_summary(
@@ -121,4 +138,45 @@ pub fn run_preset_comparison(dataset: &BenchmarkDataset) {
             format_number(result.error_count),
         );
     }
+}
+
+pub fn run_full_benchmark_suite(
+    formatter: &Formatter,
+    dataset: &BenchmarkDataset,
+    resolved_dir: &Path,
+) {
+    let seq_result = run_sequential_format(formatter, dataset);
+    print_format_summary(
+        "1. In-Memory Sequential Formatting (Single Thread)",
+        &seq_result,
+        dataset,
+        None,
+    );
+
+    let par_result = run_parallel_format(formatter, dataset);
+    print_format_summary(
+        "2. In-Memory Parallel Formatting (Rayon Multi-Threaded)",
+        &par_result,
+        dataset,
+        Some(seq_result.duration),
+    );
+
+    let seq_check_result = run_sequential_check(formatter, dataset);
+    print_check_summary(
+        "3. Format Verification & Diff Generation (Single Thread)",
+        &seq_check_result,
+        dataset,
+        None,
+    );
+
+    let par_check_result = run_parallel_check(formatter, dataset);
+    print_check_summary(
+        "4. Format Verification & Diff Generation (Rayon Parallel)",
+        &par_check_result,
+        dataset,
+        Some(seq_check_result.duration),
+    );
+
+    print_slowest_files(&seq_result.slowest_files, resolved_dir);
+    run_preset_comparison(dataset);
 }

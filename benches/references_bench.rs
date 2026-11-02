@@ -238,6 +238,55 @@ fn print_results_summary_table(results: &[BenchResult]) {
     println!("{:=<95}\n", "");
 }
 
+fn index_workspace(abs_workspace_dir: &Path) -> WorkspaceIndex {
+    println!("\nIndexing workspace directory...");
+    let mut index = WorkspaceIndex::new();
+    let index_start = Instant::now();
+    index.scan_directory(abs_workspace_dir);
+    let index_time = index_start.elapsed();
+
+    let total_files = index.files.len();
+    let total_decls: usize = index
+        .files
+        .values()
+        .map(|file| file.declarations.len())
+        .sum();
+
+    println!(
+        "Indexed {} files with {} declarations in {:.2} ms",
+        total_files,
+        total_decls,
+        index_time.as_secs_f64() * 1000.0
+    );
+    index
+}
+
+fn run_symbol_queries<'a>(
+    index: &WorkspaceIndex,
+    abs_workspace_dir: &Path,
+    queries: impl IntoIterator<Item = (&'a str, Option<SymbolKind>)>,
+) -> Vec<BenchResult> {
+    let mut results = Vec::new();
+    for (query_name, preferred_kind) in queries {
+        print!("Benchmarking '{query_name}' ... ");
+        let _ = std::io::Write::flush(&mut std::io::stdout());
+        if let Some(bench_result) =
+            benchmark_target_symbol(index, abs_workspace_dir, query_name, preferred_kind)
+        {
+            println!(
+                "done in {:.3}s ({} refs in {} files)",
+                bench_result.elapsed_seconds,
+                bench_result.reference_count,
+                bench_result.files_with_refs_count
+            );
+            results.push(bench_result);
+        } else {
+            println!("target declaration not found!");
+        }
+    }
+    results
+}
+
 fn main() {
     let (workspace_dir, requested_symbols) = parse_cli_options();
     let abs_workspace_dir =
@@ -256,21 +305,7 @@ fn main() {
         std::process::exit(1);
     }
 
-    println!("\nIndexing workspace directory...");
-    let mut index = WorkspaceIndex::new();
-    let index_start = Instant::now();
-    index.scan_directory(&abs_workspace_dir);
-    let index_time = index_start.elapsed();
-
-    let total_files = index.files.len();
-    let total_decls: usize = index.files.values().map(|f| f.declarations.len()).sum();
-
-    println!(
-        "Indexed {} files with {} declarations in {:.2} ms",
-        total_files,
-        total_decls,
-        index_time.as_secs_f64() * 1000.0
-    );
+    let index = index_workspace(&abs_workspace_dir);
 
     let default_queries = [
         ("Job", Some(SymbolKind::INTERFACE)),
@@ -285,47 +320,17 @@ fn main() {
         ("NonCancellable.toString", Some(SymbolKind::FUNCTION)),
     ];
 
-    let mut results = Vec::new();
-
-    if requested_symbols.is_empty() {
+    let results = if requested_symbols.is_empty() {
         println!("\nRunning references benchmark on standard target symbols...");
-        for &(query_name, preferred_kind) in &default_queries {
-            print!("Benchmarking '{query_name}' ... ");
-            let _ = std::io::Write::flush(&mut std::io::stdout());
-            if let Some(bench_result) =
-                benchmark_target_symbol(&index, &abs_workspace_dir, query_name, preferred_kind)
-            {
-                println!(
-                    "done in {:.3}s ({} refs in {} files)",
-                    bench_result.elapsed_seconds,
-                    bench_result.reference_count,
-                    bench_result.files_with_refs_count
-                );
-                results.push(bench_result);
-            } else {
-                println!("target declaration not found!");
-            }
-        }
+        run_symbol_queries(&index, &abs_workspace_dir, default_queries.iter().copied())
     } else {
         println!("\nRunning references benchmark on requested symbol(s)...");
-        for symbol_name in &requested_symbols {
-            print!("Benchmarking '{}' ... ", symbol_name);
-            let _ = std::io::Write::flush(&mut std::io::stdout());
-            if let Some(bench_result) =
-                benchmark_target_symbol(&index, &abs_workspace_dir, symbol_name, None)
-            {
-                println!(
-                    "done in {:.3}s ({} refs in {} files)",
-                    bench_result.elapsed_seconds,
-                    bench_result.reference_count,
-                    bench_result.files_with_refs_count
-                );
-                results.push(bench_result);
-            } else {
-                println!("target declaration not found!");
-            }
-        }
-    }
+        run_symbol_queries(
+            &index,
+            &abs_workspace_dir,
+            requested_symbols.iter().map(|s| (s.as_str(), None)),
+        )
+    };
 
     if !results.is_empty() {
         print_results_summary_table(&results);

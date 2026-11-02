@@ -4,10 +4,7 @@ mod reporting;
 use common::files::resolve_target_files;
 use format::{FileType, Formatter};
 use rayon::iter::{IntoParallelIterator, IntoParallelRefIterator, ParallelIterator};
-use reporting::{
-    format_number, print_check_summary, print_format_summary, print_slowest_files,
-    run_preset_comparison,
-};
+use reporting::{print_benchmark_header, print_check_summary, run_full_benchmark_suite};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -88,7 +85,10 @@ fn load_dataset(target_dir: &Path) -> Result<BenchmarkDataset, std::io::Error> {
     })
 }
 
-fn run_sequential_format(formatter: &Formatter, dataset: &BenchmarkDataset) -> FormatResult {
+pub(crate) fn run_sequential_format(
+    formatter: &Formatter,
+    dataset: &BenchmarkDataset,
+) -> FormatResult {
     let start_time = Instant::now();
     let mut clean_count = 0;
     let mut modified_count = 0;
@@ -145,7 +145,10 @@ fn run_sequential_format(formatter: &Formatter, dataset: &BenchmarkDataset) -> F
     }
 }
 
-pub fn run_parallel_format(formatter: &Formatter, dataset: &BenchmarkDataset) -> FormatResult {
+pub(crate) fn run_parallel_format(
+    formatter: &Formatter,
+    dataset: &BenchmarkDataset,
+) -> FormatResult {
     let start_time = Instant::now();
 
     let (clean_count, modified_count, error_count) = dataset
@@ -176,7 +179,10 @@ pub fn run_parallel_format(formatter: &Formatter, dataset: &BenchmarkDataset) ->
     }
 }
 
-fn run_sequential_check(formatter: &Formatter, dataset: &BenchmarkDataset) -> FormatCheckResult {
+pub(crate) fn run_sequential_check(
+    formatter: &Formatter,
+    dataset: &BenchmarkDataset,
+) -> FormatCheckResult {
     let start_time = Instant::now();
     let mut clean_count = 0;
     let mut unformatted_count = 0;
@@ -204,7 +210,10 @@ fn run_sequential_check(formatter: &Formatter, dataset: &BenchmarkDataset) -> Fo
     }
 }
 
-fn run_parallel_check(formatter: &Formatter, dataset: &BenchmarkDataset) -> FormatCheckResult {
+pub(crate) fn run_parallel_check(
+    formatter: &Formatter,
+    dataset: &BenchmarkDataset,
+) -> FormatCheckResult {
     let start_time = Instant::now();
 
     let (clean_count, unformatted_count, diff_count, error_count) = dataset
@@ -246,12 +255,12 @@ fn run_parallel_check(formatter: &Formatter, dataset: &BenchmarkDataset) -> Form
     }
 }
 
-fn main() {
+fn parse_cli_options() -> Option<(PathBuf, bool)> {
     if env::args().any(|argument| argument == "--help" || argument == "-h") {
         println!(
             "Usage: cargo bench --bench format_bench [-- <path-to-kotlin-repo>] [--sequential-check-only]"
         );
-        return;
+        return None;
     }
 
     let sequential_check_only = env::args().any(|argument| argument == "--sequential-check-only");
@@ -262,6 +271,14 @@ fn main() {
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from("benches/kotlinx.coroutines"));
 
+    Some((target_dir, sequential_check_only))
+}
+
+fn main() {
+    let Some((target_dir, sequential_check_only)) = parse_cli_options() else {
+        return;
+    };
+
     let resolved_dir = std::fs::canonicalize(&target_dir).unwrap_or_else(|_| target_dir.clone());
     let dataset = match load_dataset(&resolved_dir) {
         Ok(dataset) => dataset,
@@ -270,19 +287,7 @@ fn main() {
             std::process::exit(1);
         }
     };
-    let mb_size = dataset.total_bytes as f64 / (1024.0 * 1024.0);
-    println!(
-        "=== Kotlin Code Formatter Benchmark ===\n\
-         Target directory: {}\n\
-         Files loaded:     {} Kotlin source files\n\
-         Total size:       {mb_size:.2} MB ({} bytes)\n\
-         Total lines:      {} lines\n\
-         Active style:     Kotlinlang preset (default)",
-        resolved_dir.display(),
-        format_number(dataset.files.len()),
-        format_number(dataset.total_bytes),
-        format_number(dataset.total_lines),
-    );
+    print_benchmark_header(&resolved_dir, &dataset);
 
     let formatter = Formatter::new();
     if sequential_check_only {
@@ -295,38 +300,6 @@ fn main() {
         );
         return;
     }
-    let seq_result = run_sequential_format(&formatter, &dataset);
-    print_format_summary(
-        "1. In-Memory Sequential Formatting (Single Thread)",
-        &seq_result,
-        &dataset,
-        None,
-    );
 
-    let par_result = run_parallel_format(&formatter, &dataset);
-    print_format_summary(
-        "2. In-Memory Parallel Formatting (Rayon Multi-Threaded)",
-        &par_result,
-        &dataset,
-        Some(seq_result.duration),
-    );
-
-    let seq_check_result = run_sequential_check(&formatter, &dataset);
-    print_check_summary(
-        "3. Format Verification & Diff Generation (Single Thread)",
-        &seq_check_result,
-        &dataset,
-        None,
-    );
-
-    let par_check_result = run_parallel_check(&formatter, &dataset);
-    print_check_summary(
-        "4. Format Verification & Diff Generation (Rayon Parallel)",
-        &par_check_result,
-        &dataset,
-        Some(seq_check_result.duration),
-    );
-
-    print_slowest_files(&seq_result.slowest_files, &resolved_dir);
-    run_preset_comparison(&dataset);
+    run_full_benchmark_suite(&formatter, &dataset, &resolved_dir);
 }

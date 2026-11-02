@@ -140,6 +140,105 @@ fn index_stdlib_if_available(index: &mut WorkspaceIndex) {
     }
 }
 
+fn index_workspace_directory(abs_workspace_dir: &Path) -> WorkspaceIndex {
+    println!("\nIndexing workspace directory...");
+    let mut index = WorkspaceIndex::new();
+    let index_start = Instant::now();
+    index.scan_directory(abs_workspace_dir);
+    let index_elapsed = index_start.elapsed();
+
+    let total_files = index.files.len();
+    let total_declarations: usize = index
+        .files
+        .values()
+        .map(|file| file.declarations.len())
+        .sum();
+
+    println!(
+        "Indexed {} files with {} declarations in {:.2} ms",
+        total_files,
+        total_declarations,
+        index_elapsed.as_secs_f64() * 1000.0
+    );
+
+    index_stdlib_if_available(&mut index);
+    index
+}
+
+fn benchmark_target(
+    index: &WorkspaceIndex,
+    abs_workspace_dir: &Path,
+    target: &BenchmarkTarget,
+) -> Option<BenchmarkResult> {
+    let file_path = abs_workspace_dir.join(target.file_rel_path);
+    let url = match Url::from_file_path(&file_path) {
+        Ok(url) => url,
+        Err(_) => {
+            eprintln!("Failed to construct Url for: {}", file_path.display());
+            return None;
+        }
+    };
+
+    let source = match index.get_file_source(&url) {
+        Some(source) => source,
+        None => {
+            eprintln!("Source not found for {url}");
+            return None;
+        }
+    };
+
+    let position = Position::new(target.line, target.col);
+    let file_name = Path::new(target.file_rel_path)
+        .file_name()
+        .and_then(|name| name.to_str())
+        .unwrap_or(target.file_rel_path);
+
+    print!("Benchmarking {} -> '{}' ... ", file_name, target.label);
+    let _ = std::io::Write::flush(&mut std::io::stdout());
+
+    let start = Instant::now();
+    let inferred_type = infer_variable_type(index, &url, target.var_name, position, &source, None);
+    let duration = start.elapsed();
+
+    let type_string = inferred_type.map(|inferred| inferred.to_string());
+    println!(
+        "done in {:.3} ms (inferred: {})",
+        duration.as_secs_f64() * 1000.0,
+        type_string.as_deref().unwrap_or("(unresolved)")
+    );
+
+    Some(BenchmarkResult {
+        label: target.label,
+        file_name,
+        line: target.line,
+        col: target.col,
+        inferred_type: type_string,
+        duration,
+    })
+}
+
+fn run_inference_benchmarks(
+    index: &WorkspaceIndex,
+    abs_workspace_dir: &Path,
+) -> (Vec<BenchmarkResult>, Duration) {
+    println!(
+        "\nRunning type inference benchmark on {} variable(s)...",
+        TARGETS.len()
+    );
+
+    let mut results = Vec::new();
+    let mut total_duration = Duration::ZERO;
+
+    for target in TARGETS {
+        if let Some(bench_result) = benchmark_target(index, abs_workspace_dir, target) {
+            total_duration += bench_result.duration;
+            results.push(bench_result);
+        }
+    }
+
+    (results, total_duration)
+}
+
 fn main() {
     let workspace_dir = Path::new(COROUTINES_DIR);
     let abs_workspace_dir =
@@ -158,79 +257,8 @@ fn main() {
         std::process::exit(1);
     }
 
-    println!("\nIndexing workspace directory...");
-    let mut index = WorkspaceIndex::new();
-    let index_start = Instant::now();
-    index.scan_directory(&abs_workspace_dir);
-    let index_elapsed = index_start.elapsed();
-
-    let total_files = index.files.len();
-    let total_declarations: usize = index
-        .files
-        .values()
-        .map(|file| file.declarations.len())
-        .sum();
-
-    println!(
-        "Indexed {} files with {} declarations in {:.2} ms",
-        total_files,
-        total_declarations,
-        index_elapsed.as_secs_f64() * 1000.0
-    );
-
-    index_stdlib_if_available(&mut index);
-
-    println!(
-        "\nRunning type inference benchmark on {} variable(s)...",
-        TARGETS.len()
-    );
-
-    let mut results = Vec::new();
-    let mut total_duration = Duration::ZERO;
-
-    for target in TARGETS {
-        let file_path = abs_workspace_dir.join(target.file_rel_path);
-        let Ok(url) = Url::from_file_path(&file_path) else {
-            eprintln!("Failed to construct Url for: {}", file_path.display());
-            continue;
-        };
-
-        let Some(source) = index.get_file_source(&url) else {
-            eprintln!("Source not found for {}", url);
-            continue;
-        };
-
-        let pos = Position::new(target.line, target.col);
-
-        let file_name = Path::new(target.file_rel_path)
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or(target.file_rel_path);
-
-        print!("Benchmarking {} -> '{}' ... ", file_name, target.label);
-        let _ = std::io::Write::flush(&mut std::io::stdout());
-
-        let start = Instant::now();
-        let inferred_type = infer_variable_type(&index, &url, target.var_name, pos, &source, None);
-        let duration = start.elapsed();
-        total_duration += duration;
-
-        let type_string = inferred_type.map(|t| t.to_string());
-        println!(
-            "done in {:.3} ms (inferred: {})",
-            duration.as_secs_f64() * 1000.0,
-            type_string.as_deref().unwrap_or("(unresolved)")
-        );
-
-        results.push(BenchmarkResult {
-            label: target.label,
-            file_name,
-            line: target.line,
-            col: target.col,
-            inferred_type: type_string,
-            duration,
-        });
-    }
+    let index = index_workspace_directory(&abs_workspace_dir);
+    let (results, total_duration) = run_inference_benchmarks(&index, &abs_workspace_dir);
 
     if !results.is_empty() {
         print_results_summary_table(&results, total_duration);
