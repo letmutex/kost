@@ -70,6 +70,38 @@ impl ArtifactVersion {
     pub fn raw(&self) -> &str {
         &self.raw
     }
+
+    /// Returns true if this version represents a stable release (contains at least one numeric
+    /// component and no pre-release qualifiers such as Dev, Snapshot, Alpha, Beta, Preview, Milestone, Rc).
+    pub fn is_stable(&self) -> bool {
+        !self.components.is_empty()
+            && self
+                .components
+                .iter()
+                .any(|comp| matches!(comp, VersionComponent::Number(_)))
+            && !self.components.iter().any(|comp| match comp {
+                VersionComponent::Qualifier(kind, _) => *kind < QualifierKind::Final,
+                VersionComponent::String(_) => true,
+                VersionComponent::Number(_) => false,
+            })
+    }
+}
+
+/// Select the best version from an iterator of version references:
+/// 1. Finds the highest stable version among the candidates.
+/// 2. If no stable version exists, finds the highest pre-release version.
+pub fn select_best_version<'a>(
+    versions: impl IntoIterator<Item = &'a ArtifactVersion>,
+) -> Option<ArtifactVersion> {
+    let list: Vec<&'a ArtifactVersion> = versions.into_iter().collect();
+    if let Some(stable) = list
+        .iter()
+        .filter(|v| v.is_stable())
+        .max_by(|a, b| a.cmp(b))
+    {
+        return Some((*stable).clone());
+    }
+    list.into_iter().max_by(|a, b| a.cmp(b)).cloned()
 }
 
 impl fmt::Display for ArtifactVersion {
@@ -185,7 +217,7 @@ fn compare_components(left: &VersionComponent, right: &VersionComponent) -> Orde
 
 #[cfg(test)]
 mod tests {
-    use super::ArtifactVersion;
+    use super::{ArtifactVersion, select_best_version};
 
     #[test]
     fn test_version_ordering_precedence() {
@@ -214,5 +246,46 @@ mod tests {
         let v1 = ArtifactVersion::parse("1.0.0-20241030123456789012345");
         let v2 = ArtifactVersion::parse("1.0.0-20241030123456789012346");
         assert!(v2 > v1);
+    }
+
+    #[test]
+    fn test_version_stability_classification() {
+        assert!(ArtifactVersion::parse("1.15.0").is_stable());
+        assert!(ArtifactVersion::parse("1.15.0-final").is_stable());
+        assert!(ArtifactVersion::parse("1.15.0-release").is_stable());
+        assert!(ArtifactVersion::parse("1.15.0-ga").is_stable());
+        assert!(ArtifactVersion::parse("2.0").is_stable());
+
+        assert!(!ArtifactVersion::parse("1.15.0-alpha01").is_stable());
+        assert!(!ArtifactVersion::parse("1.15.0-beta02").is_stable());
+        assert!(!ArtifactVersion::parse("1.15.0-rc01").is_stable());
+        assert!(!ArtifactVersion::parse("1.15.0-SNAPSHOT").is_stable());
+        assert!(!ArtifactVersion::parse("1.15.0-dev").is_stable());
+        assert!(!ArtifactVersion::parse("1.15.0-preview").is_stable());
+        assert!(!ArtifactVersion::parse("1.15.0-custom").is_stable());
+        assert!(!ArtifactVersion::parse("").is_stable());
+        assert!(!ArtifactVersion::parse("---").is_stable());
+        assert!(!ArtifactVersion::parse("release").is_stable());
+    }
+
+    #[test]
+    fn test_select_best_version_prefers_stable() {
+        let versions = vec![
+            ArtifactVersion::parse("1.2.0"),
+            ArtifactVersion::parse("1.3.0-rc01"),
+            ArtifactVersion::parse("1.1.0"),
+        ];
+        let best = select_best_version(&versions).unwrap();
+        assert_eq!(best.raw(), "1.2.0");
+    }
+
+    #[test]
+    fn test_select_best_version_prerelease_fallback() {
+        let versions = vec![
+            ArtifactVersion::parse("0.1.0-alpha01"),
+            ArtifactVersion::parse("0.2.0-beta02"),
+        ];
+        let best = select_best_version(&versions).unwrap();
+        assert_eq!(best.raw(), "0.2.0-beta02");
     }
 }

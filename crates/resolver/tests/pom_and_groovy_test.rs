@@ -127,3 +127,37 @@ fn test_pom_child_property_override_applies_to_parent_dependency_management() {
 
     let _ = std::fs::remove_dir_all(&temp_dir);
 }
+
+#[test]
+fn test_m2_cached_versions_path_traversal_rejection() {
+    let temp_dir = std::env::temp_dir().join(common::concat_str!(
+        "kost_test_m2_traversal_",
+        &std::process::id().to_string()
+    ));
+    let _ = std::fs::remove_dir_all(&temp_dir);
+
+    let cache = GradleCache::new(Some(&temp_dir)).unwrap();
+    assert!(
+        cache
+            .find_m2_cached_versions(".leading_dot", "artifact")
+            .is_empty()
+    );
+    assert!(
+        cache
+            .find_m2_cached_versions("trailing_dot.", "artifact")
+            .is_empty()
+    );
+    assert!(
+        cache
+            .find_m2_cached_versions("double..dot", "artifact")
+            .is_empty()
+    );
+    assert!(
+        cache
+            .find_m2_cached_versions("../parent", "artifact")
+            .is_empty()
+    );
+    assert!(cache.find_m2_cached_versions("safe.group", "..").is_empty());
+
+    let _ = std::fs::remove_dir_all(&temp_dir);
+}

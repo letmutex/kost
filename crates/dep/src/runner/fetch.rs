@@ -13,7 +13,7 @@ pub async fn run_fetch(args: DepFetchArgs) -> Result<(), String> {
 
     validate_gradle_home(args.gradle_home.as_deref())?;
 
-    let ctx = super::prepare_context(
+    let mut ctx = super::prepare_context(
         args.project_dir.as_deref(),
         args.gradle_home.as_deref(),
         &args.repositories,
@@ -21,7 +21,17 @@ pub async fn run_fetch(args: DepFetchArgs) -> Result<(), String> {
     )?;
     let downloader = Downloader::default();
 
-    let mut progress = if !args.offline && args.transitive {
+    super::resolve_unspecified_coordinates(
+        &mut ctx.direct_deps,
+        &ctx.registry,
+        &ctx.cache,
+        &downloader,
+        false,
+        true,
+    )
+    .await?;
+
+    let mut progress = if args.transitive {
         Some(crate::progress::ResolveProgress::default_for_stderr())
     } else {
         None
@@ -33,7 +43,7 @@ pub async fn run_fetch(args: DepFetchArgs) -> Result<(), String> {
         &ctx.cache,
         &downloader,
         args.transitive,
-        args.offline,
+        false,
         progress.as_mut(),
     )
     .await;
@@ -51,7 +61,6 @@ pub async fn run_fetch(args: DepFetchArgs) -> Result<(), String> {
         &ctx.cache,
         &downloader,
         args.sources,
-        args.offline,
         false,
     )
     .await;
@@ -136,18 +145,8 @@ async fn download_fetch_artifacts(
     cache: &GradleCache,
     downloader: &Downloader,
     fetch_sources: bool,
-    offline: bool,
     silent: bool,
 ) -> (usize, usize, usize) {
-    if offline {
-        let missing_binaries = graph
-            .nodes
-            .iter()
-            .filter(|node| node.cached_binary.is_none())
-            .count();
-        return (0, 0, missing_binaries);
-    }
-
     let download_tasks = collect_missing_download_tasks(graph, fetch_sources);
     if download_tasks.is_empty() {
         return (0, 0, 0);

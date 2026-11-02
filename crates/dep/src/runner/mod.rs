@@ -89,7 +89,7 @@ fn resolve_deps_and_registry(
                 concat_str!(
                     "Invalid dependency coordinate '",
                     coord_str,
-                    "'. Expected group:artifact:version."
+                    "'. Expected group:artifact[:version]."
                 )
             })?;
             deps.push(coord);
@@ -103,19 +103,56 @@ fn resolve_deps_and_registry(
     Ok((discovered_deps, registry))
 }
 
+pub(crate) async fn resolve_unspecified_coordinates(
+    direct_deps: &mut [DependencyCoordinate],
+    registry: &RepositoryRegistry,
+    cache: &GradleCache,
+    downloader: &Downloader,
+    offline: bool,
+    log_resolution: bool,
+) -> Result<(), String> {
+    for dep in direct_deps.iter_mut() {
+        if dep.is_version_unspecified() {
+            let latest_version =
+                crate::metadata::resolve_latest_version(downloader, registry, dep, cache, offline)
+                    .await?;
+            if log_resolution {
+                println!(
+                    "Resolved {}:{} to latest version {}",
+                    dep.group,
+                    dep.name,
+                    latest_version.raw()
+                );
+            }
+            dep.version = Some(latest_version);
+        }
+    }
+    Ok(())
+}
+
 async fn run_list(args: DepListArgs) -> Result<(), String> {
     if args.help {
         print!("{}", render_list_help());
         return Ok(());
     }
 
-    let ctx = prepare_context(
+    let mut ctx = prepare_context(
         args.project_dir.as_deref(),
         args.gradle_home.as_deref(),
         &args.repositories,
         &args.coordinates,
     )?;
     let downloader = Downloader::default();
+
+    resolve_unspecified_coordinates(
+        &mut ctx.direct_deps,
+        &ctx.registry,
+        &ctx.cache,
+        &downloader,
+        args.offline,
+        false,
+    )
+    .await?;
 
     let mut progress = if !args.offline && !args.direct {
         Some(crate::progress::ResolveProgress::default_for_stderr())
@@ -157,13 +194,23 @@ async fn run_tree(args: DepTreeArgs) -> Result<(), String> {
         return Ok(());
     }
 
-    let ctx = prepare_context(
+    let mut ctx = prepare_context(
         args.project_dir.as_deref(),
         args.gradle_home.as_deref(),
         &args.repositories,
         &args.coordinates,
     )?;
     let downloader = Downloader::default();
+
+    resolve_unspecified_coordinates(
+        &mut ctx.direct_deps,
+        &ctx.registry,
+        &ctx.cache,
+        &downloader,
+        args.offline,
+        false,
+    )
+    .await?;
 
     let mut progress = if !args.offline {
         Some(crate::progress::ResolveProgress::default_for_stderr())

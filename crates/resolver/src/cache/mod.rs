@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::coordinate::DependencyCoordinate;
 use crate::pom::PomModel;
+use crate::version::ArtifactVersion;
 
 mod fs_util;
 mod memory;
@@ -215,6 +216,49 @@ impl GradleCache {
         }
 
         None
+    }
+
+    /// Locate available versions in the local Gradle cache (`files-2.1`) for a given group and artifact name.
+    pub fn find_cached_versions(&self, group: &str, name: &str) -> Vec<ArtifactVersion> {
+        let mut versions = Vec::new();
+        if !is_safe_component(group) || !is_safe_component(name) {
+            return versions;
+        }
+        let artifact_dir = self.files_dir.join(group).join(name);
+        if let Ok(entries) = fs::read_dir(artifact_dir) {
+            for entry in entries.flatten() {
+                if entry.file_type().map(|t| t.is_dir()).unwrap_or(false)
+                    && let Some(ver_str) = entry.file_name().to_str()
+                    && is_safe_component(ver_str)
+                {
+                    versions.push(ArtifactVersion::parse(ver_str));
+                }
+            }
+        }
+        versions
+    }
+
+    /// Locate available versions in the local Maven repository (`~/.m2/repository`) for a given group and artifact name.
+    pub fn find_m2_cached_versions(&self, group: &str, name: &str) -> Vec<ArtifactVersion> {
+        let mut versions = Vec::new();
+        if !group.split('.').all(is_safe_component) || !is_safe_component(name) {
+            return versions;
+        }
+        if let Some(m2_dir) = Self::resolve_m2_repository(None) {
+            let group_path = group.replace('.', "/");
+            let artifact_dir = m2_dir.join(group_path).join(name);
+            if let Ok(entries) = fs::read_dir(artifact_dir) {
+                for entry in entries.flatten() {
+                    if entry.file_type().map(|t| t.is_dir()).unwrap_or(false)
+                        && let Some(ver_str) = entry.file_name().to_str()
+                        && is_safe_component(ver_str)
+                    {
+                        versions.push(ArtifactVersion::parse(ver_str));
+                    }
+                }
+            }
+        }
+        versions
     }
 
     /// Store a downloaded file into the Gradle cache using its SHA-1 hash directory.
