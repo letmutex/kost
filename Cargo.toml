@@ -125,3 +125,7 @@ harness = false
 [[bench]]
 name = "format_bench"
 harness = false
+
+[[bench]]
+name = "infer_bench"
+harness = false

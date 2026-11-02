@@ -31,6 +31,8 @@ impl KotlincResolver {
     pub fn check_kotlinc_home(home: &Path) -> Option<ResolvedArtifact> {
         let lib_dir = if home.join("lib").is_dir() {
             home.join("lib")
+        } else if home.join("libexec/lib").is_dir() {
+            home.join("libexec/lib")
         } else if home.is_dir() && home.file_name().is_some_and(|n| n == "lib") {
             home.to_path_buf()
         } else {
