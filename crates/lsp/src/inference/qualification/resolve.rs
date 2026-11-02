@@ -48,6 +48,33 @@ pub const DEFAULT_KOTLIN_PACKAGES: &[&str] = &[
     "kotlin.jvm",
 ];
 
+fn find_type_in_package<'a>(
+    index: &'a WorkspaceIndex,
+    decls: &'a [(std::sync::Arc<Url>, std::sync::Arc<DeclarationItem>)],
+    pkg: Option<&str>,
+    is_visible: &impl Fn(&Url, &DeclarationItem) -> bool,
+) -> Option<&'a DeclarationItem> {
+    decls
+        .iter()
+        .find(|(u, d)| {
+            d.container_name.is_none()
+                && is_visible(u, d)
+                && matches!(
+                    d.kind,
+                    SymbolKind::CLASS
+                        | SymbolKind::OBJECT
+                        | SymbolKind::INTERFACE
+                        | SymbolKind::ENUM
+                )
+                && index
+                    .files
+                    .get(u.as_ref())
+                    .and_then(|f| f.package_name.as_deref())
+                    == pkg
+        })
+        .map(|(_, d)| d.as_ref())
+}
+
 pub fn resolve_type_by_imports_or_package(
     index: &WorkspaceIndex,
     current_url: &Url,
@@ -70,15 +97,22 @@ pub fn resolve_type_by_imports_or_package(
     };
 
     let current_pkg = current_file.and_then(|f| f.package_name.as_deref());
-    if let Some((_, decl)) = decls.iter().find(|(u, d)| {
-        is_visible(u, d)
-            && is_type(d)
-            && index
-                .files
-                .get(u.as_ref())
-                .and_then(|f| f.package_name.as_deref())
-                == current_pkg
-    }) {
+    let same_pkg_decl = find_type_in_package(index, decls, current_pkg, is_visible).or_else(|| {
+        decls
+            .iter()
+            .find(|(u, d)| {
+                u.as_ref() == current_url
+                    && is_visible(u, d)
+                    && is_type(d)
+                    && index
+                        .files
+                        .get(u.as_ref())
+                        .and_then(|f| f.package_name.as_deref())
+                        == current_pkg
+            })
+            .map(|(_, d)| d.as_ref())
+    });
+    if let Some(decl) = same_pkg_decl {
         return Some(format_qualified_decl(
             current_pkg,
             decl.container_name.as_ref(),
@@ -89,15 +123,8 @@ pub fn resolve_type_by_imports_or_package(
     if let Some(file) = current_file {
         for import in &file.imports {
             if import.is_star
-                && let Some((_, decl)) = decls.iter().find(|(u, d)| {
-                    !d.is_private
-                        && is_type(d)
-                        && index
-                            .files
-                            .get(u.as_ref())
-                            .and_then(|f| f.package_name.as_deref())
-                            == Some(&import.path)
-                })
+                && let Some(decl) =
+                    find_type_in_package(index, decls, Some(&import.path), &|_, d| !d.is_private)
             {
                 return Some(format_qualified_decl(
                     Some(&import.path),
@@ -109,15 +136,7 @@ pub fn resolve_type_by_imports_or_package(
     }
 
     for &default_pkg in DEFAULT_KOTLIN_PACKAGES {
-        if let Some((_, decl)) = decls.iter().find(|(u, d)| {
-            is_visible(u, d)
-                && is_type(d)
-                && index
-                    .files
-                    .get(u.as_ref())
-                    .and_then(|f| f.package_name.as_deref())
-                    == Some(default_pkg)
-        }) {
+        if let Some(decl) = find_type_in_package(index, decls, Some(default_pkg), is_visible) {
             return Some(format_qualified_decl(
                 Some(default_pkg),
                 decl.container_name.as_ref(),

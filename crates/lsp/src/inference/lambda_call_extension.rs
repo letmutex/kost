@@ -23,6 +23,48 @@ pub fn is_callable_function_decl(decl: &DeclarationItem) -> bool {
     )
 }
 
+pub fn is_extension_container_plausible(
+    index: &WorkspaceIndex,
+    receiver_type: &KotlinType,
+    rec_supertypes: &[String],
+    decl: &DeclarationItem,
+) -> bool {
+    let Some(sig) = decl.signature.as_deref() else {
+        return false;
+    };
+    let Some(ref container) = decl.container_name else {
+        return true;
+    };
+    let c_base = container
+        .split(['<', '?'])
+        .next()
+        .unwrap_or(container.as_str())
+        .trim();
+    let c_short = c_base.rsplit('.').next().unwrap_or(c_base);
+    let rec_base = receiver_type.base_name();
+    let rec_short = rec_base.rsplit('.').next().unwrap_or(rec_base);
+
+    if c_short == rec_short || c_base == rec_base || c_short == "Any" || c_short == "Object" {
+        return true;
+    }
+    if c_short.len() == 1 || (sig.contains('<') && sig.contains(c_short)) {
+        return true;
+    }
+    if (receiver_type.is_primitive() || rec_short == "String")
+        && super::types::standard::StandardInterface::from_name(c_short).is_some()
+    {
+        return true;
+    }
+    if index.type_aliases.contains_key(c_short) {
+        return true;
+    }
+    rec_supertypes.iter().any(|s| {
+        let sb = s.split('<').next().unwrap_or(s).trim();
+        let ss = sb.rsplit('.').next().unwrap_or(sb);
+        sb == c_base || ss == c_short
+    })
+}
+
 fn build_skolem_env(
     tps_sub: &[GenericParamInfo],
     prefix_sub: &str,
@@ -242,9 +284,11 @@ pub fn collect_ranked_extension_candidates<'a>(
     let Some(decls) = index.name_to_decls.get(callee) else {
         return Vec::new();
     };
+    let rec_supertypes = index.get_all_supertypes(receiver_type.base_name());
     let mut candidates = Vec::new();
     for (url, decl) in decls {
         if !is_callable_function_decl(decl)
+            || !is_extension_container_plausible(index, receiver_type, &rec_supertypes, decl)
             || !is_declaration_visible(index, current_url, url.as_ref(), decl)
         {
             continue;

@@ -28,10 +28,17 @@ pub fn resolve_extension_members(
             return None;
         }
     };
+    let actual_rec = super::types::parse_type_signature(container_type)?;
+    let rec_supertypes = ctx.index.get_all_supertypes(actual_rec.base_name());
     let mut matching: Vec<_> = decls
         .iter()
         .filter(|(u, d)| {
-            d.signature.as_deref().is_some_and(|sig| {
+            super::lambda_call_extension::is_extension_container_plausible(
+                ctx.index,
+                &actual_rec,
+                &rec_supertypes,
+                d.as_ref(),
+            ) && d.signature.as_deref().is_some_and(|sig| {
                 is_valid_extension_receiver(
                     ctx.index,
                     ctx.current_url,
@@ -191,7 +198,8 @@ fn try_resolve_extension_candidate(
         return Some(qualified);
     }
 
-    if let Some(decl_source) = ctx.index.get_file_source(url)
+    if !url.as_str().starts_with("jar:")
+        && let Some(decl_source) = ctx.index.get_file_source(url)
         && let Some(inferred) = super::function::infer_single_expression_function_return_type(
             ctx.index,
             url,

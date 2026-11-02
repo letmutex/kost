@@ -52,10 +52,9 @@ fn resolve_property_destructuring(
     resolve_component_on_type(ctx.at_pos(owner_pos), &rhs_type, comp_idx)
 }
 
-fn resolve_for_loop_destructuring(
+fn infer_for_loop_element_type(
     mut ctx: InferenceContext<'_, '_, '_>,
     for_node: &Node,
-    comp_idx: usize,
 ) -> Option<KotlinType> {
     let iter_node = extract_for_loop_iterable_node(for_node)?;
     let for_pos = node_to_range(for_node).start;
@@ -63,16 +62,71 @@ fn resolve_for_loop_destructuring(
     let mut eval_ctx = AstEvalContext::from_ctx(eval_inf_ctx);
     let iter_type = infer_expression_node(&mut eval_ctx, iter_node)?;
 
+    let base_short = iter_type
+        .base_name()
+        .rsplit('.')
+        .next()
+        .unwrap_or(iter_type.base_name());
+    match base_short {
+        "IntRange" | "IntProgression" | "IntArray" => return Some(KotlinType::INT),
+        "LongRange" | "LongProgression" | "LongArray" => return Some(KotlinType::LONG),
+        "CharRange" | "CharProgression" | "CharArray" | "String" | "CharSequence" => {
+            return Some(KotlinType::CHAR);
+        }
+        "BooleanArray" => return Some(KotlinType::BOOLEAN),
+        "DoubleArray" => return Some(KotlinType::DOUBLE),
+        "FloatArray" => return Some(KotlinType::FLOAT),
+        "ByteArray" => return Some(KotlinType::BYTE),
+        "ShortArray" => return Some(KotlinType::SHORT),
+        "UIntRange" | "UIntProgression" | "UIntArray" => {
+            return Some(KotlinType::simple_class("UInt"));
+        }
+        "ULongRange" | "ULongProgression" | "ULongArray" => {
+            return Some(KotlinType::simple_class("ULong"));
+        }
+        _ => {}
+    }
+
     ctx.tracer
         .record_step(|| "Resolving iterator() operator on for-loop iterable".to_string());
-    let iterator_type =
-        resolve_member_type_kt_depth_traced(ctx.sub_with_pos(for_pos), &iter_type, "iterator()")?;
+    if let Some(iterator_type) =
+        resolve_member_type_kt_depth_traced(ctx.sub_with_pos(for_pos), &iter_type, "iterator()")
+    {
+        ctx.tracer
+            .record_step(|| "Resolving next() operator on iterator".to_string());
+        if let Some(elem_type) =
+            resolve_member_type_kt_depth_traced(ctx.sub_with_pos(for_pos), &iterator_type, "next()")
+        {
+            return Some(elem_type);
+        }
+    }
 
-    ctx.tracer
-        .record_step(|| "Resolving next() operator on iterator".to_string());
-    let elem_type =
-        resolve_member_type_kt_depth_traced(ctx.sub_with_pos(for_pos), &iterator_type, "next()")?;
+    let args = iter_type.type_arguments();
+    if args.len() == 1 {
+        return Some(args[0].type_ref.clone());
+    }
+    None
+}
 
+/// Infer the type of a single loop variable declared inside a `for_statement`
+pub fn infer_for_loop_variable_type(
+    ctx: InferenceContext<'_, '_, '_>,
+    decl_node: &Node,
+) -> Option<KotlinType> {
+    if ctx.depth > super::MAX_INFERENCE_DEPTH {
+        return None;
+    }
+    let for_node = decl_node.parent().filter(|p| p.kind() == "for_statement")?;
+    infer_for_loop_element_type(ctx, &for_node)
+}
+
+fn resolve_for_loop_destructuring(
+    mut ctx: InferenceContext<'_, '_, '_>,
+    for_node: &Node,
+    comp_idx: usize,
+) -> Option<KotlinType> {
+    let for_pos = node_to_range(for_node).start;
+    let elem_type = infer_for_loop_element_type(ctx.reborrow(), for_node)?;
     resolve_component_on_type(ctx.at_pos(for_pos), &elem_type, comp_idx)
 }
 

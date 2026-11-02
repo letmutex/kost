@@ -1,7 +1,7 @@
-use crate::syntax::ast_extra::strip_enclosing_parens;
 use smol_str::SmolStr;
 
 use crate::inference::types::{KotlinType, parse_type_signature_with_params};
+use crate::syntax::ast_extra::strip_enclosing_parens;
 use crate::syntax::symbol_item::DeclarationItem;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -39,7 +39,7 @@ impl SignatureInfo {
             return Some(info);
         }
 
-        let raw = crate::syntax::signature::parse_raw_signature(sig);
+        let raw = crate::syntax::signature::parse_raw_signature(clean);
         let param_name_smols: Vec<SmolStr> =
             raw.type_params.iter().map(|p| p.name.clone()).collect();
         let param_names: Vec<&str> = param_name_smols.iter().map(|p| p.as_str()).collect();

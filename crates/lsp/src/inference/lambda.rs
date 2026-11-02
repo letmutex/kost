@@ -158,7 +158,8 @@ fn resolve_member_lambda_param(
     if short_container != clean_container {
         all_containers.push(short_container.to_string());
     }
-    all_containers.extend(ctx.index.get_all_supertypes(clean_container));
+    let supertypes = ctx.index.get_all_supertypes(clean_container);
+    all_containers.extend(supertypes.iter().cloned());
 
     for c in &all_containers {
         if let Some(decls) = ctx.index.container_to_decls.get(c.as_str()) {
@@ -179,7 +180,17 @@ fn resolve_member_lambda_param(
 
     if let Some(decls) = ctx.index.name_to_decls.get(method_name) {
         for (decl_url, decl) in decls {
-            if let Some(t) = extract_and_substitute_lambda_param(
+            if super::lambda_call_extension::is_extension_container_plausible(
+                ctx.index,
+                rec_type,
+                &supertypes,
+                decl,
+            ) && super::qualification::is_declaration_visible(
+                ctx.index,
+                ctx.current_url,
+                decl_url.as_ref(),
+                decl,
+            ) && let Some(t) = extract_and_substitute_lambda_param(
                 ctx,
                 decl_url.as_ref(),
                 decl,
@@ -239,15 +250,25 @@ fn extract_and_substitute_lambda_param(
     if let Some(rec) = receiver_type {
         system.add_container_type_params_typed(rec);
         if let Some(ref info) = sig_info {
-            if let Some(decl_rec) = info.receiver.as_ref() {
-                system.add_receiver_constraint_typed(rec, decl_rec);
+            if let Some(decl_rec) = info.receiver.as_ref()
+                && !system.add_receiver_constraint_typed(rec, decl_rec)
+            {
+                return None;
             }
-        } else {
-            system.add_receiver_constraint_from_sig(sig, rec);
+        } else if sig.contains('.')
+            && crate::syntax::signature::extract_receiver_type_from_signature(sig).is_some()
+            && !system.add_receiver_constraint_from_sig(sig, rec)
+        {
+            return None;
         }
+    } else if sig_info
+        .as_ref()
+        .is_some_and(|info| info.receiver.is_some())
+    {
+        return None;
     }
     for (i, arg_expr) in ctx.value_args.iter().enumerate() {
-        if let Some(arg_ty) = infer_receiver_type_depth(
+        let Some(arg_ty) = infer_receiver_type_depth(
             ctx.index,
             ctx.current_url,
             arg_expr,
@@ -255,34 +276,32 @@ fn extract_and_substitute_lambda_param(
             ctx.source,
             ctx.root,
             ctx.depth + 1,
-        ) {
-            if let Some(ref info) = sig_info {
-                if let Some(expected) = info.params.get(i).and_then(|p| p.kotlin_type.as_ref()) {
-                    system.add_subtype_constraint(&arg_ty, expected);
-                }
-            } else if let Some(p_str) = crate::signature::extract_param_type_by_index(sig, i)
-                && let Some(expected) = system.parse_with_params(&p_str)
-            {
-                system.add_subtype_constraint(&arg_ty, &expected);
-            }
+        ) else {
+            continue;
+        };
+        let expected_opt = if let Some(ref info) = sig_info {
+            info.params.get(i).and_then(|p| p.kotlin_type.clone())
+        } else {
+            crate::signature::extract_param_type_by_index(sig, i)
+                .and_then(|p_str| system.parse_with_params(&p_str))
+        };
+        if let Some(expected) = expected_opt {
+            system.add_subtype_constraint(&arg_ty, &expected);
         }
     }
 
     let target = if let Some(ref info) = sig_info {
         find_matching_functional_param(info, arg_idx, param_idx)
     } else {
-        let raw_type = crate::signature::extract_param_type_by_index(sig, arg_idx)?;
-        let fn_ty = system.parse_with_params(&raw_type)?;
-        if let KotlinType::Function { params, .. } = fn_ty.unwrap_nullable_ref() {
-            params.get(param_idx).cloned()
-        } else {
-            None
+        let raw = crate::signature::extract_param_type_by_index(sig, arg_idx)?;
+        match system.parse_with_params(&raw)?.unwrap_nullable_ref() {
+            KotlinType::Function { params, .. } => params.get(param_idx).cloned(),
+            _ => None,
         }
     }?;
 
-    let solved = system.solve_and_substitute(&target);
-    let resolved = resolve_fallback_type_param(solved, receiver_type);
-    Some(qualify_type(ctx.index, decl_url, &resolved))
+    let solved = resolve_fallback_type_param(system.solve_and_substitute(&target), receiver_type);
+    Some(qualify_type(ctx.index, decl_url, &solved))
 }
 
 fn resolve_fallback_type_param(
