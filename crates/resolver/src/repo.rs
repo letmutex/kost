@@ -112,6 +112,12 @@ impl Repository {
             &file_name
         )
     }
+
+    /// Construct URL for Maven metadata (`maven-metadata.xml`).
+    pub fn maven_metadata_url(&self, group: &str, artifact: &str) -> String {
+        let group_path = group.replace('.', "/");
+        concat_str!(&self.url, &group_path, "/", artifact, "/maven-metadata.xml")
+    }
 }
 
 /// Registry of repositories to query in priority order.
@@ -251,6 +257,12 @@ mod tests {
         assert_eq!(
             module_url,
             "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core/1.8.0/kotlinx-coroutines-core-1.8.0.module"
+        );
+
+        let meta_url = repo.maven_metadata_url(&coord.group, &coord.name);
+        assert_eq!(
+            meta_url,
+            "https://repo1.maven.org/maven2/org/jetbrains/kotlinx/kotlinx-coroutines-core/maven-metadata.xml"
         );
     }
 }

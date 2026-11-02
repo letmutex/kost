@@ -8,8 +8,10 @@ use crate::pom::PomModel;
 use crate::repo::{Repository, RepositoryRegistry};
 
 pub mod parent;
+pub mod version;
 
 use parent::resolve_and_inherit_parent_poms;
+pub use version::{resolve_latest_version, select_best_version};
 
 /// Resolve metadata for a dependency coordinate across repositories.
 pub async fn resolve_metadata(

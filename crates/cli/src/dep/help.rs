@@ -31,7 +31,7 @@ pub fn render_dep_help_styled(colorize: bool) -> String {
     buffer
 }
 
-fn render_common_options(buffer: &mut String, colorize: bool) {
+fn render_common_options(buffer: &mut String, colorize: bool, include_offline: bool) {
     push_option(buffer, "-p, --project-dir", colorize);
     buffer.push(' ');
     push_placeholder(buffer, "<PATH>", colorize);
@@ -44,8 +44,10 @@ fn render_common_options(buffer: &mut String, colorize: bool) {
     buffer.push(' ');
     push_placeholder(buffer, "<PATH>", colorize);
     buffer.push_str("       Custom Gradle user home directory\n    ");
-    push_option(buffer, "--offline", colorize);
-    buffer.push_str("                  Resolve strictly from local cache\n    ");
+    if include_offline {
+        push_option(buffer, "--offline", colorize);
+        buffer.push_str("                  Resolve strictly from local cache\n    ");
+    }
     push_option(buffer, "-h, --help", colorize);
     buffer.push_str("                 Print help information\n\n");
 }
@@ -97,7 +99,7 @@ pub fn render_fetch_help_styled(colorize: bool) -> String {
     buffer.push_str("                  Download sources JARs\n    ");
     push_option(&mut buffer, "--no-transitive", colorize);
     buffer.push_str("            Only download direct artifacts\n    ");
-    render_common_options(&mut buffer, colorize);
+    render_common_options(&mut buffer, colorize, false);
 
     push_header(&mut buffer, "EXAMPLES:", colorize);
     buffer.push_str("\n    ");
@@ -137,7 +139,7 @@ pub fn render_list_help_styled(colorize: bool) -> String {
     buffer.push_str("              List only cached dependencies\n    ");
     push_option(&mut buffer, "--missing-only", colorize);
     buffer.push_str("             List only un-downloaded dependencies\n    ");
-    render_common_options(&mut buffer, colorize);
+    render_common_options(&mut buffer, colorize, true);
 
     push_header(&mut buffer, "EXAMPLES:", colorize);
     buffer.push_str("\n    ");
@@ -173,7 +175,7 @@ pub fn render_tree_help_styled(colorize: bool) -> String {
     buffer.push(' ');
     push_placeholder(&mut buffer, "<QUERY>", colorize);
     buffer.push_str("           Filter dependency tree matching coordinate\n    ");
-    render_common_options(&mut buffer, colorize);
+    render_common_options(&mut buffer, colorize, true);
 
     push_header(&mut buffer, "EXAMPLES:", colorize);
     buffer.push_str("\n    ");

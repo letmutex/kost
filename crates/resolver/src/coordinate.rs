@@ -97,6 +97,21 @@ impl DependencyCoordinate {
         (self.group.clone(), self.name.clone())
     }
 
+    /// Check if the coordinate version is omitted or dynamic (e.g. `latest`, `+`).
+    pub fn is_version_unspecified(&self) -> bool {
+        match &self.version {
+            None => true,
+            Some(ver) => {
+                let raw = ver.raw();
+                raw.is_empty()
+                    || raw.eq_ignore_ascii_case("latest")
+                    || raw.eq_ignore_ascii_case("latest.release")
+                    || raw.eq_ignore_ascii_case("latest.integration")
+                    || raw == "+"
+            }
+        }
+    }
+
     pub fn kmp_target(&self) -> KmpTarget {
         KmpTarget::from_artifact_name(&self.name).1
     }
@@ -278,5 +293,55 @@ mod tests {
         let deduped = deduplicate_newest(deps);
         assert_eq!(deduped.len(), 1);
         assert_eq!(deduped[0].version.as_ref().unwrap().raw(), "1.15.0");
+    }
+
+    #[test]
+    fn test_is_version_unspecified() {
+        assert!(
+            DependencyCoordinate::parse("org.example:foo")
+                .unwrap()
+                .is_version_unspecified()
+        );
+        assert!(
+            DependencyCoordinate::parse("org.example:foo:")
+                .unwrap()
+                .is_version_unspecified()
+        );
+        assert!(
+            DependencyCoordinate::parse("org.example:foo:latest")
+                .unwrap()
+                .is_version_unspecified()
+        );
+        assert!(
+            DependencyCoordinate::parse("org.example:foo:LATEST")
+                .unwrap()
+                .is_version_unspecified()
+        );
+        assert!(
+            DependencyCoordinate::parse("org.example:foo:latest.release")
+                .unwrap()
+                .is_version_unspecified()
+        );
+        assert!(
+            DependencyCoordinate::parse("org.example:foo:latest.integration")
+                .unwrap()
+                .is_version_unspecified()
+        );
+        assert!(
+            DependencyCoordinate::parse("org.example:foo:+")
+                .unwrap()
+                .is_version_unspecified()
+        );
+
+        assert!(
+            !DependencyCoordinate::parse("org.example:foo:1.0.0")
+                .unwrap()
+                .is_version_unspecified()
+        );
+        assert!(
+            !DependencyCoordinate::parse("org.example:foo:1.0.0-alpha")
+                .unwrap()
+                .is_version_unspecified()
+        );
     }
 }

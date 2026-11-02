@@ -27,7 +27,6 @@ pub struct DepFetchArgs {
     pub transitive: bool,
     pub repositories: Vec<String>,
     pub gradle_home: Option<String>,
-    pub offline: bool,
     pub help: bool,
 }
 
@@ -40,7 +39,6 @@ impl Default for DepFetchArgs {
             transitive: true,
             repositories: Vec::new(),
             gradle_home: None,
-            offline: false,
             help: false,
         }
     }
@@ -191,8 +189,6 @@ fn parse_fetch_args(arguments: &[String]) -> Result<DepFetchArgs, CliError> {
             args.sources = true;
         } else if argument == "--no-transitive" {
             args.transitive = false;
-        } else if argument == "--offline" {
-            args.offline = true;
         } else if parse_common_opt(
             argument,
             &mut argument_iterator,

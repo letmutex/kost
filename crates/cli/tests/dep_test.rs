@@ -42,6 +42,10 @@ fn test_dep_fetch_parsing_with_sources_and_rejected_removed_options() {
         DepArgs::parse(&["fetch".to_string(), "-j".to_string(), "8".to_string()]),
         Err(CliError::UnknownOption(opt)) if opt == "-j"
     ));
+    assert!(matches!(
+        DepArgs::parse(&["fetch".to_string(), "--offline".to_string()]),
+        Err(CliError::UnknownOption(opt)) if opt == "--offline"
+    ));
 }
 
 #[test]
