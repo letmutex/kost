@@ -28,6 +28,7 @@ fn main() {
     ];
     collect_rs_files(&root.join("src"), &mut files);
     collect_rs_files(&root.join("crates"), &mut files);
+    collect_rs_files(&root.join("benches"), &mut files);
 
     let mut violations = Vec::new();
     for file in &files {
