@@ -123,10 +123,11 @@ async fn run_list(args: DepListArgs) -> Result<(), String> {
         None
     };
 
+    let query_cache = ctx.cache.clone().read_only();
     let graph = fetch::build_fetch_graph_with_progress(
         &ctx.direct_deps,
         &ctx.registry,
-        &ctx.cache,
+        &query_cache,
         &downloader,
         !args.direct,
         args.offline,
@@ -170,10 +171,11 @@ async fn run_tree(args: DepTreeArgs) -> Result<(), String> {
         None
     };
 
+    let query_cache = ctx.cache.clone().read_only();
     let graph = SolvedGraph::solve_with_progress(
         &ctx.direct_deps,
         &ctx.registry,
-        &ctx.cache,
+        &query_cache,
         &downloader,
         args.offline,
         progress.as_mut(),

@@ -1,3 +1,6 @@
+pub use resolver::graph::resolve_offline_transitives;
+use resolver::graph::try_resolve_cached_transitives;
+
 use crate::cache::GradleCache;
 use crate::coordinate::DependencyCoordinate;
 use crate::downloader::Downloader;
@@ -5,8 +8,9 @@ use crate::module::GradleModuleMetadata;
 use crate::pom::PomModel;
 use crate::repo::{Repository, RepositoryRegistry};
 
-pub use resolver::graph::resolve_offline_transitives;
-use resolver::graph::try_resolve_cached_transitives;
+pub mod parent;
+
+use parent::resolve_and_inherit_parent_poms;
 
 /// Resolve metadata for a dependency coordinate across repositories.
 pub async fn resolve_metadata(
@@ -14,13 +18,23 @@ pub async fn resolve_metadata(
     registry: &RepositoryRegistry,
     coord: &DependencyCoordinate,
     cache: &GradleCache,
+    offline: bool,
 ) -> Result<Vec<DependencyCoordinate>, String> {
     if coord.version.is_none() {
         return Ok(Vec::new());
     }
 
+    if let Some(in_mem) = cache.get_resolved(coord) {
+        return Ok(in_mem);
+    }
+
     if let Some(cached_deps) = try_resolve_cached_transitives(coord, cache) {
+        cache.insert_resolved(coord.clone(), cached_deps.clone());
         return Ok(cached_deps);
+    }
+
+    if offline {
+        return Ok(Vec::new());
     }
 
     let candidates = coord.kmp_probe_candidates();
@@ -31,12 +45,14 @@ pub async fn resolve_metadata(
     let mut primary_target = coord.clone();
     primary_target.name = smol_str::SmolStr::new(&candidates[0]);
     if let Some(deps) = probe_remote_metadata(downloader, registry, &primary_target, cache).await {
+        cache.insert_resolved(coord.clone(), deps.clone());
         return Ok(deps);
     }
 
     if let Some(deps) =
         probe_candidate_variants(downloader, registry, coord, &candidates, cache).await
     {
+        cache.insert_resolved(coord.clone(), deps.clone());
         return Ok(deps);
     }
 
@@ -105,14 +121,14 @@ async fn probe_remote_metadata(
         let repo_clone = repo.clone();
         let registry_clone = registry.clone();
         let coord_clone = coord.clone();
-        let cache_ref = cache.clone();
+        let cache_clone = cache.clone();
         join_set.spawn(async move {
             let res = probe_repo_metadata(
                 &downloader_clone,
                 &repo_clone,
                 &registry_clone,
                 &coord_clone,
-                &cache_ref,
+                &cache_clone,
             )
             .await;
             (idx, res)
@@ -150,7 +166,9 @@ async fn probe_repo_metadata(
             downloader.record_connection_success(&repo.url).await;
             if let Ok(meta) = GradleModuleMetadata::parse(&content) {
                 let _ = cache.store_file(coord, &coord.module_file_name(), content.as_bytes());
-                return Some(meta.resolved_dependencies());
+                let deps = meta.resolved_dependencies();
+                cache.insert_resolved(coord.clone(), deps.clone());
+                return Some(deps);
             }
         }
         Err(err) => {
@@ -170,82 +188,14 @@ async fn probe_repo_metadata(
                 let _ = cache.store_file(coord, &coord.pom_file_name(), content.as_bytes());
                 resolve_and_inherit_parent_poms(downloader, repo, registry, &mut pom, cache).await;
                 pom.interpolate(&ahash::AHashMap::default());
-                return Some(pom.direct_dependencies());
+                let deps = pom.direct_dependencies();
+                cache.insert_resolved(coord.clone(), deps.clone());
+                return Some(deps);
             }
         }
         Err(err) => downloader.record_probe_error(&repo.url, &err).await,
     }
 
-    None
-}
-
-async fn resolve_and_inherit_parent_poms(
-    downloader: &Downloader,
-    primary_repo: &Repository,
-    registry: &RepositoryRegistry,
-    pom: &mut PomModel,
-    cache: &GradleCache,
-) {
-    let mut ancestors = Vec::new();
-    let mut next_parent = pom.parent.clone();
-    for _ in 0..4 {
-        let Some(parent_info) = next_parent else {
-            break;
-        };
-        let parent_coord = DependencyCoordinate::new(
-            parent_info.group,
-            parent_info.name,
-            Some(&parent_info.version),
-        );
-        let parent_pom = if let Some(cached_path) = cache.find_pom(&parent_coord) {
-            std::fs::read_to_string(cached_path)
-                .ok()
-                .and_then(|xml| PomModel::parse(&xml).ok())
-        } else {
-            fetch_and_cache_parent_pom(downloader, primary_repo, registry, &parent_coord, cache)
-                .await
-        };
-        let Some(parsed_parent) = parent_pom else {
-            break;
-        };
-        next_parent = parsed_parent.parent.clone();
-        ancestors.push(parsed_parent);
-    }
-    for parent_pom in ancestors {
-        pom.inherit_from_parent(&parent_pom);
-    }
-}
-
-async fn fetch_and_cache_parent_pom(
-    downloader: &Downloader,
-    primary_repo: &Repository,
-    registry: &RepositoryRegistry,
-    parent_coord: &DependencyCoordinate,
-    cache: &GradleCache,
-) -> Option<PomModel> {
-    let candidate_repos = std::iter::once(primary_repo).chain(
-        registry
-            .repositories
-            .iter()
-            .filter(|repo| repo.url != primary_repo.url),
-    );
-    for repo in candidate_repos {
-        if downloader.is_repo_unreachable(&repo.url).await {
-            continue;
-        }
-        let parent_url = repo.pom_url(parent_coord);
-        if let Ok(content) = downloader.fetch_text_internal(&parent_url).await
-            && let Ok(parent_pom) = PomModel::parse(&content)
-        {
-            downloader.record_connection_success(&repo.url).await;
-            let _ = cache.store_file(
-                parent_coord,
-                &parent_coord.pom_file_name(),
-                content.as_bytes(),
-            );
-            return Some(parent_pom);
-        }
-    }
     None
 }
 

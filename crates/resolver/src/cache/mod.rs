@@ -1,33 +1,24 @@
-use sha1_smol::Sha1;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use crate::coordinate::DependencyCoordinate;
+use crate::pom::PomModel;
 
-static TEMP_FILE_COUNTER: AtomicU64 = AtomicU64::new(1);
+mod fs_util;
+mod memory;
 
-pub(crate) fn is_safe_component(component: &str) -> bool {
-    !component.is_empty()
-        && component != "."
-        && !component.contains('/')
-        && !component.contains('\\')
-        && !component.contains(':')
-        && !component.contains('*')
-        && !component.contains('?')
-        && !component.contains('"')
-        && !component.contains('<')
-        && !component.contains('>')
-        && !component.contains('|')
-        && !component.contains("..")
-        && !component.contains('\0')
-}
+pub(crate) use fs_util::is_safe_component;
+pub use fs_util::{dirs_home, hex_digest};
+use memory::MemoryCacheState;
 
 /// Manages interaction with the canonical local Gradle cache (`~/.gradle/caches/modules-2/files-2.1`).
 #[derive(Debug, Clone)]
 pub struct GradleCache {
     home_dir: PathBuf,
     files_dir: PathBuf,
+    writable: bool,
+    memory: Arc<MemoryCacheState>,
 }
 
 impl GradleCache {
@@ -76,7 +67,57 @@ impl GradleCache {
         Some(Self {
             home_dir: home,
             files_dir,
+            writable: true,
+            memory: Arc::default(),
         })
+    }
+
+    pub fn read_only(mut self) -> Self {
+        self.writable = false;
+        self
+    }
+
+    pub fn with_writable(mut self, writable: bool) -> Self {
+        self.writable = writable;
+        self
+    }
+
+    pub fn is_writable(&self) -> bool {
+        self.writable
+    }
+
+    pub fn get_resolved(&self, coord: &DependencyCoordinate) -> Option<Vec<DependencyCoordinate>> {
+        self.memory.resolved_deps.read().ok()?.get(coord).cloned()
+    }
+
+    pub fn insert_resolved(&self, coord: DependencyCoordinate, deps: Vec<DependencyCoordinate>) {
+        if let Ok(mut lock) = self.memory.resolved_deps.write() {
+            lock.insert(coord, deps);
+        }
+    }
+
+    pub fn get_parent_pom(&self, coord: &DependencyCoordinate) -> Option<PomModel> {
+        self.memory.parent_poms.read().ok()?.get(coord).cloned()
+    }
+
+    pub fn insert_parent_pom(&self, coord: DependencyCoordinate, pom: PomModel) {
+        if let Ok(mut lock) = self.memory.parent_poms.write() {
+            lock.insert(coord, pom);
+        }
+    }
+
+    pub fn get_or_parse_pom(&self, coord: &DependencyCoordinate) -> Option<PomModel> {
+        if let Some(pom) = self.get_parent_pom(coord) {
+            return Some(pom);
+        }
+        if let Some(path) = self.find_pom(coord) {
+            let pom = fs::read_to_string(path)
+                .ok()
+                .and_then(|xml| PomModel::parse(&xml).ok())?;
+            self.insert_parent_pom(coord.clone(), pom.clone());
+            return Some(pom);
+        }
+        None
     }
 
     pub fn home_dir(&self) -> &Path {
@@ -183,7 +224,7 @@ impl GradleCache {
         file_name: &str,
         data: &[u8],
     ) -> Result<PathBuf, String> {
-        let mut hasher = Sha1::new();
+        let mut hasher = sha1_smol::Sha1::new();
         hasher.update(data);
         let sha1_hex = hex_digest(&hasher.digest().bytes());
 
@@ -214,6 +255,14 @@ impl GradleCache {
             .join(&sha1_hex);
         let final_path = target_dir.join(file_name);
 
+        if !self.writable {
+            return Err(common::concat_str!(
+                "Cannot store artifact '",
+                file_name,
+                "': cache is read-only"
+            ));
+        }
+
         if final_path.is_file()
             && fs::metadata(&final_path).map(|m| m.len()).unwrap_or(0) == data.len() as u64
         {
@@ -229,75 +278,7 @@ impl GradleCache {
             )
         })?;
 
-        write_cache_atomic(&target_dir, &final_path, file_name, data)?;
+        fs_util::write_cache_atomic(&target_dir, &final_path, file_name, data)?;
         Ok(final_path)
     }
-}
-
-fn write_cache_atomic(
-    target_dir: &Path,
-    final_path: &Path,
-    file_name: &str,
-    data: &[u8],
-) -> Result<(), String> {
-    if final_path.is_file() {
-        let _ = fs::remove_file(final_path);
-    }
-
-    let seq = TEMP_FILE_COUNTER.fetch_add(1, Ordering::Relaxed);
-    let temp_name = common::concat_str!(
-        ".tmp_",
-        &std::process::id().to_string(),
-        "_",
-        &seq.to_string(),
-        "_",
-        file_name
-    );
-    let temp_path = target_dir.join(&temp_name);
-
-    fs::write(&temp_path, data)
-        .map_err(|err| common::concat_str!("Failed to write temporary file: ", &err.to_string()))?;
-
-    if let Err(err) = fs::rename(&temp_path, final_path) {
-        let _ = fs::remove_file(&temp_path);
-        let valid = final_path.is_file()
-            && fs::metadata(final_path).map(|m| m.len()).unwrap_or(0) == data.len() as u64;
-        if !valid {
-            return Err(common::concat_str!(
-                "Failed to finalize cache artifact: ",
-                &err.to_string()
-            ));
-        }
-    }
-
-    Ok(())
-}
-
-pub fn hex_digest(bytes: &[u8]) -> String {
-    const HEX_CHARS: &[u8; 16] = b"0123456789abcdef";
-    let mut output = String::with_capacity(bytes.len() * 2);
-    for &byte in bytes {
-        output.push(HEX_CHARS[(byte >> 4) as usize] as char);
-        output.push(HEX_CHARS[(byte & 0x0f) as usize] as char);
-    }
-    output
-}
-
-pub fn dirs_home() -> Option<PathBuf> {
-    if cfg!(windows) {
-        if let Ok(user_profile) = std::env::var("USERPROFILE") {
-            return Some(PathBuf::from(user_profile));
-        }
-        if let Ok(home_path) = std::env::var("HOME") {
-            return Some(PathBuf::from(home_path));
-        }
-    } else {
-        if let Ok(home_path) = std::env::var("HOME") {
-            return Some(PathBuf::from(home_path));
-        }
-        if let Ok(user_profile) = std::env::var("USERPROFILE") {
-            return Some(PathBuf::from(user_profile));
-        }
-    }
-    None
 }
