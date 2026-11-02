@@ -5,7 +5,9 @@ use super::context::InferenceContext;
 use super::lambda_call_extension::{
     collect_ranked_extension_candidates, is_callable_function_decl,
 };
-use super::lambda_call_solve::{solve_decl_higher_order_call, solve_sig_info_higher_order_call};
+use super::lambda_call_solve::{
+    infer_builder_lambda_receiver, solve_decl_higher_order_call, solve_sig_info_higher_order_call,
+};
 use super::lambda_return::{
     find_lambda_node_and_arg_idx, find_matching_lambda_in_ast, infer_lambda_return_type_expected,
 };
@@ -118,10 +120,15 @@ pub fn resolve_higher_order_call(
         is_trailing,
     );
 
-    let lambda_ret = if let Some(KotlinType::Function { return_type, .. }) = expected_fn.as_ref()
+    let lambda_ret = if let Some(KotlinType::Function {
+        receiver: fn_rec,
+        return_type,
+        ..
+    }) = expected_fn.as_ref()
         && return_type.is_unit()
     {
-        Some(KotlinType::UNIT)
+        infer_builder_lambda_receiver(ctx.reborrow(), lambda_node, call_expr, fn_rec.as_deref())
+            .or(Some(KotlinType::UNIT))
     } else {
         infer_call_lambda_return_type(
             ctx.reborrow(),
@@ -171,9 +178,11 @@ fn infer_call_lambda_return_type(
         .or_else(|| parsed_tree.as_ref().map(|t| t.root_node()));
     let lambda_text = lambda_node.utf8_text(call_expr.as_bytes()).ok();
 
-    let res1 = outer_tree.and_then(|ot| {
-        let matched_node = find_matching_lambda_in_ast(ot, ctx.source, lambda_text?, ctx.pos)?;
-        infer_lambda_return_type_expected(
+    if let Some(ot) = outer_tree
+        && let Some(text) = lambda_text
+        && let Some(matched_node) = find_matching_lambda_in_ast(ot, ctx.source, text, ctx.pos)
+    {
+        return infer_lambda_return_type_expected(
             ctx.index,
             ctx.current_url,
             matched_node,
@@ -181,10 +190,7 @@ fn infer_call_lambda_return_type(
             Some(ot),
             ctx.depth + 1,
             expected_fn,
-        )
-    });
-    if res1.is_some() {
-        return res1;
+        );
     }
     infer_lambda_return_type_expected(
         ctx.index,

@@ -45,12 +45,33 @@ pub fn solve_call_decl_return_type_traced(
     call_info: &CallInfo,
     inferred_arg_types: Option<&[Option<KotlinType>]>,
 ) -> KotlinType {
-    let sig = decl.signature.as_deref().unwrap_or("");
     let sig_info = SignatureInfo::from_decl(decl);
+    solve_call_decl_info_return_type_traced(
+        ctx,
+        decl,
+        sig_info.as_ref(),
+        ret_type,
+        receiver_type_str,
+        call_info,
+        inferred_arg_types,
+    )
+}
+
+/// Solve generic return type using an already-parsed SignatureInfo on stack
+pub fn solve_call_decl_info_return_type_traced(
+    ctx: InferenceContext<'_, '_, '_>,
+    decl: &crate::indexer::DeclarationItem,
+    sig_info: Option<&SignatureInfo>,
+    ret_type: Option<&KotlinType>,
+    receiver_type_str: Option<&str>,
+    call_info: &CallInfo,
+    inferred_arg_types: Option<&[Option<KotlinType>]>,
+) -> KotlinType {
+    let sig = decl.signature.as_deref().unwrap_or("");
     solve_call_generic_return_type_impl(
         ctx,
         sig,
-        sig_info.as_ref(),
+        sig_info,
         ret_type,
         None,
         receiver_type_str,
@@ -137,6 +158,8 @@ fn solve_call_generic_return_type_impl(
 
     populate_receiver_and_explicit_type_args(
         &mut system,
+        ctx.index,
+        ctx.current_url,
         sig,
         receiver_type_str,
         &call_info.explicit_type_args,
@@ -176,6 +199,8 @@ fn solve_call_generic_return_type_impl(
 
 fn populate_receiver_and_explicit_type_args(
     system: &mut ConstraintSystem,
+    index: &WorkspaceIndex,
+    current_url: &tower_lsp::lsp_types::Url,
     sig: &str,
     receiver_type_str: Option<&str>,
     explicit_type_args: &[String],
@@ -195,7 +220,8 @@ fn populate_receiver_and_explicit_type_args(
         if !clean_arg.is_empty()
             && let Some(k_ty) = super::types::parse_type_signature(clean_arg)
         {
-            system.bind(param.clone(), k_ty);
+            let qualified = super::qualification::qualify_type(index, current_url, &k_ty);
+            system.bind(param.clone(), qualified);
         }
     }
 }

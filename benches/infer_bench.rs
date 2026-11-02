@@ -130,22 +130,21 @@ fn resolve_dependency_artifacts(
 
     let stdlib_artifact = KotlincResolver::find_kotlinc_stdlib(config)
         .or_else(|| GradleCacheResolver::find_kotlin_stdlib(None, config));
-    if let Some(stdlib) = stdlib_artifact {
-        if !resolved_artifacts
+    if let Some(stdlib) = stdlib_artifact
+        && !resolved_artifacts
             .iter()
             .any(|artifact| artifact.binary_path == stdlib.binary_path)
-        {
-            resolved_artifacts.push(stdlib);
-        }
+    {
+        resolved_artifacts.push(stdlib);
     }
 
     resolved_artifacts
 }
 
-fn prepare_dependency_archives<'a>(
-    resolved_artifacts: &'a [ResolvedArtifact],
+fn prepare_dependency_archives(
+    resolved_artifacts: &[ResolvedArtifact],
     prefer_sources: bool,
-) -> Vec<&'a Path> {
+) -> Vec<&Path> {
     let mut archives = Vec::new();
     let mut seen = AHashSet::default();
     for artifact in resolved_artifacts {

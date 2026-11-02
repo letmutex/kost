@@ -99,10 +99,17 @@ impl<'a> LambdaSolveCtx<'a> {
         if let Some(rec) = self.receiver_type {
             system.add_container_type_params_typed(rec);
             if let Some(decl_rec) = sig_info.and_then(|info| info.receiver.as_ref()) {
-                system.add_receiver_constraint_typed(rec, decl_rec);
-            } else {
-                system.add_receiver_constraint_from_sig(sig, rec);
+                if !system.add_receiver_constraint_typed(rec, decl_rec) {
+                    return None;
+                }
+            } else if sig.contains('.')
+                && crate::syntax::signature::extract_receiver_type_from_signature(sig).is_some()
+                && !system.add_receiver_constraint_from_sig(sig, rec)
+            {
+                return None;
             }
+        } else if sig_info.is_some_and(|info| info.receiver.is_some()) {
+            return None;
         }
 
         for (i, arg_expr) in self.value_args.iter().enumerate() {
@@ -144,23 +151,32 @@ impl<'a> LambdaSolveCtx<'a> {
         &self,
         name: &str,
         require_function: bool,
+        supertypes: &[String],
     ) -> Option<KotlinType> {
         if let Some(decls) = self.index.name_to_decls.get(name) {
             for (decl_url, decl) in decls {
-                let is_ok = !require_function
-                    || (decl.kind == SymbolKind::FUNCTION
-                        && (!decl.is_private || decl_url.as_ref() == self.current_url));
+                let is_ok = matches!(
+                    decl.kind,
+                    SymbolKind::FUNCTION | SymbolKind::METHOD | SymbolKind::CONSTRUCTOR
+                ) && (!require_function || decl.kind == SymbolKind::FUNCTION)
+                    && self.receiver_type.is_none_or(|rec| {
+                        super::lambda_call_extension::is_extension_container_plausible(
+                            self.index, rec, supertypes, decl,
+                        )
+                    })
+                    && super::qualification::is_declaration_visible(
+                        self.index,
+                        self.current_url,
+                        decl_url.as_ref(),
+                        decl,
+                    );
                 if is_ok && let Some(k_ty) = self.solve_for_decl(decl_url.as_ref(), decl) {
                     return Some(k_ty);
                 }
             }
         }
-        if let Some(builtin_sig) = get_builtin_scope_function(name)
-            && let Some(k_ty) = self.solve_for_signature(self.current_url, builtin_sig)
-        {
-            return Some(k_ty);
-        }
-        None
+        let builtin_sig = get_builtin_scope_function(name)?;
+        self.solve_for_signature(self.current_url, builtin_sig)
     }
 }
 
@@ -170,15 +186,16 @@ fn resolve_member_lambda_type(
     method_name: &str,
 ) -> Option<KotlinType> {
     let clean_container = receiver_type.base_name();
+    let supertypes = ctx.index.get_all_supertypes(clean_container);
     let mut all_containers = vec![clean_container.to_string()];
-    all_containers.extend(ctx.index.get_all_supertypes(clean_container));
+    all_containers.extend(supertypes.iter().cloned());
 
     ctx.find_in_containers(&all_containers, method_name)
-        .or_else(|| ctx.find_in_declarations_or_builtin(method_name, false))
+        .or_else(|| ctx.find_in_declarations_or_builtin(method_name, false, &supertypes))
 }
 
 fn resolve_toplevel_lambda_type(ctx: &LambdaSolveCtx, callee_name: &str) -> Option<KotlinType> {
-    ctx.find_in_declarations_or_builtin(callee_name, true)
+    ctx.find_in_declarations_or_builtin(callee_name, true, &[])
 }
 
 pub fn resolve_lambda_signature_for_receiver(
@@ -222,7 +239,7 @@ fn resolve_navigation_callee<'a>(
         .and_then(|c| c.utf8_text(ctx.source.as_bytes()).ok())?
         .trim();
     let mut tracer = super::trace::Tracer::Noop;
-    let inf_ctx = super::InferenceContext::new(
+    let mut inf_ctx = super::InferenceContext::new(
         ctx.index,
         ctx.current_url,
         ctx.pos,
@@ -231,7 +248,7 @@ fn resolve_navigation_callee<'a>(
         ctx.depth + 1,
         &mut tracer,
     );
-    let mut eval_ctx = super::ast_eval::AstEvalContext::new(inf_ctx, ctx.source);
+    let mut eval_ctx = super::ast_eval::AstEvalContext::new(inf_ctx.reborrow(), ctx.source);
     let rec_ty = super::ast_eval::infer_expression_node(&mut eval_ctx, lhs_node).or_else(|| {
         let lhs_text = lhs_node.utf8_text(ctx.source.as_bytes()).ok()?.trim();
         infer_receiver_type_depth(
@@ -276,19 +293,14 @@ pub fn resolve_lambda_type_for_call_and_lambda(
     } else {
         (&ast_args, arg_idx)
     };
-    let is_trailing = view
-        .as_ref()
-        .and_then(|v| v.trailing_lambda)
-        .is_some_and(|tl| {
+    let is_trailing = view.as_ref().is_some_and(|v| {
+        v.trailing_lambda.is_some_and(|tl| {
             tl.start_byte() <= l_node.start_byte() && l_node.end_byte() <= tl.end_byte()
+        }) || !v.value_arguments.iter().any(|arg| {
+            arg.start_byte() <= l_node.start_byte() && l_node.end_byte() <= arg.end_byte()
         })
-        || view.as_ref().is_some_and(|v| {
-            !v.value_arguments.iter().any(|arg| {
-                arg.start_byte() <= l_node.start_byte() && l_node.end_byte() <= arg.end_byte()
-            })
-        });
-
-    let ctx = LambdaSolveCtx {
+    });
+    let mut ctx = LambdaSolveCtx {
         index,
         current_url,
         receiver_type: None,
@@ -301,21 +313,14 @@ pub fn resolve_lambda_type_for_call_and_lambda(
         depth,
     };
 
-    let (rec_type, method_name) = if callee_node.kind() == "navigation_expression" {
+    if callee_node.kind() == "navigation_expression" {
         let (rec_ty, method_name) = resolve_navigation_callee(&ctx, callee_node)?;
-        (Some(rec_ty), method_name)
+        ctx.receiver_type = Some(&rec_ty);
+        resolve_member_lambda_type(&ctx, &rec_ty, method_name)
+            .map(|kty| (kty, Some(SmolStr::new(method_name))))
     } else {
-        (None, callee_clean)
-    };
-
-    if let Some(rec_ty) = rec_type {
-        let label = SmolStr::new(method_name);
-        let mut member_ctx = ctx;
-        member_ctx.receiver_type = Some(&rec_ty);
-        resolve_member_lambda_type(&member_ctx, &rec_ty, method_name).map(|kty| (kty, Some(label)))
-    } else {
-        let label = SmolStr::new(method_name);
-        resolve_toplevel_lambda_type(&ctx, method_name).map(|kty| (kty, Some(label)))
+        resolve_toplevel_lambda_type(&ctx, callee_clean)
+            .map(|kty| (kty, Some(SmolStr::new(callee_clean))))
     }
 }
 

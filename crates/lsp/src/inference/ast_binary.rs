@@ -50,10 +50,35 @@ pub fn infer_binary_operator(
         "==" | "!=" | "===" | "!==" | "<" | "<=" | ">" | ">=" | "&&" | "||" => {
             Some(KotlinType::BOOLEAN)
         }
-        ".." | "..<" => Some(KotlinType::simple_class("IntRange")),
+        ".." | "..<" => Some(infer_range_operator(ctx, left_node, right_node)),
         "?:" => infer_elvis_operator(ctx, left_node, right_node),
         "+" | "-" | "*" | "/" | "%" => infer_arithmetic_operator(ctx, left_node, op, right_node),
         _ => None,
+    }
+}
+
+fn infer_range_operator(ctx: &mut AstEvalContext, left_node: Node, right_node: Node) -> KotlinType {
+    let left_ty = infer_expression_node(&mut ctx.sub(), left_node);
+    let right_ty = infer_expression_node(&mut ctx.sub(), right_node);
+    let left_base = left_ty
+        .as_ref()
+        .and_then(|t| t.base_name().rsplit('.').next())
+        .unwrap_or("");
+    let right_base = right_ty
+        .as_ref()
+        .and_then(|t| t.base_name().rsplit('.').next())
+        .unwrap_or("");
+
+    if left_base == "Long" || right_base == "Long" {
+        KotlinType::simple_class("LongRange")
+    } else if left_base == "Char" || right_base == "Char" {
+        KotlinType::simple_class("CharRange")
+    } else if left_base == "ULong" || right_base == "ULong" {
+        KotlinType::simple_class("ULongRange")
+    } else if left_base == "UInt" || right_base == "UInt" {
+        KotlinType::simple_class("UIntRange")
+    } else {
+        KotlinType::simple_class("IntRange")
     }
 }
 
@@ -119,7 +144,19 @@ fn infer_arithmetic_operator(
         };
         let right_text = ctx.node_text(right_node)?;
         let member_call = common::concat_str!(method_name, "(", right_text, ")");
-        super::member::resolve_member_type_depth_traced(ctx.ctx.sub(), left_base, &member_call)
+        let call_info = super::call_parser::CallInfo {
+            callee: method_name,
+            explicit_type_args: Vec::new(),
+            value_args: vec![right_text],
+        };
+        let inferred_args = [right_ty];
+        super::member::resolve_member_call_info_depth_traced(
+            ctx.ctx.sub(),
+            &left_ty,
+            &member_call,
+            &call_info,
+            &inferred_args,
+        )
     }
 }
 

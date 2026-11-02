@@ -79,6 +79,17 @@ fn find_call_pos(call_view: Option<&AstCallView>, fallback: Node) -> Position {
     crate::position::point_to_position(fallback.start_position())
 }
 
+fn infer_view_arg_types(ctx: &mut AstEvalContext, view: &AstCallView) -> Vec<Option<KotlinType>> {
+    view.value_arguments
+        .iter()
+        .map(|arg| {
+            let expr_node = AstCallView::argument_expression(*arg).unwrap_or(*arg);
+            let mut sub_ctx = ctx.sub();
+            infer_expression_node(&mut sub_ctx, expr_node)
+        })
+        .collect()
+}
+
 /// Infer call expression (e.g. `foo()`, `obj.method()`, or call with lambda)
 pub fn infer_call_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinType> {
     let call_view = AstCallView::from_node(node);
@@ -104,11 +115,25 @@ pub fn infer_call_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinTyp
         let is_lhs_nullable = lhs_ty.is_nullable();
         let non_null_lhs = lhs_ty.make_non_null();
         let call_pos = find_call_pos(call_view.as_ref(), suffix_node);
-        let member_res = super::member::resolve_member_type_kt_depth_traced(
-            ctx.sub_with_pos(call_pos),
-            &non_null_lhs,
-            member_expr,
-        )?;
+        let member_res = if !super::lambda_call::is_call_with_lambda(member_expr)
+            && let Some(ref view) = call_view
+        {
+            let call_info = super::call_parser::parse_call_expression(member_expr);
+            let inferred_args = infer_view_arg_types(ctx, view);
+            super::member::resolve_member_call_info_depth_traced(
+                ctx.sub_with_pos(call_pos),
+                &non_null_lhs,
+                member_expr,
+                &call_info,
+                &inferred_args,
+            )?
+        } else {
+            super::member::resolve_member_type_kt_depth_traced(
+                ctx.sub_with_pos(call_pos),
+                &non_null_lhs,
+                member_expr,
+            )?
+        };
         let mut kt_res = member_res;
         if is_safe || is_lhs_nullable {
             kt_res = kt_res.make_nullable();

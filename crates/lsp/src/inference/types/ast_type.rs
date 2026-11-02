@@ -30,33 +30,51 @@ pub(crate) fn has_suspend_modifier(node: &Node) -> bool {
     false
 }
 
+fn try_fast_parse_simple_type(clean: &str, type_params: &[&str]) -> Option<KotlinType> {
+    let (core, is_nullable) = match clean.strip_suffix('?') {
+        Some(stripped) => (stripped.trim_end(), true),
+        None => (clean, false),
+    };
+    if core.is_empty()
+        || core.starts_with('.')
+        || core.ends_with('.')
+        || core.contains("..")
+        || core.contains([
+            '<', '>', '(', ')', '?', '&', ' ', '\t', '\n', '\r', '-', ':', '@', '*',
+        ])
+    {
+        return None;
+    }
+    let ident = core.trim_matches('`');
+    if ident.is_empty() {
+        return None;
+    }
+    let base_ty = if type_params.contains(&ident) {
+        KotlinType::TypeParam(SmolStr::new(ident))
+    } else if ident == "dynamic" {
+        KotlinType::DynamicOrAny
+    } else if let Some(prim) = PrimitiveType::from_name(ident) {
+        if prim == PrimitiveType::Nothing {
+            KotlinType::Nothing
+        } else {
+            KotlinType::Primitive(prim)
+        }
+    } else {
+        KotlinType::simple_class(ident)
+    };
+    Some(base_ty.with_nullability(is_nullable))
+}
+
 /// Parse a Kotlin type signature string with known type parameters into a structured `KotlinType` using Tree-sitter
 pub fn parse_type_signature_with_params(sig: &str, type_params: &[&str]) -> Option<KotlinType> {
     let clean = sig.trim();
     if clean.is_empty() || clean == "?" {
         return None;
     }
-
-    // Fast-path: O(1) checks for single identifiers
-    if !clean.contains(['<', '>', '(', ')', '?', '&', ' ', '-', '.', ':', '@']) {
-        let trimmed_ident = clean.trim_matches('`');
-        if type_params.contains(&trimmed_ident) {
-            return Some(KotlinType::TypeParam(SmolStr::new(trimmed_ident)));
-        }
-        if trimmed_ident == "dynamic" {
-            return Some(KotlinType::DynamicOrAny);
-        }
-        if let Some(prim) = PrimitiveType::from_name(trimmed_ident) {
-            return Some(if prim == PrimitiveType::Nothing {
-                KotlinType::Nothing
-            } else {
-                KotlinType::Primitive(prim)
-            });
-        }
-        return Some(KotlinType::simple_class(trimmed_ident));
+    if let Some(fast) = try_fast_parse_simple_type(clean, type_params) {
+        return Some(fast);
     }
 
-    // Wrap into synthetic typealias declaration for universal Tree-sitter parsing
     let wrapped = common::concat_str!("typealias _T = ", clean);
     let tree = with_parser(|p| p.parse(&wrapped))?;
     let root = tree.root_node();
@@ -64,36 +82,22 @@ pub fn parse_type_signature_with_params(sig: &str, type_params: &[&str]) -> Opti
         return None;
     }
 
-    let mut cursor = root.walk();
     let type_alias = root
-        .children(&mut cursor)
+        .children(&mut root.walk())
         .find(|n| n.kind() == "type_alias")?;
-
     let mut is_suspend = false;
     let mut type_node = None;
-
-    let mut alias_cursor = type_alias.walk();
-    for child in type_alias.children(&mut alias_cursor) {
-        match child.kind() {
-            "type_modifiers" => {
-                if has_suspend_modifier(&child) {
-                    is_suspend = true;
-                }
-            }
-            "=" | "typealias" | "type_identifier" => {}
-            _ => {
-                if is_type_node(&child) {
-                    type_node = Some(child);
-                }
-            }
+    for child in type_alias.children(&mut type_alias.walk()) {
+        if child.kind() == "type_modifiers" && has_suspend_modifier(&child) {
+            is_suspend = true;
+        } else if is_type_node(&child) {
+            type_node = Some(child);
         }
     }
-
     let node = type_node?;
     if is_suspend && !matches!(node.kind(), "function_type" | "parenthesized_type") {
         return None;
     }
-
     ast_node_to_kotlin_type(&node, &wrapped, type_params, is_suspend)
 }
 

@@ -242,6 +242,14 @@ fn infer_decl_node_type(
     {
         return Some(t);
     }
+    if decl_node
+        .parent()
+        .is_some_and(|p| p.kind() == "for_statement")
+        && let Some(t) =
+            super::destructuring::infer_for_loop_variable_type(ctx.reborrow(), decl_node)
+    {
+        return Some(t);
+    }
     if let Some(t) = infer_property_decl_type(decl_node, clean, ctx.reborrow()) {
         return Some(t);
     }

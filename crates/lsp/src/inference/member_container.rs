@@ -159,22 +159,46 @@ fn resolve_decl_by_signature(
 }
 
 fn resolve_container_decl_from_source(
-    index: &WorkspaceIndex,
+    ctx: &InferenceContext<'_, '_, '_>,
     url: &Url,
     decl: &crate::indexer::DeclarationItem,
-    depth: usize,
 ) -> Option<KotlinType> {
-    let decl_source = index.get_file_source(url)?;
-    if let Some(inferred) = super::function::infer_single_expression_function_return_type(
-        index,
+    if url == ctx.current_url
+        && let Some(inferred) = super::function::infer_single_expression_function_return_type(
+            ctx.index,
+            url,
+            decl,
+            ctx.source,
+            ctx.depth + 1,
+        )
+        .or_else(|| {
+            super::delegate::resolve_property_delegate_from_source(
+                ctx.index, url, decl, ctx.source, ctx.depth,
+            )
+        })
+    {
+        return Some(inferred);
+    }
+    if url.as_str().starts_with("jar:") {
+        return None;
+    }
+    let decl_source = ctx.index.get_file_source(url)?;
+    super::function::infer_single_expression_function_return_type(
+        ctx.index,
         url,
         decl,
         &decl_source,
-        depth + 1,
-    ) {
-        return Some(inferred);
-    }
-    super::delegate::resolve_property_delegate_from_source(index, url, decl, &decl_source, depth)
+        ctx.depth + 1,
+    )
+    .or_else(|| {
+        super::delegate::resolve_property_delegate_from_source(
+            ctx.index,
+            url,
+            decl,
+            &decl_source,
+            ctx.depth,
+        )
+    })
 }
 
 fn is_decl_applicable(
@@ -238,7 +262,7 @@ fn resolve_single_container_decl(
         });
         return Some(inferred);
     }
-    if let Some(inferred) = resolve_container_decl_from_source(ctx.index, url, decl, ctx.depth) {
+    if let Some(inferred) = resolve_container_decl_from_source(&ctx, url, decl) {
         ctx.tracer.record_step(|| {
             format_selected_member(
                 decl,
