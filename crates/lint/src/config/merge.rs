@@ -2,12 +2,13 @@
 
 use crate::config::error::ConfigError;
 use crate::config::options;
-use crate::config::parser::{RuleParser, is_valid_kebab_case};
-pub use crate::config::ruleset::{ExportedRuleset, MergedRule, RuleLookup};
+use crate::config::parser::RuleParser;
+use crate::config::ruleset::{ExportedRuleset, MergedRule};
 use crate::config::schema::RawRule;
 use crate::config::validate;
 use crate::rule::StatRule;
 use crate::types::{Severity, WherePolicy};
+use common::util::is_valid_kebab_case;
 use indexmap::IndexMap;
 use smol_str::SmolStr;
 

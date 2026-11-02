@@ -3,8 +3,8 @@ use smol_str::SmolStr;
 use tower_lsp::lsp_types::{Position, Url};
 use tree_sitter::Node;
 
-use super::expression::resolve_full_type_name;
-pub use super::scope_lambda::{get_builtin_scope_function, resolve_enclosing_lambda_type};
+use super::qualification::resolve_full_type_name;
+use super::scope_lambda::resolve_enclosing_lambda_type;
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;
 use crate::parser::{extract_identifier_text, find_node_at_position};

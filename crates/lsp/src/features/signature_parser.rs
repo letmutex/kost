@@ -1,6 +1,5 @@
 use tower_lsp::lsp_types::Position;
 
-pub use super::signature_param::parse_signature_parameters;
 use crate::syntax::ast_call_view::{ParsedCallArg, parse_call_arg};
 
 #[derive(Debug, Clone)]

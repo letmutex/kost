@@ -2,10 +2,6 @@ use tower_lsp::lsp_types::{Position, Url};
 use tree_sitter::Node;
 
 use super::context::InferenceContext;
-pub use super::member::{resolve_member_type, resolve_member_type_depth};
-pub use super::qualification::{
-    qualify_type, resolve_full_type_name, resolve_type_by_imports_or_package,
-};
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;
 

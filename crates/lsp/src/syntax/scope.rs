@@ -16,7 +16,6 @@ pub struct ScopeSymbol {
 }
 
 use super::scope_enclosing::{check_declaration_node, check_param_or_constructor_child};
-pub use super::scope_enclosing::{collect_enclosing_classes, find_enclosing_class_name};
 
 pub fn find_local_variable_or_param<'a>(
     scope_node: Node<'a>,
@@ -226,5 +225,3 @@ pub fn collect_local_scope_symbols(
         }
     }
 }
-
-pub use super::scope_enclosing::find_parameter;

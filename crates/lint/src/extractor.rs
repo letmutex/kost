@@ -2,7 +2,9 @@
 
 use crate::annotation::extract_annotations;
 use crate::context::{LintCtx, ScopeFrame};
-use crate::types::{PropertyKey, PropertyValue, ReportTarget, Scope, TextRange};
+use crate::diagnostic::ReportTarget;
+use crate::property::PropertyKey;
+use crate::types::{PropertyValue, Scope, TextRange};
 use crate::util::{count_function_parameters, find_child_identifier, find_child_identifier_node};
 use smol_str::SmolStr;
 
@@ -159,7 +161,7 @@ pub fn populate_import_properties(node: tree_sitter::Node, source: &[u8], ctx: &
     let mut alias_text = "";
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        let child_kind = crate::util::node_kind(child);
+        let child_kind = crate::registry::node_kind(child);
         if child_kind == "wildcard_import" {
             is_wildcard = true;
         } else if child_kind == "identifier" {
@@ -170,7 +172,7 @@ pub fn populate_import_properties(node: tree_sitter::Node, source: &[u8], ctx: &
             let mut alias_cursor = child.walk();
             for alias_child in child.children(&mut alias_cursor) {
                 if matches!(
-                    crate::util::node_kind(alias_child),
+                    crate::registry::node_kind(alias_child),
                     "simple_identifier" | "type_identifier"
                 ) && let Ok(t) = alias_child.utf8_text(source)
                 {

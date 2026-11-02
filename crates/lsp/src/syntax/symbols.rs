@@ -1,3 +1,7 @@
+use super::symbol_item::{
+    DeclarationItem, DeclarationMetadata, FileSymbols, ImportItem, create_declaration_item,
+    map_declaration_item_info,
+};
 use smol_str::SmolStr;
 use tower_lsp::lsp_types::SymbolKind;
 use tree_sitter::Node;
@@ -7,11 +11,6 @@ use crate::parser::{
     KotlinParser, extract_identifier_text, extract_signature, is_private_declaration,
 };
 use crate::position::node_to_range;
-
-pub use super::symbol_item::{
-    DeclarationItem, DeclarationMetadata, FileSymbols, ImportItem, create_declaration_item,
-    find_identifier_node, map_declaration_item_info,
-};
 
 fn find_body_node<'a>(node: Node<'a>) -> Node<'a> {
     if matches!(node.kind(), "lambda_literal" | "statements" | "class_body") {

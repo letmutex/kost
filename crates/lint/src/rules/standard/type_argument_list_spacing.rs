@@ -1,8 +1,9 @@
 //! Built-in AST rule enforcing spacing in type argument lists (Ktlint rule 38).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::{WhitespaceAfter, WhitespaceBefore, node_kind, spaces_after, spaces_before};
+use crate::util::{WhitespaceAfter, WhitespaceBefore, spaces_after, spaces_before};
 
 /// Rule that enforces proper spacing around and inside type argument lists (`<T>`).
 pub struct TypeArgumentListSpacing;

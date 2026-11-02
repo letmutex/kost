@@ -1,6 +1,7 @@
 use tower_lsp::lsp_types::{SymbolKind, Url};
 
-use super::call::{CallInfo, solve_call_decl_return_type_traced};
+use super::call::solve_call_decl_return_type_traced;
+use super::call_parser::CallInfo;
 use super::context::InferenceContext;
 use super::member_ranking::{
     collect_candidate_containers, format_selected_member, record_ranked_candidates,

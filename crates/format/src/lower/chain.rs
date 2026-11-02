@@ -7,8 +7,7 @@ use super::chain_call::{
 use super::chain_format::{
     format_string_receiver_single_step, lower_step_call, lower_step_post_ops, lower_step_selector,
 };
-use super::chain_step::{ChainStep, assemble_chain_steps};
-pub use super::chain_step::{SpineSegment, flatten_spine, is_spine_root};
+use super::chain_step::{ChainStep, SpineSegment, assemble_chain_steps};
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
 

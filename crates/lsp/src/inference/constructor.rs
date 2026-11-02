@@ -1,10 +1,11 @@
 use tower_lsp::lsp_types::{SymbolKind, Url};
 
-use super::call::{CallInfo, solve_call_generic_return_type};
+use super::call::solve_call_generic_return_type;
+use super::call_parser::CallInfo;
 use super::context::InferenceContext;
-use super::expression::resolve_full_type_name;
 use super::generics::extract_generic_type_params;
 use super::qualification::is_declaration_visible;
+use super::qualification::resolve_full_type_name;
 use super::types::KotlinType;
 use crate::indexer::{DeclarationItem, WorkspaceIndex};
 

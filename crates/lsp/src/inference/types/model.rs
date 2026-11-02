@@ -1,6 +1,6 @@
 use smol_str::SmolStr;
 
-pub use crate::inference::model::PrimitiveType;
+use crate::inference::model::PrimitiveType;
 
 /// Generic type argument variance
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

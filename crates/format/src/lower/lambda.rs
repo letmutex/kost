@@ -2,7 +2,7 @@ use tree_sitter::Node;
 
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
-pub use crate::lower::lambda_params::lower_lambda_parameters;
+use crate::lower::lambda_params::lower_lambda_parameters;
 use crate::lower::lambda_params::{
     LambdaParsed, format_lambda_arrow_only, format_lambda_params_group,
 };

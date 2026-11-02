@@ -2,7 +2,6 @@ use tower_lsp::lsp_types::{Location, SymbolKind, Url};
 use tree_sitter::Node;
 
 use super::hover::HoverContext;
-pub use super::hover_local::{format_implicit_it_hover, format_local_node_markdown};
 
 pub fn format_source_footer(loc: &Location, current_url: &Url) -> Option<String> {
     let uri_str = loc.uri.as_str();

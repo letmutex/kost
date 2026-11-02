@@ -1,8 +1,9 @@
 //! Built-in AST rule forbidding whitespace between function name and opening parenthesis (Ktlint rule 26).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::{WhitespaceBefore, node_kind, spaces_before};
+use crate::util::{WhitespaceBefore, spaces_before};
 
 /// Rule that forbids spacing between a function identifier and its parameter/argument opening parenthesis.
 pub struct FunctionNameSpacing;

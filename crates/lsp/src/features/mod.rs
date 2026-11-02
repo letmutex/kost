@@ -30,9 +30,10 @@ pub mod signature_parser;
 pub mod workspace_symbol;
 
 pub use auto_import::{
-    AutoImportData, compute_auto_import_edit, extract_auto_import_data, find_ast_import_insertion,
-    is_import_suppressed, is_kotlin_default_import, resolve_completion_item,
+    AutoImportData, compute_auto_import_edit, extract_auto_import_data, is_import_suppressed,
+    is_kotlin_default_import, resolve_completion_item,
 };
+pub use auto_import_insertion::find_ast_import_insertion;
 pub use completion::{find_completions, find_completions_with_config, find_completions_with_root};
 pub use definition::{
     DefinitionOptions, find_definition, find_definition_with_root, find_definition_with_root_opts,

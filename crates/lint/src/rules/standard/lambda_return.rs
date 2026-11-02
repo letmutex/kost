@@ -1,8 +1,8 @@
 //! Built-in AST rule forbidding unnecessary labeled returns in lambdas (Ktlint rule 83).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::node_kind;
 
 /// Rule that flags redundant labeled return statements at the end of a lambda.
 pub struct LambdaReturn;

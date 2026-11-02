@@ -3,11 +3,11 @@ use tower_lsp::lsp_types::{Position, Url};
 use tree_sitter::Node;
 
 use super::context::InferenceContext;
-use super::expression::resolve_full_type_name;
+use super::qualification::resolve_full_type_name;
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;
 use crate::parser::find_node_at_position;
-use crate::syntax::scope::{collect_enclosing_classes, find_enclosing_class_name};
+use crate::syntax::scope_enclosing::{collect_enclosing_classes, find_enclosing_class_name};
 
 /// Infer receiver type for scope keywords (`this`, `it`, `super`, `this@label`)
 pub fn resolve_scope_keyword_receiver(

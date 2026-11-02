@@ -2,7 +2,7 @@
 
 use crate::registry::RuleRegistryBuilder;
 
-pub use super::factory::create_standard_ast_rule;
+use super::factory::create_standard_ast_rule;
 
 /// Registers all standard compiled AST rules.
 pub fn register_standard_ast_rules(builder: &mut RuleRegistryBuilder) {

@@ -1,8 +1,9 @@
 //! Built-in AST rule enforcing call expression wrapping (Ktlint rule 44).
 
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::{WhitespaceAfter, WhitespaceBefore, node_kind, spaces_after, spaces_before};
+use crate::util::{WhitespaceAfter, WhitespaceBefore, spaces_after, spaces_before};
 
 /// Rule that enforces consistent line breaks in multiline call expressions.
 pub struct CallExpressionWrapping;

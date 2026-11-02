@@ -3,10 +3,11 @@ use smol_str::SmolStr;
 use tower_lsp::lsp_types::{Range, SymbolKind};
 use tree_sitter::Node;
 
+use super::ast_extra::extract_extension_receiver;
 use crate::doc::{extract_doc_comment, merge_extra_comments};
 use crate::parser::{
-    extract_extension_receiver, extract_identifier_text, extract_signature_and_comments,
-    has_override_modifier, is_class_parameter_property, is_private_declaration,
+    extract_identifier_text, extract_signature_and_comments, has_override_modifier,
+    is_class_parameter_property, is_private_declaration,
 };
 use crate::position::node_to_range;
 use crate::syntax::hierarchy::resolve_extension_container;

@@ -1,9 +1,9 @@
 use ahash::AHashMap;
 use tree_sitter::Node;
 
+use super::string::resolve_kotlin_string;
 use super::util::{
-    find_child_by_kind, node_text, resolve_kotlin_expr, resolve_kotlin_string,
-    unpack_kotlin_value_argument,
+    find_child_by_kind, node_text, resolve_kotlin_expr, unpack_kotlin_value_argument,
 };
 
 pub(crate) fn extract_kotlin_properties(

@@ -1,7 +1,8 @@
 //! Message template placeholder validation for statistical rules.
 
 use crate::config::error::ConfigError;
-use crate::types::{PropertyKey, PropertyValue, Scope};
+use crate::property::PropertyKey;
+use crate::types::{PropertyValue, Scope};
 use indexmap::IndexMap;
 use smol_str::SmolStr;
 

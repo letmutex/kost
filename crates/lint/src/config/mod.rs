@@ -10,15 +10,15 @@ pub mod schema;
 pub mod template;
 pub mod validate;
 
-use crate::config::error::ConfigError;
-pub use crate::config::merge::RuleMerger;
-use crate::config::parser::RuleParser;
-pub use crate::config::ruleset::{ExportedRuleset, MergedRule, RuleLookup};
-use crate::config::schema::{ConfigFile, RawImport};
 use crate::registry::RuleRegistry;
 use crate::rule::StatRule;
 use crate::types::{Severity, WherePolicy};
 use ahash::AHashMap;
+pub use error::ConfigError;
+pub use merge::RuleMerger;
+use parser::RuleParser;
+pub use ruleset::{ExportedRuleset, MergedRule, RuleLookup};
+use schema::{ConfigFile, RawImport};
 use smol_str::SmolStr;
 use std::path::{Path, PathBuf};
 

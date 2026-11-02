@@ -3,7 +3,7 @@ use tree_sitter::Node;
 use crate::doc::{Doc, IndentKind};
 use crate::lower::context::LowerContext;
 
-pub use super::rhs_predicate::{is_block_like_rhs, is_block_like_rhs_ext, is_scoping_call};
+use super::rhs_predicate::is_block_like_rhs_ext;
 
 /// Formats an assignment-like construct (`LHS <op> RHS`) using declarative grouping and conditional indent.
 pub fn format_assign_like<'a>(

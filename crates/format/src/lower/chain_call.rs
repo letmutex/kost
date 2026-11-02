@@ -1,6 +1,6 @@
 use tree_sitter::Node;
 
-pub use super::chain_step::SpineSegment;
+use super::chain_step::SpineSegment;
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
 

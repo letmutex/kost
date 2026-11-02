@@ -3,10 +3,11 @@ use tree_sitter::Node;
 
 use super::hierarchy::is_in_container_hierarchy;
 use super::target::ReferenceTarget;
-use crate::features::definition::{BindingRole, find_local_binding_node};
+use crate::features::definition_local::find_local_binding_node;
 use crate::indexer::WorkspaceIndex;
 use crate::inference::model::PrimitiveType;
 use crate::parser::extract_identifier_text;
+use crate::syntax::scope::BindingRole;
 
 use crate::inference::ast_literal::{infer_literal_kind_and_text, is_literal_kind};
 use crate::inference::types::KotlinType;

@@ -2,9 +2,7 @@ use tower_lsp::lsp_types::{Position, SymbolKind, Url};
 use tree_sitter::Node;
 
 use crate::indexer::WorkspaceIndex;
-pub use crate::inference::{
-    infer_receiver_type, infer_receiver_type_depth, resolve_full_type_name, resolve_member_type,
-};
+use crate::inference::{infer_receiver_type, infer_receiver_type_depth, resolve_full_type_name};
 
 /// Resolve receiver AST node to target type/class name directly without string serialization
 pub fn resolve_receiver_node_type(

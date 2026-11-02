@@ -1,6 +1,6 @@
 use ahash::AHashMap;
-use lsp::gradle::build_script::{BuildScriptInfo, parse_gradle_properties};
 use lsp::gradle::catalog::VersionCatalog;
+use resolver::{BuildScriptInfo, parse_gradle_properties};
 
 #[test]
 fn test_kts_build_script_parsing() {

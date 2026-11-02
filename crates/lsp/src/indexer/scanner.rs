@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use url::Url;
 
 use super::WorkspaceIndex;
-use super::types::FileSymbols;
 use super::walker::spawn_directory_walker;
 use crate::parser::KotlinParser;
 use crate::symbols::parse_file_symbols;
+use crate::syntax::symbol_item::FileSymbols;
 
 pub fn scan_directory(index: &mut WorkspaceIndex, root: &Path) {
     let start = std::time::Instant::now();

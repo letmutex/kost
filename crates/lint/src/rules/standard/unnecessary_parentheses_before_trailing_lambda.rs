@@ -39,13 +39,13 @@ fn find_call_arguments_and_trailing_lambda(
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        match crate::util::node_kind(child) {
+        match crate::registry::node_kind(child) {
             "value_arguments" => arguments = Some(child),
             "lambda_literal" | "annotated_lambda" => lambda = Some(child),
             "call_suffix" => {
                 let mut suffix_cursor = child.walk();
                 for suffix_child in child.children(&mut suffix_cursor) {
-                    match crate::util::node_kind(suffix_child) {
+                    match crate::registry::node_kind(suffix_child) {
                         "value_arguments" => arguments = Some(suffix_child),
                         "lambda_literal" | "annotated_lambda" => lambda = Some(suffix_child),
                         _ => {}
@@ -62,7 +62,7 @@ fn find_call_arguments_and_trailing_lambda(
 fn is_empty_value_arguments(arguments_node: tree_sitter::Node) -> bool {
     let mut cursor = arguments_node.walk();
     for child in arguments_node.children(&mut cursor) {
-        let kind = crate::util::node_kind(child);
+        let kind = crate::registry::node_kind(child);
         if kind == "(" || kind == ")" {
             continue;
         }
@@ -76,11 +76,11 @@ fn is_empty_value_arguments(arguments_node: tree_sitter::Node) -> bool {
 fn is_misparsed_function_declaration(ctx: &LintCtx, source: &[u8]) -> bool {
     let mut level = 1;
     while let Some(parent) = ctx.ancestor(level) {
-        let parent_kind = crate::util::node_kind(parent);
+        let parent_kind = crate::registry::node_kind(parent);
         if parent_kind == "infix_expression" {
             let mut cursor = parent.walk();
             for child in parent.children(&mut cursor) {
-                if crate::util::node_kind(child) == "simple_identifier"
+                if crate::registry::node_kind(child) == "simple_identifier"
                     && child.utf8_text(source) == Ok("fun")
                 {
                     return true;

@@ -1,7 +1,7 @@
 use tower_lsp::lsp_types::{Position, Url};
 use tree_sitter::Node;
 
-use super::call::CallInfo;
+use super::call_parser::CallInfo;
 use super::overload::score_overload_candidate_parsed;
 use super::types::KotlinType;
 use crate::indexer::{DeclarationItem, WorkspaceIndex};

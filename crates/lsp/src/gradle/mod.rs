@@ -13,9 +13,7 @@ pub mod pipeline;
 pub mod stages;
 pub mod summary;
 
-pub use resolver::{
-    build_script, catalog, coordinate as dependency, descriptor, discovery, graph, version,
-};
+pub use resolver::{catalog, coordinate as dependency, descriptor, discovery, graph, version};
 
 pub use config::GradleConfig;
 pub use pipeline::MultiStageIndexer;

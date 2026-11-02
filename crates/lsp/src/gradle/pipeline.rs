@@ -15,7 +15,7 @@ use crate::gradle::discovery::{
 use crate::gradle::stages::direct_deps::{DirectDepsResult, run_direct_deps_stage};
 use crate::gradle::stages::fast_path::{FastPathResult, run_fast_path_stage};
 use crate::gradle::stages::transitive::{TransitiveStageResult, run_transitive_stage};
-pub use crate::gradle::summary::IndexingSummary;
+use crate::gradle::summary::IndexingSummary;
 use crate::indexer::{FileSymbols, IndexSegment, SegmentKey, WorkspaceIndex};
 use crate::progress::ProgressReporter;
 
@@ -263,7 +263,7 @@ fn apply_fast_path_summary(
     if let Some(ref p) = fast_path.android_platform {
         summary.android_platform = Some(p.platform_name.clone());
         summary.android_sdk_jar = Some(p.android_jar.clone());
-        processed_archives.insert(crate::gradle::cache_resolver::normalize_archive_path(
+        processed_archives.insert(resolver::cache_resolver::normalize_archive_path(
             &p.android_jar,
         ));
     }

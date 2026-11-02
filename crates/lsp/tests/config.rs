@@ -6,9 +6,9 @@ use lsp::config::{
     IndexingLogLevel, InteractionLogLevel, ServerConfig, VariableHoverTypeInference,
 };
 use lsp::gradle::archive::ArchiveProcessingMetric;
-use lsp::gradle::cache_resolver::ResolvedArtifact;
 use lsp::gradle::dependency::DependencyCoordinate;
-use lsp::gradle::pipeline::IndexingSummary;
+use lsp::gradle::summary::IndexingSummary;
+use resolver::cache_resolver::ResolvedArtifact;
 
 #[test]
 fn test_default_server_config() {

@@ -7,11 +7,12 @@ use tower_lsp::lsp_types::Url;
 
 use super::{log_resolved_artifact, prepare_archive_paths};
 use crate::gradle::archive::{ArchiveIndexer, ArchiveProcessingMetric};
-use crate::gradle::cache_resolver::{GradleCacheResolver, ResolvedArtifact};
+use crate::gradle::cache_resolver::GradleCacheResolver;
 use crate::gradle::config::GradleConfig;
 use crate::gradle::dependency::DependencyCoordinate;
 use crate::gradle::graph::{DependencyGraph, TransitiveGraphResult};
 use crate::indexer::FileSymbols;
+use resolver::cache_resolver::ResolvedArtifact;
 
 pub struct TransitiveStageResult {
     pub graph_result: TransitiveGraphResult,

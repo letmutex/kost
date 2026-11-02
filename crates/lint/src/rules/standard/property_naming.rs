@@ -4,8 +4,9 @@ use super::helpers::{
     find_property_identifier, has_modifier_named, is_lower_camel_case, next_code_sibling,
 };
 use crate::context::LintCtx;
+use crate::registry::node_kind;
 use crate::rule::AstRule;
-use crate::util::{is_kotlin_keyword, node_kind};
+use crate::util::is_kotlin_keyword;
 
 /// Rule enforcing lowerCamelCase naming for properties and SCREAMING_SNAKE_CASE for constants.
 pub struct PropertyNaming;

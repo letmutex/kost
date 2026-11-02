@@ -1,7 +1,8 @@
 //! Full snippet formatting and rendering for lint diagnostics.
 
+use crate::diagnostic::Diagnostic;
 use crate::smart_lint::render_diagnostic;
-use crate::types::{Diagnostic, Severity};
+use crate::types::Severity;
 use common::color::{BOLD, DIM, RESET, YELLOW};
 use std::io::Write;
 

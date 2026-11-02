@@ -1,4 +1,3 @@
-pub use resolver::graph::resolve_offline_transitives;
 use resolver::graph::try_resolve_cached_transitives;
 
 use crate::cache::GradleCache;

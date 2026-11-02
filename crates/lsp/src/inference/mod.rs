@@ -49,27 +49,27 @@ pub mod variable;
 pub const MAX_INFERENCE_DEPTH: usize = 16;
 
 pub use call::{
-    CallInfo, parse_call_expression, solve_call_generic_return_type,
-    solve_call_generic_return_type_traced, unify_types,
+    solve_call_generic_return_type, solve_call_generic_return_type_traced, unify_types,
 };
+pub use call_parser::{CallInfo, parse_call_expression};
 pub use context::InferenceContext;
 pub use delegate::infer_delegated_property_type;
 pub use expression::{
     infer_expression_type, infer_node_type, infer_receiver_type, infer_receiver_type_depth,
-    qualify_type, resolve_full_type_name,
 };
 pub use function::infer_function_return_type;
 pub use generics::{extract_generic_type_params, solve_generic_return_type};
-pub use lambda::{
-    find_last_expression_in_lambda, infer_lambda_it_type, infer_lambda_param_type,
-    infer_lambda_return_type,
+pub use lambda::{infer_lambda_it_type, infer_lambda_param_type};
+pub use lambda_ast::{
+    collect_enclosing_lambdas, find_last_expression_in_lambda, lambda_has_explicit_params,
 };
-pub use lambda_ast::{collect_enclosing_lambdas, lambda_has_explicit_params};
 pub use lambda_call::{is_call_with_lambda, resolve_higher_order_call};
+pub use lambda_return::infer_lambda_return_type;
 pub use member::{
     resolve_member_type, resolve_member_type_depth, resolve_member_type_depth_traced,
     resolve_member_type_kt_depth_traced,
 };
+pub use qualification::{qualify_type, resolve_full_type_name};
 
 pub use model::PrimitiveType;
 pub use overload::{OverloadScore, score_overload_candidate, score_overload_candidate_parsed};

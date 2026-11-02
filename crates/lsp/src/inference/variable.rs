@@ -2,12 +2,13 @@ use tower_lsp::lsp_types::{Position, Url};
 use tree_sitter::Node;
 
 use super::context::InferenceContext;
-use super::expression::resolve_full_type_name;
+use super::qualification::resolve_full_type_name;
 use super::trace::Tracer;
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;
-use crate::parser::{extract_instantiated_type, extract_type_annotation, find_node_at_position};
-pub use crate::syntax::ast_util::{extract_initializer_expression, extract_initializer_node};
+use crate::parser::{extract_type_annotation, find_node_at_position};
+use crate::syntax::ast_extra::extract_instantiated_type;
+use crate::syntax::ast_util::{extract_initializer_expression, extract_initializer_node};
 
 /// Infer the type of a local variable or parameter at the given position
 pub fn infer_variable_type(

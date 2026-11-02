@@ -216,5 +216,3 @@ pub fn format_delimited_list_ext<'a>(
         list_doc
     }
 }
-
-pub use super::delimited_builder::DelimitedListBuilder;

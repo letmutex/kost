@@ -5,7 +5,7 @@ pub mod transitive;
 use std::path::Path;
 
 use crate::gradle::android_sdk::AndroidSdkPlatform;
-use crate::gradle::cache_resolver::ResolvedArtifact;
+use resolver::cache_resolver::ResolvedArtifact;
 
 pub fn prepare_archive_paths<'a>(
     artifacts: &'a [ResolvedArtifact],

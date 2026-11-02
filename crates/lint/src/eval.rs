@@ -1,8 +1,10 @@
 //! Evaluation of statistical lint rules against lexical scopes.
 
 use crate::context::{LintCtx, ScopeFrame, StackPropertyResolver};
+use crate::diagnostic::{Diagnostic, ReportTarget};
 use crate::extractor::populate_file_properties;
-use crate::types::{Diagnostic, PropertyKey, PropertyValue, ReportTarget, Scope, TextRange};
+use crate::property::PropertyKey;
+use crate::types::{PropertyValue, Scope, TextRange};
 use smallvec::SmallVec;
 
 pub fn init_file_scope(root_node: tree_sitter::Node, ctx: &mut LintCtx) {

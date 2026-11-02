@@ -163,7 +163,7 @@ fn infer_fast_lambda_return_type(
         _ => {}
     }
 
-    crate::inference::lambda::infer_lambda_return_type(
+    crate::inference::lambda_return::infer_lambda_return_type(
         index,
         current_url,
         lambda_node,

@@ -3,8 +3,6 @@ use tree_sitter::Node;
 use super::doc_link::render_kdoc_links;
 use crate::signature::is_modifier_line;
 
-pub use super::doc_link::render_kdoc_links as render_doc_links;
-
 /// Clean up KDoc markdown format and format tags
 pub fn clean_kdoc(raw: &str) -> String {
     let trimmed = raw.trim();

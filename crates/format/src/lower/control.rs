@@ -1,5 +1,6 @@
 use tree_sitter::Node;
 
+use super::control_utils::{is_braced_body, is_else_if_node};
 use crate::doc::Doc;
 use crate::lower::context::LowerContext;
 
@@ -328,8 +329,3 @@ pub fn lower_if_expression<'a>(
 
     Doc::group(Doc::concat(docs))
 }
-
-pub use super::control_utils::{
-    is_braced_body, is_else_if_node, lower_control_structure_body, lower_jump_expression,
-    lower_type_or_range_test,
-};

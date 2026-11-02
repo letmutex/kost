@@ -1,7 +1,8 @@
 use lsp::features::completion_context::extract_receiver_and_partial;
 use lsp::syntax::hierarchy::{extract_class_supertypes, extract_type_alias_target};
-use lsp::syntax::parser::{KotlinParser, extract_return_type_from_signature, parse_source};
+use lsp::syntax::parser::{KotlinParser, parse_source};
 use lsp::syntax::signature::extract_receiver_type_from_signature;
+use lsp::syntax::signature::extract_return_type_from_signature;
 use lsp::syntax::symbols::parse_file_symbols;
 
 #[test]

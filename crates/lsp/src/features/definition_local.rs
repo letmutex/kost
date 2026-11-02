@@ -2,7 +2,7 @@ use tower_lsp::lsp_types::{Location, Url};
 use tree_sitter::Node;
 
 use crate::position::node_to_range;
-pub use crate::syntax::scope::BindingRole;
+use crate::syntax::scope::BindingRole;
 use crate::syntax::symbol_item::find_identifier_node;
 
 fn is_file_or_class_member_declaration(node: &Node) -> bool {

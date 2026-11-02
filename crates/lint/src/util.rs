@@ -1,6 +1,5 @@
 //! Utility functions for AST inspection and linting.
 
-pub use crate::registry::{kotlin_kind_names, node_kind};
 use smol_str::SmolStr;
 
 /// Returns true if `kind` is a top-level or class-body declaration kind.

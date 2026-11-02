@@ -1,9 +1,10 @@
 use cli::PrintMode;
+use lint::Diagnostic;
 use lint::LintReport;
 use lint::smart_lint::{
     DisplayTier, render_diagnostic, render_smart_lint_reports, resolve_display_tier,
 };
-use lint::types::{Diagnostic, Severity, TextRange};
+use lint::types::{Severity, TextRange};
 use smol_str::SmolStr;
 
 fn make_diagnostic(rule_id: &str, severity: Severity, line: u32, message: &str) -> Diagnostic {

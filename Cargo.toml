@@ -89,6 +89,7 @@ ignore = { workspace = true }
 smol_str = { workspace = true }
 tower-lsp = { workspace = true }
 rayon = { workspace = true }
+resolver = { workspace = true }
 
 [lints]
 workspace = true

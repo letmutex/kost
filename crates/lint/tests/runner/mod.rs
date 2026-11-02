@@ -2,9 +2,9 @@
 
 use std::path::{Path, PathBuf};
 
+use lint::Diagnostic;
 use lint::config::ConfigLoader;
 use lint::registry::RuleRegistry;
-use lint::types::Diagnostic;
 use lint::walker::lint_source_with_path;
 
 const DEFAULT_RUNNER_YAML: &str = "lint:\n  imports:\n    - standard\n    - statistics\n";

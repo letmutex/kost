@@ -1,8 +1,8 @@
 use tower_lsp::lsp_types::Position;
 use tree_sitter::{Node, Parser, Point, Tree};
 
+use super::dedent::{find_base_indent, strip_comments_from_signature_with_base};
 use crate::position::position_to_point;
-use crate::signature::{find_base_indent, strip_comments_from_signature_with_base};
 
 pub struct KotlinParser {
     parser: Parser,
@@ -331,13 +331,3 @@ pub fn extract_type_annotation<'a>(node: &Node<'a>, source: &'a str) -> Option<&
     }
     None
 }
-
-pub use super::ast_extra::{
-    extract_extension_receiver, extract_instantiated_type, extract_single_expression_body,
-    strip_enclosing_parens,
-};
-
-pub use crate::signature::{
-    extract_functional_input_types, extract_param_type_by_index,
-    extract_return_type_from_signature, split_top_level_csv,
-};

@@ -36,7 +36,8 @@ use tree_sitter::Node;
 
 use crate::doc::Doc;
 use crate::engine::node_kind;
-use crate::lower::chain::{flatten_spine, format_chain_spine, is_spine_root};
+use crate::lower::chain::format_chain_spine;
+use crate::lower::chain_step::{flatten_spine, is_spine_root};
 pub use crate::lower::context::LowerContext;
 use crate::verbatim::lower_verbatim;
 
@@ -63,7 +64,7 @@ fn lower_declaration_node<'a>(
             params::lower_parameter(node, ctx, &lower_node)
         }
         "multi_variable_declaration" => {
-            property::lower_multi_variable_declaration(node, ctx, &lower_node)
+            destructuring::lower_multi_variable_declaration(node, ctx, &lower_node)
         }
         "destructuring_declaration" => {
             assignment::lower_destructuring_declaration(node, ctx, &lower_node)
@@ -114,7 +115,7 @@ fn lower_expression_node<'a>(
         "not_nullable_type" => types::lower_not_nullable_type(node, ctx, &lower_node),
         "lambda_literal" => lambda::lower_lambda_literal(node, ctx, &lower_node),
         "annotated_lambda" => lambda::lower_annotated_lambda(node, ctx, &lower_node),
-        "lambda_parameters" => lambda::lower_lambda_parameters(node, ctx, &lower_node).0,
+        "lambda_parameters" => lambda_params::lower_lambda_parameters(node, ctx, &lower_node).0,
         "if_expression" => control::lower_if_expression(node, ctx, &lower_node),
         "when_expression" => when_expr::lower_when_expression(node, ctx, &lower_node),
         "when_entry" => when_expr::lower_when_entry(node, ctx, &lower_node),
@@ -126,7 +127,7 @@ fn lower_expression_node<'a>(
         "for_statement" => loops::lower_for_statement(node, ctx, &lower_node),
         "while_statement" => loops::lower_while_statement(node, ctx, &lower_node),
         "do_while_statement" => loops::lower_do_while_statement(node, ctx, &lower_node),
-        "jump_expression" => control::lower_jump_expression(node, ctx, &lower_node),
+        "jump_expression" => control_utils::lower_jump_expression(node, ctx, &lower_node),
         "binary_expression"
         | "elvis_expression"
         | "infix_expression"
@@ -146,7 +147,9 @@ fn lower_expression_node<'a>(
         "value_argument" => params::lower_value_argument(node, ctx, &lower_node),
         "string_literal" | "multiline_string_literal" => strings::lower_string_literal(node, ctx),
         "annotated_expression" => unary::lower_prefix_expression(node, ctx, &lower_node),
-        "type_test" | "range_test" => control::lower_type_or_range_test(node, ctx, &lower_node),
+        "type_test" | "range_test" => {
+            control_utils::lower_type_or_range_test(node, ctx, &lower_node)
+        }
         "shebang_line" => Doc::text(ctx.node_text(&node)),
         "block" | "function_body" | "statements" | "control_structure_body" => {
             block::lower_block_node(node, ctx, &lower_node)

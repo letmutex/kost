@@ -2,9 +2,9 @@ use tower_lsp::lsp_types::{Location, Position, SymbolKind, Url};
 use tree_sitter::Node;
 
 use super::completion_context::extract_receiver_before_node;
-pub use super::definition_local::{BindingRole, find_local_binding, find_local_binding_node};
+use super::definition_local::find_local_binding;
 use super::definition_match::{find_global_or_imported_definition, pick_best_decl_with_overload};
-pub use super::definition_receiver::{
+use super::definition_receiver::{
     ReceiverMemberQuery, find_decl_in_package, find_receiver_member_definition,
 };
 use super::named_arg::find_named_argument_definition;
@@ -14,6 +14,7 @@ use crate::parser::{find_node_at_position, parse_source};
 use crate::syntax::ast_util::{
     extract_callable_reference_receiver, is_call_callee, is_callable_reference_target,
 };
+use crate::syntax::scope::BindingRole;
 use crate::syntax::symbol_item::{DeclarationItem, FileSymbols};
 
 #[derive(Debug, Clone, Copy, Default)]

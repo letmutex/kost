@@ -4,9 +4,10 @@ use tree_sitter::Node;
 use super::kotlin_meta::extract_kotlin_metadata;
 use super::kotlin_prop::extract_kotlin_properties;
 use super::kotlin_repo::extract_kotlin_repos_node;
+use super::string::resolve_kotlin_string;
 use super::util::{
     find_child_by_kind, is_dependency_configuration, node_text, resolve_kotlin_expr,
-    resolve_kotlin_string, unpack_kotlin_value_argument,
+    unpack_kotlin_value_argument,
 };
 use super::{BuildScriptInfo, ParseError, RepositoriesResult};
 use crate::catalog::VersionCatalog;

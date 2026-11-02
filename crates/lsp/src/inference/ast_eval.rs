@@ -4,9 +4,7 @@ use super::ast_binary::is_binary_kind;
 use super::ast_context::{find_enclosing_initializer_expected_type, infer_statement_or_control};
 use super::ast_control::{infer_control_flow, is_control_expression_kind};
 use super::ast_literal::infer_literal;
-pub use super::ast_match::{
-    find_matching_ast_node, find_root_expression_node, is_ast_evaluable_kind,
-};
+use super::ast_match::{find_matching_ast_node, find_root_expression_node, is_ast_evaluable_kind};
 use super::context::InferenceContext;
 use super::infix::infer_infix_node;
 use super::types::KotlinType;
@@ -241,7 +239,7 @@ fn infer_lambda_ast_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinT
     } else {
         (ctx.node_source, None)
     };
-    let body_ret = super::lambda::infer_lambda_return_type(
+    let body_ret = super::lambda_return::infer_lambda_return_type(
         ctx.index,
         ctx.current_url,
         node,

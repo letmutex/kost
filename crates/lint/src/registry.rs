@@ -1,7 +1,8 @@
 //! Rule registry managing active AST rules and statistical rules.
 
+use crate::property::PropertyKey;
 use crate::rule::{AstRule, StatRule};
-use crate::types::{PropertyKey, Scope, Severity};
+use crate::types::{Scope, Severity};
 use ahash::{AHashMap, AHashSet};
 use smallvec::SmallVec;
 use smol_str::SmolStr;
@@ -255,7 +256,7 @@ fn compile_kind_id_dispatch(
     ast_dispatch: &AHashMap<&'static str, SmallVec<[usize; 4]>>,
     ast_post_dispatch: &AHashMap<&'static str, SmallVec<[usize; 2]>>,
 ) -> KindIdDispatch {
-    let kind_names = crate::util::kotlin_kind_names();
+    let kind_names = kotlin_kind_names();
     let mut ast_dispatch_by_id = Vec::with_capacity(kind_names.len());
     let mut ast_post_dispatch_by_id = Vec::with_capacity(kind_names.len());
     for &kind_name in kind_names {
