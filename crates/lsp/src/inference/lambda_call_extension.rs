@@ -33,7 +33,7 @@ pub fn is_extension_container_plausible(
         return false;
     };
     let Some(ref container) = decl.container_name else {
-        return true;
+        return sig.contains('.');
     };
     let c_base = container
         .split(['<', '?'])
@@ -55,7 +55,7 @@ pub fn is_extension_container_plausible(
     {
         return true;
     }
-    if index.type_aliases.contains_key(c_short) {
+    if index.type_aliases.contains_key(c_short) || index.type_aliases.contains_key(rec_short) {
         return true;
     }
     rec_supertypes.iter().any(|s| {

@@ -170,33 +170,35 @@ fn resolve_container_decl_from_source(
             decl,
             ctx.source,
             ctx.depth + 1,
-        ) {
+        )
+        .or_else(|| {
+            super::delegate::resolve_property_delegate_from_source(
+                ctx.index, url, decl, ctx.source, ctx.depth,
+            )
+        }) {
             return Some(inferred);
         }
-        return super::delegate::resolve_property_delegate_from_source(
-            ctx.index, url, decl, ctx.source, ctx.depth,
-        );
     }
     if url.as_str().starts_with("jar:") {
         return None;
     }
     let decl_source = ctx.index.get_file_source(url)?;
-    if let Some(inferred) = super::function::infer_single_expression_function_return_type(
+    super::function::infer_single_expression_function_return_type(
         ctx.index,
         url,
         decl,
         &decl_source,
         ctx.depth + 1,
-    ) {
-        return Some(inferred);
-    }
-    super::delegate::resolve_property_delegate_from_source(
-        ctx.index,
-        url,
-        decl,
-        &decl_source,
-        ctx.depth,
     )
+    .or_else(|| {
+        super::delegate::resolve_property_delegate_from_source(
+            ctx.index,
+            url,
+            decl,
+            &decl_source,
+            ctx.depth,
+        )
+    })
 }
 
 fn is_decl_applicable(

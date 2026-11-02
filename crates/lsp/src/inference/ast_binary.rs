@@ -60,8 +60,14 @@ pub fn infer_binary_operator(
 fn infer_range_operator(ctx: &mut AstEvalContext, left_node: Node, right_node: Node) -> KotlinType {
     let left_ty = infer_expression_node(&mut ctx.sub(), left_node);
     let right_ty = infer_expression_node(&mut ctx.sub(), right_node);
-    let left_base = left_ty.as_ref().map(|t| t.base_name()).unwrap_or("");
-    let right_base = right_ty.as_ref().map(|t| t.base_name()).unwrap_or("");
+    let left_base = left_ty
+        .as_ref()
+        .and_then(|t| t.base_name().rsplit('.').next())
+        .unwrap_or("");
+    let right_base = right_ty
+        .as_ref()
+        .and_then(|t| t.base_name().rsplit('.').next())
+        .unwrap_or("");
 
     if left_base == "Long" || right_base == "Long" {
         KotlinType::simple_class("LongRange")

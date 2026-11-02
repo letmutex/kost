@@ -300,6 +300,25 @@ fn matches_import(import: &ImportItem, decl_pkg: Option<&str>, decl: &Declaratio
     false
 }
 
+pub fn is_container_member_imported(
+    index: &WorkspaceIndex,
+    current_url: &Url,
+    short_container: &str,
+    member_name: &str,
+) -> bool {
+    let Some(file) = index.files.get(current_url) else {
+        return false;
+    };
+    file.imports.iter().any(|imp| {
+        let path = imp.path.trim_end_matches(".*");
+        if imp.is_star {
+            path == short_container || path.ends_with(&common::concat_str!(".", short_container))
+        } else {
+            path.ends_with(&common::concat_str!(short_container, ".", member_name))
+        }
+    })
+}
+
 pub fn match_qualified_class(
     index: &WorkspaceIndex,
     clean: &str,

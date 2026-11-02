@@ -9,7 +9,7 @@ use super::constructor::find_constructor_return_type;
 use super::context::InferenceContext;
 use super::expression::infer_receiver_type_depth;
 use super::overload::{TypedCandidate, score_typed_candidate};
-use super::qualification::{is_declaration_visible, qualify_type};
+use super::qualification::{is_container_member_imported, is_declaration_visible, qualify_type};
 use super::scope_function::collect_visible_containers_url_depth;
 use super::signature::SignatureInfo;
 use super::trace::Tracer;
@@ -91,6 +91,10 @@ fn is_callable_top_level_or_in_scope(
     let Some(ref container) = decl.container_name else {
         return true;
     };
+    let short_container = container.rsplit('.').next().unwrap_or(container.as_str());
+    if is_container_member_imported(ctx.index, ctx.current_url, short_container, &decl.name) {
+        return true;
+    }
     let containers = visible_containers.get_or_insert_with(|| {
         collect_visible_containers_url_depth(
             ctx.index,
@@ -101,7 +105,6 @@ fn is_callable_top_level_or_in_scope(
             ctx.depth,
         )
     });
-    let short_container = container.rsplit('.').next().unwrap_or(container.as_str());
     containers.contains(container.as_str()) || containers.contains(short_container)
 }
 
@@ -157,20 +160,15 @@ fn find_top_level_function_return_type(
         .iter()
         .map(|arg| parse_call_arg(arg))
         .collect();
-    let inferred_arg_types: Vec<Option<KotlinType>> = parsed_args
-        .iter()
-        .map(|parsed| {
-            infer_receiver_type_depth(
-                ctx.index,
-                ctx.current_url,
-                &parsed.expr,
-                ctx.pos,
-                ctx.source,
-                ctx.root,
-                ctx.depth + 1,
-            )
-        })
-        .collect();
+    let inferred_arg_types = super::member_ranking::infer_call_argument_types(
+        ctx.index,
+        ctx.current_url,
+        call_info,
+        ctx.pos,
+        ctx.source,
+        ctx.root,
+        ctx.depth,
+    );
 
     for idx in rank_top_level_candidates(&candidates, &parsed_args, &inferred_arg_types, ctx.index)
     {
@@ -203,25 +201,23 @@ fn find_definition_function_return_type(
         let current_url = ctx.current_url.clone();
         return resolve_candidate_decl_return_type(ctx, &current_url, decl, None, call_info, None);
     }
-    for imp in &cf.imports {
-        if imp.alias.as_deref() == Some(fn_name) {
-            let real_name = imp.path.rsplit('.').next().unwrap_or(fn_name);
-            if let Some(decls) = ctx.index.name_to_decls.get(real_name) {
-                for (url, decl) in decls {
-                    if matches!(decl.kind, SymbolKind::FUNCTION | SymbolKind::METHOD)
-                        && let Some(inferred) = resolve_candidate_decl_return_type(
-                            ctx.sub(),
-                            url.as_ref(),
-                            decl.as_ref(),
-                            None,
-                            call_info,
-                            None,
-                        )
-                    {
-                        return Some(inferred);
-                    }
-                }
-            }
+    let imp = cf
+        .imports
+        .iter()
+        .find(|i| i.alias.as_deref() == Some(fn_name))?;
+    let real_name = imp.path.rsplit('.').next().unwrap_or(fn_name);
+    for (url, decl) in ctx.index.name_to_decls.get(real_name)? {
+        if matches!(decl.kind, SymbolKind::FUNCTION | SymbolKind::METHOD)
+            && let Some(inferred) = resolve_candidate_decl_return_type(
+                ctx.sub(),
+                url.as_ref(),
+                decl.as_ref(),
+                None,
+                call_info,
+                None,
+            )
+        {
+            return Some(inferred);
         }
     }
     None
@@ -235,14 +231,11 @@ fn resolve_candidate_decl_return_type(
     call_info: &CallInfo,
     inferred_arg_types: Option<&[Option<KotlinType>]>,
 ) -> Option<KotlinType> {
-    let owned_sig;
-    let sig_info = match preparsed_sig {
-        Some(info) => Some(info),
-        None => {
-            owned_sig = SignatureInfo::from_decl(decl);
-            owned_sig.as_ref()
-        }
-    };
+    let owned_sig = preparsed_sig
+        .is_none()
+        .then(|| SignatureInfo::from_decl(decl))
+        .flatten();
+    let sig_info = preparsed_sig.or(owned_sig.as_ref());
 
     if let Some(sig) = decl.signature.as_deref()
         && let Some(ret) = sig_info
@@ -262,28 +255,32 @@ fn resolve_candidate_decl_return_type(
         return Some(qualify_type(index, decl_url, &solved));
     }
 
-    let single_expr = if decl_url == ctx.current_url {
-        infer_single_expression_with_root(
-            ctx.index,
-            decl_url,
-            decl,
-            ctx.source,
-            ctx.root,
-            ctx.depth + 1,
-        )
-    } else if !decl_url.as_str().starts_with("jar:") {
-        ctx.index.get_file_source(decl_url).and_then(|src| {
-            infer_single_expression_function_return_type(
+    let in_memory = (decl_url == ctx.current_url)
+        .then(|| {
+            infer_single_expression_with_root(
                 ctx.index,
                 decl_url,
                 decl,
-                &src,
+                ctx.source,
+                ctx.root,
                 ctx.depth + 1,
             )
         })
-    } else {
-        None
-    };
+        .flatten();
+    let single_expr = in_memory.or_else(|| {
+        (!decl_url.as_str().starts_with("jar:"))
+            .then(|| ctx.index.get_file_source(decl_url))
+            .flatten()
+            .and_then(|src| {
+                infer_single_expression_function_return_type(
+                    ctx.index,
+                    decl_url,
+                    decl,
+                    &src,
+                    ctx.depth + 1,
+                )
+            })
+    });
     single_expr.or_else(|| (decl.kind == SymbolKind::FUNCTION).then_some(KotlinType::UNIT))
 }
 
@@ -303,13 +300,12 @@ fn infer_single_expression_with_root(
     let id_node = find_node_at_position(root_node, decl.selection_range.start)?;
     let fn_node = find_enclosing_declaration_node(id_node);
 
-    let rhs_node = extract_initializer_node(&fn_node).or_else(|| {
+    if let Some(expr_node) = extract_initializer_node(&fn_node).or_else(|| {
         fn_node
             .children(&mut fn_node.walk())
             .find(|c| c.kind() == "function_body")
             .and_then(|body| extract_initializer_node(&body))
-    });
-    if let Some(expr_node) = rhs_node {
+    }) {
         let mut tracer = Tracer::Noop;
         let inf_ctx = InferenceContext::new(
             index,
@@ -320,8 +316,9 @@ fn infer_single_expression_with_root(
             depth + 1,
             &mut tracer,
         );
-        let mut eval_ctx = AstEvalContext::from_ctx(inf_ctx);
-        if let Some(inferred) = infer_expression_node(&mut eval_ctx, expr_node) {
+        if let Some(inferred) =
+            infer_expression_node(&mut AstEvalContext::from_ctx(inf_ctx), expr_node)
+        {
             return Some(inferred);
         }
     }

@@ -11,26 +11,71 @@ use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;
 use crate::parser::parse_source;
 
-fn find_first_builder_call<'a>(node: Node<'a>, source: &'a str) -> Option<(&'a str, Node<'a>)> {
+fn find_matching_builder_call<'a, 'd>(
+    node: Node<'a>,
+    source: &'a str,
+    decls: &'d [crate::indexer::DeclarationRef],
+) -> Option<(&'d crate::indexer::DeclarationItem, Node<'a>)> {
     if node.kind() == "call_expression"
         && let Some(view) = crate::syntax::ast_call_view::AstCallView::from_node(node)
         && view.value_arguments.len() == 1
         && let Some(callee) = view.callee_text(source)
         && !callee.contains('.')
+        && let Some((_, decl)) = decls.iter().find(|(_, d)| d.name == callee)
         && let Some(arg_expr) =
             crate::syntax::ast_call_view::AstCallView::argument_expression(view.value_arguments[0])
     {
-        return Some((callee, arg_expr));
+        return Some((decl.as_ref(), arg_expr));
     }
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
         if child.kind() != "lambda_literal"
-            && let Some(found) = find_first_builder_call(child, source)
+            && let Some(found) = find_matching_builder_call(child, source, decls)
         {
             return Some(found);
         }
     }
     None
+}
+
+fn solve_builder_method_receiver(
+    index: &WorkspaceIndex,
+    rec_ty: &KotlinType,
+    container_base: &str,
+    method_decl: &crate::indexer::DeclarationItem,
+    arg_ty: KotlinType,
+) -> Option<KotlinType> {
+    let rec_args = rec_ty.type_arguments();
+    if let Some(sig_info) = SignatureInfo::from_decl(method_decl)
+        && let Some(param) = sig_info.params.first()
+    {
+        let mut type_params: Vec<_> = rec_args
+            .iter()
+            .filter_map(|a| match &a.type_ref {
+                KotlinType::TypeParam(tp) => Some(tp.clone()),
+                KotlinType::Class { name, args } if args.is_empty() => Some(name.clone()),
+                _ => None,
+            })
+            .collect();
+        for tp in &sig_info.type_params {
+            if !type_params.contains(&tp.name) {
+                type_params.push(tp.name.clone());
+            }
+        }
+        let mut system = ConstraintSystem::new(index, type_params);
+        let expected_param = system
+            .parse_with_params(&param.type_name)
+            .or_else(|| param.kotlin_type.clone())?;
+        if !system.add_subtype_constraint(&arg_ty, &expected_param) {
+            return None;
+        }
+        Some(system.solve_and_substitute(rec_ty))
+    } else {
+        Some(KotlinType::class(
+            container_base,
+            vec![super::types::TypeArg::invariant(arg_ty)],
+        ))
+    }
 }
 
 pub fn infer_builder_lambda_receiver(
@@ -53,7 +98,6 @@ pub fn infer_builder_lambda_receiver(
         .or_else(|| parsed_tree.as_ref().map(|t| t.root_node()))?;
     let lambda_text = lambda_node.utf8_text(call_expr.as_bytes()).ok()?;
     let matched_lambda = find_matching_lambda_in_ast(outer_root, ctx.source, lambda_text, ctx.pos)?;
-    let (method_name, arg_node) = find_first_builder_call(matched_lambda, ctx.source)?;
 
     let container_base = rec_ty.base_name();
     let short_container = container_base.rsplit('.').next().unwrap_or(container_base);
@@ -62,9 +106,7 @@ pub fn infer_builder_lambda_receiver(
         .container_to_decls
         .get(container_base)
         .or_else(|| ctx.index.container_to_decls.get(short_container))?;
-    if !decls.iter().any(|(_, d)| d.name == method_name) {
-        return None;
-    }
+    let (method_decl, arg_node) = find_matching_builder_call(matched_lambda, ctx.source, decls)?;
 
     let arg_pos = crate::position::point_to_position(arg_node.start_position());
     let mut tracer = super::trace::Tracer::Noop;
@@ -79,11 +121,8 @@ pub fn infer_builder_lambda_receiver(
     );
     let mut eval_ctx = super::ast_eval::AstEvalContext::from_ctx(inf_ctx);
     let arg_ty = super::ast_eval::infer_expression_node(&mut eval_ctx, arg_node)?;
-
-    let instantiated_rec = KotlinType::class(
-        container_base,
-        vec![super::types::TypeArg::invariant(arg_ty)],
-    );
+    let instantiated_rec =
+        solve_builder_method_receiver(ctx.index, rec_ty, container_base, method_decl, arg_ty)?;
     Some(KotlinType::function(
         Some(instantiated_rec),
         Vec::new(),
