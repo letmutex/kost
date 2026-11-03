@@ -70,6 +70,13 @@ kost fmt androidApp/ # Specify folders or files
 }
 ```
 
+**Gradle Dependency Fetching**
+
+```bash
+kost dep fetch # Fetch all resolved dependencies in project
+kost dep fetch androidx.compose.ui:ui:1.10.0 # Fetch specific
+```
+
 ## Documentations
 
 [Language Server](docs/language-server.md)
@@ -77,6 +84,8 @@ kost fmt androidApp/ # Specify folders or files
 [Lint](docs/lint/basic.md)
 
 [Format](docs/format/basic.md)
+
+[Dependency Fetching](docs/dependency-fetching.md)
 
 ## Acknowledgements
 
