@@ -14,6 +14,7 @@ static LINT_RULES: LintRules = LintRules {
 fn main() {
     println!("cargo:rerun-if-changed=src");
     println!("cargo:rerun-if-changed=crates");
+    println!("cargo:rerun-if-changed=integrations/lsp/src");
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=build_lint.rs");
     println!("cargo:rerun-if-changed=build_source_masker.rs");
@@ -29,6 +30,10 @@ fn main() {
     collect_rs_files(&root.join("src"), &mut files);
     collect_rs_files(&root.join("crates"), &mut files);
     collect_rs_files(&root.join("benches"), &mut files);
+    collect_rs_files(
+        &root.join("integrations").join("lsp").join("src"),
+        &mut files,
+    );
 
     let mut violations = Vec::new();
     for file in &files {

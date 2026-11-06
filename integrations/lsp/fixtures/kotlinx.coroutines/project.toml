@@ -1,0 +1,6 @@
+name = "kotlinx.coroutines"
+description = "Kotlin Coroutines library"
+path = "benches/kotlinx.coroutines"
+
+[indexing]
+index_dependencies = true

@@ -1,0 +1,19 @@
+[[tests]]
+name = "job_property_hover"
+file = "kotlinx-coroutines-core/common/test/JobExtensionsTest.kt"
+symbol = "job"
+position = { line = 8, col = 16 }
+contains = [
+    "job",
+    "Job"
+]
+
+[[tests]]
+name = "scope_property_hover"
+file = "kotlinx-coroutines-core/common/test/JobExtensionsTest.kt"
+symbol = "scope"
+position = { line = 9, col = 16 }
+contains = [
+    "scope",
+    "CoroutineScope"
+]

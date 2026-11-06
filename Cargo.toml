@@ -23,6 +23,7 @@ members = [
     "crates/common",
     "crates/dep",
     "crates/resolver",
+    "integrations/lsp",
 ]
 exclude = [
     "vendor/tree-sitter-kotlin",
@@ -63,6 +64,7 @@ reqwest = { version = "0.12", default-features = false, features = ["rustls-tls"
 quick-xml = "0.37"
 sha1_smol = "1.0"
 bytes = "1"
+toml = "0.8"
 
 [workspace.lints.clippy]
 wildcard_imports = "deny"

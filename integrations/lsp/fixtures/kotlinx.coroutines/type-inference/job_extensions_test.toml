@@ -1,0 +1,20 @@
+[[tests]]
+name = "job_constructor_variable_type_infer"
+file = "kotlinx-coroutines-core/common/test/JobExtensionsTest.kt"
+variable = "job"
+position = { line = 8, col = 16 }
+expected_type = "CompletableJob"
+
+[[tests]]
+name = "scope_builder_variable_type_infer"
+file = "kotlinx-coroutines-core/common/test/JobExtensionsTest.kt"
+variable = "scope"
+position = { line = 9, col = 16 }
+expected_type = "CoroutineScope"
+
+[[tests]]
+name = "elvis_fail_exception_variable_type_infer"
+file = "kotlinx-coroutines-core/common/test/JobExtensionsTest.kt"
+variable = "exception"
+position = { line = 77, col = 12 }
+expected_type = "Any"
