@@ -837,6 +837,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "lsp-integration-tests"
+version = "0.2.0"
+dependencies = [
+ "ahash",
+ "common",
+ "lsp",
+ "resolver",
+ "serde",
+ "toml",
+ "tower-lsp",
+]
+
+[[package]]
 name = "lsp-types"
 version = "0.94.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

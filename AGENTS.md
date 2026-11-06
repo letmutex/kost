@@ -6,7 +6,7 @@
 - Don't waste tokens to read `build_lint.rs`; custom lint rules are in `build.rs`
 - Don't waste tokens on writing scripts to check file lines if you just want to check violations; cargo check will do its job
 - For bug handling, write tests to fail before updating the source, when possible
-- Use `concat_str!` or `concat_smol_str!` instead of `format!` for string concatenation when possible
+- In binary code, use `concat_str!` or `concat_smol_str!` instead of `format!` for string concatenation when possible
 - AST first matching for features and fixes; skipping tree sitter to use string scanning or string matching requires a strong, unavoidable reason
 - Converting typed nodes to strings for string matching is directly considered harmful. Requires explicit approval if it's unavoidable
 - Avoid hardcoding built-in types as strings, even for `Any` and `Unit`
