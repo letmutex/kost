@@ -1,0 +1,6 @@
+[[tests]]
+name = "with_context_chain_return"
+file = "kotlinx-coroutines-core/common/test/WithContextTest.kt"
+variable = "result"
+position = { line = 46, col = 12 }
+expected_type = "String"

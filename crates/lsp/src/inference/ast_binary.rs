@@ -1,9 +1,90 @@
 use tower_lsp::lsp_types::Url;
 use tree_sitter::Node;
 
+use super::ast_call::find_member_access_operator;
 use super::ast_eval::{AstEvalContext, infer_expression_node};
+use super::model::PrimitiveType;
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;
+
+fn try_infer_misparsed_generic_call(
+    ctx: &mut AstEvalContext,
+    node: Node,
+    left_node: Node,
+) -> Option<KotlinType> {
+    let node_text = ctx.node_text(node)?;
+    if !node_text.contains('<') || (!node_text.ends_with(')') && !node_text.ends_with('}')) {
+        return None;
+    }
+    let call_info = super::call_parser::parse_call_expression(node_text);
+    if call_info.explicit_type_args.is_empty()
+        || !call_info
+            .explicit_type_args
+            .iter()
+            .all(|arg| super::types::parse_type_signature(arg).is_some())
+    {
+        return None;
+    }
+
+    let mut first_lhs = left_node;
+    while first_lhs.kind() == "comparison_expression" {
+        if let Some(child) = first_lhs.named_child(0) {
+            first_lhs = child;
+        } else {
+            break;
+        }
+    }
+
+    let call_pos = crate::position::point_to_position(first_lhs.start_position());
+    if first_lhs.kind() == "navigation_expression" {
+        let lhs_node = first_lhs.named_child(0)?;
+        let suffix_node = first_lhs
+            .children(&mut first_lhs.walk())
+            .find(|child| child.kind() == "navigation_suffix")?;
+        let (op_node, op_text) = find_member_access_operator(suffix_node, ctx.node_source)?;
+        if op_text == "::" {
+            return None;
+        }
+        let is_safe = op_text == "?.";
+        let mut sub_ctx = ctx.sub();
+        let lhs_ty = infer_expression_node(&mut sub_ctx, lhs_node)?;
+        let member_expr = ctx
+            .node_source
+            .get(op_node.end_byte()..node.end_byte())?
+            .trim();
+        let is_lhs_nullable = lhs_ty.is_nullable();
+        let non_null_lhs = lhs_ty.make_non_null();
+        let mut resolved = super::member::resolve_member_type_kt_depth_traced(
+            ctx.sub_with_pos(call_pos),
+            &non_null_lhs,
+            member_expr,
+        )?;
+        if is_safe || is_lhs_nullable {
+            resolved = resolved.make_nullable();
+        }
+        Some(resolved)
+    } else if first_lhs.kind() == "simple_identifier" {
+        if super::lambda_call::is_call_with_lambda(node_text) {
+            super::lambda_call::resolve_higher_order_call(
+                ctx.ctx.reborrow().at_pos(call_pos),
+                None,
+                node_text,
+            )
+        } else {
+            super::function::find_function_return_type_depth(
+                ctx.index,
+                ctx.current_url,
+                node_text,
+                call_pos,
+                ctx.source,
+                ctx.root,
+                ctx.depth,
+            )
+        }
+    } else {
+        None
+    }
+}
 
 pub fn infer_binary_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinType> {
     let mut cursor = node.walk();
@@ -18,6 +99,11 @@ pub fn infer_binary_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinT
     let op_node = non_comment[1];
     let right_node = non_comment[2];
     let op = ctx.node_text(op_node)?;
+    if matches!(op, "<" | ">")
+        && let Some(call_ty) = try_infer_misparsed_generic_call(ctx, node, left_node)
+    {
+        return Some(call_ty);
+    }
     infer_binary_operator(ctx, left_node, op, right_node)
 }
 
@@ -60,6 +146,24 @@ pub fn infer_binary_operator(
 fn infer_range_operator(ctx: &mut AstEvalContext, left_node: Node, right_node: Node) -> KotlinType {
     let left_ty = infer_expression_node(&mut ctx.sub(), left_node);
     let right_ty = infer_expression_node(&mut ctx.sub(), right_node);
+    if matches!(
+        left_ty.as_ref().map(KotlinType::unwrap_nullable_ref),
+        Some(KotlinType::Primitive(PrimitiveType::Long))
+    ) || matches!(
+        right_ty.as_ref().map(KotlinType::unwrap_nullable_ref),
+        Some(KotlinType::Primitive(PrimitiveType::Long))
+    ) {
+        return KotlinType::simple_class("LongRange");
+    }
+    if matches!(
+        left_ty.as_ref().map(KotlinType::unwrap_nullable_ref),
+        Some(KotlinType::Primitive(PrimitiveType::Char))
+    ) || matches!(
+        right_ty.as_ref().map(KotlinType::unwrap_nullable_ref),
+        Some(KotlinType::Primitive(PrimitiveType::Char))
+    ) {
+        return KotlinType::simple_class("CharRange");
+    }
     let left_base = left_ty
         .as_ref()
         .and_then(|t| t.base_name().rsplit('.').next())
@@ -69,11 +173,7 @@ fn infer_range_operator(ctx: &mut AstEvalContext, left_node: Node, right_node: N
         .and_then(|t| t.base_name().rsplit('.').next())
         .unwrap_or("");
 
-    if left_base == "Long" || right_base == "Long" {
-        KotlinType::simple_class("LongRange")
-    } else if left_base == "Char" || right_base == "Char" {
-        KotlinType::simple_class("CharRange")
-    } else if left_base == "ULong" || right_base == "ULong" {
+    if left_base == "ULong" || right_base == "ULong" {
         KotlinType::simple_class("ULongRange")
     } else if left_base == "UInt" || right_base == "UInt" {
         KotlinType::simple_class("UIntRange")
@@ -125,12 +225,15 @@ fn infer_arithmetic_operator(
         return Some(res);
     }
 
-    let left_base = left_ty.base_name();
-    if op == "+" && left_base == "String" {
+    let left_unwrapped = left_ty.unwrap_nullable_ref();
+    if op == "+" && left_unwrapped == &KotlinType::STRING {
         return Some(KotlinType::STRING);
     }
 
-    if (left_base == "Int" || left_base == "Long") && matches!(right_node.kind(), "integer_literal")
+    if matches!(
+        left_unwrapped,
+        KotlinType::Primitive(PrimitiveType::Int | PrimitiveType::Long)
+    ) && matches!(right_node.kind(), "integer_literal")
     {
         Some(KotlinType::INT)
     } else {
@@ -166,32 +269,18 @@ fn infer_builtin_primitive_arithmetic(
     right_ty: Option<&KotlinType>,
 ) -> Option<KotlinType> {
     let right = right_ty?;
-    if op == "+" && (left_ty.base_name() == "String" || right.base_name() == "String") {
+    let left_unwrapped = left_ty.unwrap_nullable_ref();
+    let right_unwrapped = right.unwrap_nullable_ref();
+    if op == "+"
+        && (left_unwrapped == &KotlinType::STRING || right_unwrapped == &KotlinType::STRING)
+    {
         return Some(KotlinType::STRING);
     }
 
-    let l_rank = numeric_rank(left_ty.base_name())?;
-    let r_rank = numeric_rank(right.base_name())?;
-    let max_rank = l_rank.max(r_rank);
-
-    let res = match max_rank {
-        4 => KotlinType::DOUBLE,
-        3 => KotlinType::FLOAT,
-        2 => KotlinType::LONG,
-        _ => KotlinType::INT,
-    };
-    Some(res)
-}
-
-fn numeric_rank(type_name: &str) -> Option<u8> {
-    match type_name {
-        "Byte" | "Short" => Some(0),
-        "Int" => Some(1),
-        "Long" => Some(2),
-        "Float" => Some(3),
-        "Double" => Some(4),
-        _ => None,
-    }
+    let left_prim = PrimitiveType::from_name(left_ty.base_name())?;
+    let right_prim = PrimitiveType::from_name(right.base_name())?;
+    let widened = super::unify::numeric_widening(left_prim, right_prim)?;
+    Some(KotlinType::Primitive(widened))
 }
 
 pub fn is_binary_kind(kind: &str) -> bool {

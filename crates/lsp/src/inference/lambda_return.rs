@@ -1,11 +1,111 @@
 use tower_lsp::lsp_types::{Position, Url};
 use tree_sitter::Node;
 
+use super::context::InferenceContext;
 use super::expression::infer_receiver_type_depth;
 use super::lambda_ast::find_last_expression_in_lambda;
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;
+use crate::parser::parse_source;
 use crate::syntax::ast_call_view::AstCallView;
+
+pub fn find_call_node(node: Node) -> Option<Node> {
+    if node.kind() == "call_expression" {
+        return Some(node);
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if let Some(call_expr) = find_call_node(child) {
+            return Some(call_expr);
+        }
+    }
+    None
+}
+
+pub fn find_call_with_lambda<'a>(node: Node<'a>) -> Option<(Node<'a>, Node<'a>, usize)> {
+    if node.kind() == "call_expression"
+        && let Some(view) = AstCallView::from_node(node)
+    {
+        if let Some(trailing) = view.trailing_lambda {
+            let lambda = AstCallView::unwrap_lambda(trailing).unwrap_or(trailing);
+            return Some((node, lambda, view.value_arguments.len()));
+        }
+        for (idx, arg) in view.value_arguments.iter().enumerate() {
+            if let Some(arg_expr) = AstCallView::argument_expression(*arg)
+                && let Some(lambda) = AstCallView::unwrap_lambda(arg_expr)
+            {
+                return Some((node, lambda, idx));
+            }
+        }
+    }
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if let Some(found) = find_call_with_lambda(child) {
+            return Some(found);
+        }
+    }
+    None
+}
+
+pub fn extract_callee_from_ast<'a>(call_node: Node<'a>, source: &'a str) -> Option<&'a str> {
+    let view = AstCallView::from_node(call_node)?;
+    let callee_node = view.callee_node?;
+    if callee_node.kind() == "navigation_expression" {
+        let suffix = callee_node
+            .children(&mut callee_node.walk())
+            .find(|child| child.kind() == "navigation_suffix")?;
+        let ident = suffix
+            .children(&mut suffix.walk())
+            .find(|child| child.kind() == "simple_identifier")?;
+        ident.utf8_text(source.as_bytes()).ok().map(str::trim)
+    } else if callee_node.kind() == "simple_identifier" {
+        callee_node.utf8_text(source.as_bytes()).ok().map(str::trim)
+    } else {
+        view.callee_text(source)
+    }
+}
+
+pub fn infer_call_lambda_return_type(
+    ctx: InferenceContext<'_, '_, '_>,
+    lambda_node: Node,
+    call_expr: &str,
+    call_root: Node,
+    expected_fn: Option<&KotlinType>,
+) -> Option<KotlinType> {
+    let parsed_tree = ctx
+        .root
+        .is_none()
+        .then(|| parse_source(ctx.source))
+        .flatten();
+    let outer_tree = ctx
+        .root
+        .or_else(|| parsed_tree.as_ref().map(|t| t.root_node()));
+    let lambda_text = lambda_node.utf8_text(call_expr.as_bytes()).ok();
+
+    if let Some(ot) = outer_tree
+        && let Some(text) = lambda_text
+        && let Some(matched_node) = find_matching_lambda_in_ast(ot, ctx.source, text, ctx.pos)
+    {
+        return infer_lambda_return_type_expected(
+            ctx.index,
+            ctx.current_url,
+            matched_node,
+            ctx.source,
+            Some(ot),
+            ctx.depth + 1,
+            expected_fn,
+        );
+    }
+    infer_lambda_return_type_expected(
+        ctx.index,
+        ctx.current_url,
+        lambda_node,
+        call_expr,
+        Some(call_root),
+        ctx.depth + 1,
+        expected_fn,
+    )
+}
 
 fn match_lambda_node<'a>(node: Node<'a>, source: &'a str, lambda_text: &str) -> Option<Node<'a>> {
     let lambda_literal = AstCallView::unwrap_lambda(node)?;
@@ -197,8 +297,6 @@ pub fn infer_lambda_return_type_expected(
         if let Some(inferred) = super::ast_eval::infer_expression_node(&mut ctx, expr_node) {
             return Some(inferred);
         }
-        // If AST evaluation fails on the actual node within root, do not fall back to
-        // isolated snippet re-parsing which can trigger expensive whole-tree lambda searches.
         return None;
     }
 

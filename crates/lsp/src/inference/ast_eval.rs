@@ -173,6 +173,7 @@ pub fn infer_expression_node(ctx: &mut AstEvalContext, node: Node) -> Option<Kot
             super::ast_binary::infer_as_cast(ctx.index, ctx.current_url, node, ctx.node_source)
         }
         "simple_identifier" => infer_identifier(ctx, node),
+        "callable_reference" => super::ast_call::infer_callable_reference_node(ctx, node),
         "this_expression" | "super_expression" => infer_this_or_super(ctx, node),
         "lambda_literal" => infer_lambda_ast_node(ctx, node),
         "infix_expression" => infer_infix_node(ctx, node),

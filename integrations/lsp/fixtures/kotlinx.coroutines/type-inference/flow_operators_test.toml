@@ -1,0 +1,62 @@
+[[tests]]
+name = "flow_terminal_operator_chain_sum"
+file = "kotlinx-coroutines-core/common/test/flow/operators/FilterTest.kt"
+variable = "sum"
+position = { line = 18, col = 12 }
+expected_type = "Int"
+
+[[tests]]
+name = "flow_combine_callable_reference_flow"
+file = "kotlinx-coroutines-core/common/test/flow/operators/CombineTest.kt"
+variable = "flow"
+position = { line = 39, col = 12 }
+expected_type = "kotlinx.coroutines.flow.Flow<String>"
+
+[[tests]]
+name = "flow_terminal_first_predicate_result"
+file = "kotlinx-coroutines-core/common/test/flow/terminal/FirstTest.kt"
+variable = "result"
+position = { line = 48, col = 12 }
+expected_type = "Int"
+
+[[tests]]
+name = "flow_map_throw_expression_type"
+file = "kotlinx-coroutines-core/common/test/flow/operators/CatchTest.kt"
+variable = "flow"
+position = { line = 22, col = 12 }
+expected_type = "kotlinx.coroutines.flow.Flow<Nothing>"
+
+[[tests]]
+name = "flow_terminal_reduce_result"
+file = "kotlinx-coroutines-core/common/test/flow/terminal/ReduceTest.kt"
+variable = "result"
+position = { line = 15, col = 12 }
+expected_type = "Int"
+
+[[tests]]
+name = "flow_first_or_null_predicate_result"
+file = "kotlinx-coroutines-core/common/test/flow/terminal/FirstTest.kt"
+variable = "result"
+position = { line = 115, col = 12 }
+expected_type = "Int?"
+
+[[tests]]
+name = "flow_take_terminal_sum"
+file = "kotlinx-coroutines-core/common/test/flow/operators/TakeTest.kt"
+variable = "sum"
+position = { line = 43, col = 12 }
+expected_type = "Int"
+
+[[tests]]
+name = "flow_terminal_sum"
+file = "kotlinx-coroutines-core/common/test/flow/operators/TakeTest.kt"
+variable = "sum"
+position = { line = 113, col = 12 }
+expected_type = "Int"
+
+[[tests]]
+name = "flow_distinct_predicate_to_list"
+file = "kotlinx-coroutines-core/common/test/flow/operators/DistinctUntilChangedTest.kt"
+variable = "values"
+position = { line = 49, col = 12 }
+expected_type = "kotlin.collections.List<Int>"

@@ -1,0 +1,6 @@
+[[tests]]
+name = "call_explicit_generic_param_type"
+file = "kotlinx-coroutines-core/common/test/AsyncTest.kt"
+variable = "d"
+position = { line = 39, col = 12 }
+expected_type = "kotlinx.coroutines.Deferred<Unit>"

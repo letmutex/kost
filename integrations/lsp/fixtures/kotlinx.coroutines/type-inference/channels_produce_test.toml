@@ -1,0 +1,13 @@
+[[tests]]
+name = "channel_produce_builder_return"
+file = "kotlinx-coroutines-core/common/test/channels/ProduceTest.kt"
+variable = "c"
+position = { line = 11, col = 12 }
+expected_type = "kotlinx.coroutines.channels.ReceiveChannel<Int>"
+
+[[tests]]
+name = "flow_produce_in_channel"
+file = "kotlinx-coroutines-core/common/test/flow/channels/ChannelBuildersFlowTest.kt"
+variable = "result"
+position = { line = 115, col = 12 }
+expected_type = "kotlinx.coroutines.channels.ReceiveChannel<Int>"

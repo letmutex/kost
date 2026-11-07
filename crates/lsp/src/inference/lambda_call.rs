@@ -1,18 +1,22 @@
 use tower_lsp::lsp_types::{SymbolKind, Url};
-use tree_sitter::Node;
 
 use super::context::InferenceContext;
+pub use super::lambda_call_candidate::{
+    solve_decl_higher_order_call, solve_sig_info_higher_order_call,
+};
 use super::lambda_call_extension::{
     collect_ranked_extension_candidates, is_callable_function_decl,
 };
 use super::lambda_call_solve::{
-    infer_builder_lambda_receiver, solve_decl_higher_order_call, solve_sig_info_higher_order_call,
+    extract_explicit_type_args_from_call, infer_builder_lambda_receiver,
 };
 use super::lambda_return::{
-    find_lambda_node_and_arg_idx, find_matching_lambda_in_ast, infer_lambda_return_type_expected,
+    extract_callee_from_ast, find_call_node, find_call_with_lambda, find_lambda_node_and_arg_idx,
+    infer_call_lambda_return_type,
 };
 use super::overload::TypedCandidate;
 use super::qualification::is_declaration_visible;
+use super::signature::SignatureInfo;
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;
 use crate::parser::parse_source;
@@ -20,70 +24,7 @@ use crate::parser::parse_source;
 /// Check if expression is a call containing a lambda (e.g. `remember { ... }` or `map { ... }`)
 pub fn is_call_with_lambda(expr: &str) -> bool {
     let clean = expr.trim();
-    if !clean.ends_with('}') {
-        return false;
-    }
-    clean.contains('{')
-}
-
-fn find_call_node(node: Node) -> Option<Node> {
-    if node.kind() == "call_expression" {
-        return Some(node);
-    }
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if let Some(call_expr) = find_call_node(child) {
-            return Some(call_expr);
-        }
-    }
-    None
-}
-
-fn find_call_with_lambda<'a>(node: Node<'a>) -> Option<(Node<'a>, Node<'a>, usize)> {
-    if node.kind() == "call_expression"
-        && let Some(view) = crate::syntax::ast_call_view::AstCallView::from_node(node)
-    {
-        if let Some(trailing) = view.trailing_lambda {
-            let lambda = crate::syntax::ast_call_view::AstCallView::unwrap_lambda(trailing)
-                .unwrap_or(trailing);
-            let arg_idx = view.value_arguments.len();
-            return Some((node, lambda, arg_idx));
-        }
-        for (idx, arg) in view.value_arguments.iter().enumerate() {
-            if let Some(arg_expr) =
-                crate::syntax::ast_call_view::AstCallView::argument_expression(*arg)
-                && let Some(lambda) =
-                    crate::syntax::ast_call_view::AstCallView::unwrap_lambda(arg_expr)
-            {
-                return Some((node, lambda, idx));
-            }
-        }
-    }
-    let mut cursor = node.walk();
-    for child in node.children(&mut cursor) {
-        if let Some(found) = find_call_with_lambda(child) {
-            return Some(found);
-        }
-    }
-    None
-}
-
-fn extract_callee_from_ast<'a>(call_node: Node<'a>, source: &'a str) -> Option<&'a str> {
-    let view = crate::syntax::ast_call_view::AstCallView::from_node(call_node)?;
-    let callee_node = view.callee_node?;
-    if callee_node.kind() == "navigation_expression" {
-        let suffix = callee_node
-            .children(&mut callee_node.walk())
-            .find(|child| child.kind() == "navigation_suffix")?;
-        let ident = suffix
-            .children(&mut suffix.walk())
-            .find(|child| child.kind() == "simple_identifier")?;
-        ident.utf8_text(source.as_bytes()).ok().map(str::trim)
-    } else if callee_node.kind() == "simple_identifier" {
-        callee_node.utf8_text(source.as_bytes()).ok().map(str::trim)
-    } else {
-        view.callee_text(source)
-    }
+    clean.ends_with('}') && clean.contains('{')
 }
 
 /// Resolve return type of a higher-order function call with a lambda
@@ -103,6 +44,8 @@ pub fn resolve_higher_order_call(
         Some((call_node, lambda_node, arg_idx))
     })?;
     let callee = extract_callee_from_ast(call_node, call_expr)?;
+    let explicit_type_args =
+        extract_explicit_type_args_from_call(call_node, call_expr, ctx.index, ctx.current_url);
     let value_args = super::lambda_ast::extract_call_argument_expressions(call_node, call_expr);
     let is_trailing = crate::syntax::ast_call_view::AstCallView::from_node(call_node)
         .and_then(|view| view.trailing_lambda)
@@ -115,6 +58,7 @@ pub fn resolve_higher_order_call(
         ctx.reborrow(),
         receiver_type,
         callee,
+        &explicit_type_args,
         &value_args,
         arg_idx,
         is_trailing,
@@ -139,92 +83,93 @@ pub fn resolve_higher_order_call(
         )
     };
 
+    dispatch_higher_order_call(
+        &ctx,
+        receiver_type,
+        callee,
+        &explicit_type_args,
+        lambda_ret.as_ref(),
+        arg_idx,
+        is_trailing,
+    )
+}
+
+fn dispatch_higher_order_call(
+    ctx: &InferenceContext<'_, '_, '_>,
+    receiver_type: Option<&KotlinType>,
+    callee: &str,
+    explicit_type_args: &[KotlinType],
+    lambda_ret: Option<&KotlinType>,
+    arg_idx: usize,
+    is_trailing: bool,
+) -> Option<KotlinType> {
     if let Some(rec) = receiver_type {
-        resolve_member_higher_order(
+        return resolve_member_higher_order(
             ctx.index,
             ctx.current_url,
             rec,
             callee,
-            lambda_ret.as_ref(),
+            explicit_type_args,
+            lambda_ret,
             arg_idx,
             is_trailing,
-        )
-    } else {
-        resolve_toplevel_higher_order(
-            ctx.index,
-            ctx.current_url,
-            callee,
-            lambda_ret.as_ref(),
-            arg_idx,
-            is_trailing,
-        )
-    }
-}
-
-fn infer_call_lambda_return_type(
-    ctx: InferenceContext<'_, '_, '_>,
-    lambda_node: Node,
-    call_expr: &str,
-    call_root: Node,
-    expected_fn: Option<&KotlinType>,
-) -> Option<KotlinType> {
-    let parsed_tree = ctx
-        .root
-        .is_none()
-        .then(|| parse_source(ctx.source))
-        .flatten();
-    let outer_tree = ctx
-        .root
-        .or_else(|| parsed_tree.as_ref().map(|t| t.root_node()));
-    let lambda_text = lambda_node.utf8_text(call_expr.as_bytes()).ok();
-
-    if let Some(ot) = outer_tree
-        && let Some(text) = lambda_text
-        && let Some(matched_node) = find_matching_lambda_in_ast(ot, ctx.source, text, ctx.pos)
-    {
-        return infer_lambda_return_type_expected(
-            ctx.index,
-            ctx.current_url,
-            matched_node,
-            ctx.source,
-            Some(ot),
-            ctx.depth + 1,
-            expected_fn,
         );
     }
-    infer_lambda_return_type_expected(
+    if let Some(res) = resolve_toplevel_higher_order(
         ctx.index,
         ctx.current_url,
-        lambda_node,
-        call_expr,
-        Some(call_root),
-        ctx.depth + 1,
-        expected_fn,
-    )
+        callee,
+        explicit_type_args,
+        lambda_ret,
+        arg_idx,
+        is_trailing,
+    ) {
+        return Some(res);
+    }
+    for implicit_rec in super::scope_stack::collect_implicit_receivers(
+        ctx.index,
+        ctx.current_url,
+        ctx.pos,
+        ctx.source,
+        ctx.root,
+        ctx.depth,
+    ) {
+        if let Some(res) = resolve_member_higher_order(
+            ctx.index,
+            ctx.current_url,
+            &implicit_rec,
+            callee,
+            explicit_type_args,
+            lambda_ret,
+            arg_idx,
+            is_trailing,
+        ) {
+            return Some(res);
+        }
+    }
+    None
 }
 
+#[allow(clippy::too_many_arguments)]
 fn resolve_member_higher_order(
     index: &WorkspaceIndex,
     current_url: &Url,
     receiver_type: &KotlinType,
     callee: &str,
+    explicit_type_args: &[KotlinType],
     lambda_ret: Option<&KotlinType>,
     arg_idx: usize,
     is_trailing: bool,
 ) -> Option<KotlinType> {
     let clean_container = receiver_type.base_name();
-    let supertypes = index.get_all_supertypes(clean_container);
-    let container_iter = std::iter::once(clean_container).chain(
-        supertypes
-            .iter()
-            .map(|s| s.split('<').next().unwrap_or(s).trim()),
-    );
+    let candidate_containers =
+        super::member_ranking::collect_candidate_containers(clean_container, index);
 
-    for container_name in container_iter {
-        if let Some(decls) = index.container_to_decls.get(container_name) {
+    for container_name in &candidate_containers {
+        if let Some(decls) = index.container_to_decls.get(container_name.as_str()) {
             for (url, decl) in decls.iter().filter(|(_, d)| d.name == callee) {
                 if !is_callable_function_decl(decl)
-                    || !is_declaration_visible(index, current_url, url.as_ref(), decl)
+                    || (decl.is_private && url.as_ref() != current_url)
                 {
                     continue;
                 }
@@ -238,6 +183,7 @@ fn resolve_member_higher_order(
                     url.as_ref(),
                     &candidate.sig_info,
                     Some(receiver_type),
+                    explicit_type_args,
                     lambda_ret,
                     arg_idx,
                     is_trailing,
@@ -256,6 +202,7 @@ fn resolve_member_higher_order(
             candidate.url,
             &candidate.sig_info,
             Some(receiver_type),
+            explicit_type_args,
             lambda_ret,
             arg_idx,
             is_trailing,
@@ -265,21 +212,20 @@ fn resolve_member_higher_order(
     }
 
     if let Some(builtin_sig) = super::scope_lambda::get_builtin_scope_function(callee)
-        && let Some(sig_info) = super::signature::SignatureInfo::parse(builtin_sig)
-        && let Some(res) = solve_sig_info_higher_order_call(
+        && let Some(sig_info) = SignatureInfo::parse(builtin_sig)
+    {
+        return solve_sig_info_higher_order_call(
             index,
             current_url,
             &sig_info,
             Some(receiver_type),
+            explicit_type_args,
             lambda_ret,
             arg_idx,
             false,
             is_trailing,
-        )
-    {
-        return Some(res);
+        );
     }
-
     None
 }
 
@@ -287,6 +233,7 @@ fn resolve_toplevel_higher_order(
     index: &WorkspaceIndex,
     current_url: &Url,
     callee: &str,
+    explicit_type_args: &[KotlinType],
     lambda_ret: Option<&KotlinType>,
     arg_idx: usize,
     is_trailing: bool,
@@ -305,6 +252,7 @@ fn resolve_toplevel_higher_order(
                         url.as_ref(),
                         &candidate.sig_info,
                         None,
+                        explicit_type_args,
                         lambda_ret,
                         arg_idx,
                         is_trailing,
@@ -317,21 +265,20 @@ fn resolve_toplevel_higher_order(
     }
 
     if let Some(builtin_sig) = super::scope_lambda::get_builtin_scope_function(callee)
-        && let Some(sig_info) = super::signature::SignatureInfo::parse(builtin_sig)
+        && let Some(sig_info) = SignatureInfo::parse(builtin_sig)
         && sig_info.receiver.is_none()
-        && let Some(res) = solve_sig_info_higher_order_call(
+    {
+        return solve_sig_info_higher_order_call(
             index,
             current_url,
             &sig_info,
             None,
+            explicit_type_args,
             lambda_ret,
             arg_idx,
             false,
             is_trailing,
-        )
-    {
-        return Some(res);
+        );
     }
-
     None
 }

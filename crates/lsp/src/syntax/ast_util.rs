@@ -79,12 +79,7 @@ pub fn find_enclosing_extension_receiver(node: Node, source: &str) -> Option<Str
         if matches!(k, "function_declaration" | "property_declaration")
             && let Some(ext) = extract_extension_receiver(&curr, source)
         {
-            let clean = ext
-                .split('<')
-                .next()
-                .unwrap_or(ext)
-                .trim_end_matches('?')
-                .trim();
+            let clean = ext.trim_end_matches('?').trim();
             if !clean.is_empty() {
                 return Some(clean.to_string());
             }

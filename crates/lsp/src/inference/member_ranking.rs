@@ -10,11 +10,49 @@ use crate::syntax::ast_call_view::{ParsedCallArg, parse_call_arg};
 pub fn collect_candidate_containers(container_type: &str, index: &WorkspaceIndex) -> Vec<String> {
     let unnull = container_type.trim_end_matches('?').trim();
     let bare = unnull.split('<').next().unwrap_or(unnull).trim();
+    let short_bare = bare.rsplit('.').next().unwrap_or(bare);
     let mut containers = vec![unnull.to_string()];
     if bare != unnull {
         containers.push(bare.to_string());
     }
-    containers.extend(index.get_all_supertypes(bare));
+    if short_bare != bare {
+        containers.push(short_bare.to_string());
+    }
+    for sup in index.get_all_supertypes(bare) {
+        let sup_bare = sup.split('<').next().unwrap_or(&sup).trim();
+        let sup_short = sup_bare.rsplit('.').next().unwrap_or(sup_bare);
+        if !containers.contains(&sup) {
+            containers.push(sup.clone());
+        }
+        if sup_bare != sup && !containers.iter().any(|c| c == sup_bare) {
+            containers.push(sup_bare.to_string());
+        }
+        if sup_short != sup_bare && !containers.iter().any(|c| c == sup_short) {
+            containers.push(sup_short.to_string());
+        }
+    }
+    containers.push(common::concat_str!(bare, ".Companion"));
+    if short_bare != bare {
+        containers.push(common::concat_str!(short_bare, ".Companion"));
+    }
+    for key in [bare, short_bare] {
+        if let Some(decls) = index.container_to_decls.get(key) {
+            for (_, decl) in decls {
+                if decl.kind == tower_lsp::lsp_types::SymbolKind::OBJECT
+                    && decl.name != "Companion"
+                    && decl
+                        .signature
+                        .as_deref()
+                        .is_some_and(|sig| sig.contains("companion"))
+                {
+                    let nested = common::concat_str!(key, ".", decl.name.as_str());
+                    if !containers.contains(&nested) {
+                        containers.push(nested);
+                    }
+                }
+            }
+        }
+    }
     containers
 }
 

@@ -238,12 +238,11 @@ impl WorkspaceIndex {
 
         while let Some(curr) = queue.pop() {
             let clean_curr = curr.split('<').next().unwrap_or(&curr).trim();
+            let short_curr = clean_curr.rsplit('.').next().unwrap_or(clean_curr);
             let supers_opt = self.class_supertypes.get(clean_curr).or_else(|| {
-                clean_curr
-                    .rsplit('.')
-                    .next()
-                    .filter(|&short| short != clean_curr)
-                    .and_then(|short| self.class_supertypes.get(short))
+                (short_curr != clean_curr)
+                    .then(|| self.class_supertypes.get(short_curr))
+                    .flatten()
             });
             if let Some(supers) = supers_opt {
                 for s in supers {
@@ -252,6 +251,15 @@ impl WorkspaceIndex {
                         results.push(s.clone());
                         queue.push(s.clone());
                     }
+                }
+            }
+            if let Some(builtin_sup) =
+                crate::inference::supertypes::builtin_progression_supertype(short_curr)
+            {
+                let clean_builtin = builtin_sup.split('<').next().unwrap_or(builtin_sup).trim();
+                if visited.insert(clean_builtin.to_string()) {
+                    results.push(builtin_sup.to_string());
+                    queue.push(builtin_sup.to_string());
                 }
             }
         }

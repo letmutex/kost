@@ -35,33 +35,39 @@ pub fn is_extension_container_plausible(
     let Some(ref container) = decl.container_name else {
         return sig.contains('.');
     };
-    let c_base = container
+    let container_base = container
         .split(['<', '?'])
         .next()
         .unwrap_or(container.as_str())
         .trim();
-    let c_short = c_base.rsplit('.').next().unwrap_or(c_base);
+    let container_short = container_base.rsplit('.').next().unwrap_or(container_base);
     let rec_base = receiver_type.base_name();
     let rec_short = rec_base.rsplit('.').next().unwrap_or(rec_base);
 
-    if c_short == rec_short || c_base == rec_base || c_short == "Any" || c_short == "Object" {
-        return true;
-    }
-    if c_short.len() == 1 || (sig.contains('<') && sig.contains(c_short)) {
-        return true;
-    }
-    if (receiver_type.is_primitive() || rec_short == "String")
-        && super::types::standard::StandardInterface::from_name(c_short).is_some()
+    if container_short == rec_short
+        || container_base == rec_base
+        || super::types::standard::StandardInterface::from_name(container_short)
+            == Some(super::types::standard::StandardInterface::Any)
     {
         return true;
     }
-    if index.type_aliases.contains_key(c_short) || index.type_aliases.contains_key(rec_short) {
+    if container_short.len() == 1 || (sig.contains('<') && sig.contains(container_short)) {
         return true;
     }
-    rec_supertypes.iter().any(|s| {
-        let sb = s.split('<').next().unwrap_or(s).trim();
-        let ss = sb.rsplit('.').next().unwrap_or(sb);
-        sb == c_base || ss == c_short
+    if receiver_type.is_primitive()
+        && super::types::standard::StandardInterface::from_name(container_short).is_some()
+    {
+        return true;
+    }
+    if index.type_aliases.contains_key(container_short)
+        || index.type_aliases.contains_key(rec_short)
+    {
+        return true;
+    }
+    rec_supertypes.iter().any(|sup| {
+        let sup_base = sup.split('<').next().unwrap_or(sup).trim();
+        let sup_short = sup_base.rsplit('.').next().unwrap_or(sup_base);
+        sup_base == container_base || sup_short == container_short
     })
 }
 
@@ -101,7 +107,9 @@ pub fn check_type_param_bounds_satisfaction(
         if let Some(bound_ty) = bindings.get(&param.name) {
             for bound in &param.bounds {
                 let subst_bound = bound.substitute(bindings);
-                if subst_bound.is_any() && subst_bound.is_nullable() {
+                if (subst_bound.is_any() && subst_bound.is_nullable())
+                    || matches!(subst_bound, KotlinType::TypeParam(_))
+                {
                     continue;
                 }
                 if bound_ty.is_nullable() && !subst_bound.is_nullable() {
@@ -237,6 +245,7 @@ pub fn is_receiver_compatible_with_bounds(
     if !system.add_receiver_constraint_typed(actual_receiver, decl_receiver) {
         return false;
     }
+    system.solve_in_place();
     check_type_param_bounds_satisfaction(index, &sig_info.type_params, &system.bindings)
 }
 

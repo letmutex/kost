@@ -20,10 +20,66 @@ fn qualify_class_name(index: &WorkspaceIndex, current_url: &Url, base: &str) -> 
     smol_str::SmolStr::new(resolved_name)
 }
 
+fn qualify_class_type(
+    index: &WorkspaceIndex,
+    current_url: &Url,
+    name: &smol_str::SmolStr,
+    args: &[TypeArg],
+) -> KotlinType {
+    let qualified_args: Vec<TypeArg> = args
+        .iter()
+        .map(|arg| TypeArg {
+            variance: arg.variance,
+            type_ref: qualify_type(index, current_url, &arg.type_ref),
+        })
+        .collect();
+    let base = name.as_str();
+    if base.is_empty() || base == "?" {
+        return KotlinType::Class {
+            name: name.clone(),
+            args: qualified_args,
+        };
+    }
+    if qualified_args.is_empty()
+        && let Some(prim) = PrimitiveType::from_name(base)
+    {
+        return if prim == PrimitiveType::Nothing {
+            KotlinType::Nothing
+        } else {
+            KotlinType::Primitive(prim)
+        };
+    }
+    let qualified_name = qualify_class_name(index, current_url, base);
+    if qualified_args.is_empty() {
+        if let Some(prim) = PrimitiveType::from_name(qualified_name.as_str()) {
+            return if prim == PrimitiveType::Nothing {
+                KotlinType::Nothing
+            } else {
+                KotlinType::Primitive(prim)
+            };
+        }
+        if StandardInterface::from_qualified_name(qualified_name.as_str())
+            == Some(StandardInterface::Number)
+        {
+            return KotlinType::NUMBER;
+        }
+    }
+    KotlinType::Class {
+        name: qualified_name,
+        args: qualified_args,
+    }
+}
+
 /// Qualify a KotlinType recursively without string serialization or reparsing.
 pub fn qualify_type(index: &WorkspaceIndex, current_url: &Url, ty: &KotlinType) -> KotlinType {
     match ty {
-        KotlinType::Primitive(p) => KotlinType::Primitive(*p),
+        KotlinType::Primitive(p) => {
+            if *p == PrimitiveType::Nothing {
+                KotlinType::Nothing
+            } else {
+                KotlinType::Primitive(*p)
+            }
+        }
         KotlinType::Nothing => KotlinType::Nothing,
         KotlinType::DynamicOrAny => KotlinType::DynamicOrAny,
         KotlinType::TypeParam(s) => KotlinType::TypeParam(s.clone()),
@@ -50,41 +106,6 @@ pub fn qualify_type(index: &WorkspaceIndex, current_url: &Url, ty: &KotlinType) 
             return_type: Box::new(qualify_type(index, current_url, return_type)),
             is_suspend: *is_suspend,
         },
-        KotlinType::Class { name, args } => {
-            let qualified_args: Vec<TypeArg> = args
-                .iter()
-                .map(|arg| TypeArg {
-                    variance: arg.variance,
-                    type_ref: qualify_type(index, current_url, &arg.type_ref),
-                })
-                .collect();
-            let base = name.as_str();
-            if base.is_empty() || base == "?" {
-                return KotlinType::Class {
-                    name: name.clone(),
-                    args: qualified_args,
-                };
-            }
-            if qualified_args.is_empty()
-                && let Some(prim) = PrimitiveType::from_name(base)
-            {
-                return KotlinType::Primitive(prim);
-            }
-            let qualified_name = qualify_class_name(index, current_url, base);
-            if qualified_args.is_empty() {
-                if let Some(prim) = PrimitiveType::from_name(qualified_name.as_str()) {
-                    return KotlinType::Primitive(prim);
-                }
-                if StandardInterface::from_qualified_name(qualified_name.as_str())
-                    == Some(StandardInterface::Number)
-                {
-                    return KotlinType::NUMBER;
-                }
-            }
-            KotlinType::Class {
-                name: qualified_name,
-                args: qualified_args,
-            }
-        }
+        KotlinType::Class { name, args } => qualify_class_type(index, current_url, name, args),
     }
 }

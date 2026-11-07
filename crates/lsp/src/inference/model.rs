@@ -47,17 +47,17 @@ impl PrimitiveType {
     pub fn from_name(name: &str) -> Option<Self> {
         match name {
             "Unit" | "kotlin.Unit" => Some(Self::Unit),
-            "Boolean" | "kotlin.Boolean" => Some(Self::Boolean),
-            "Byte" | "kotlin.Byte" => Some(Self::Byte),
-            "Short" | "kotlin.Short" => Some(Self::Short),
-            "Int" | "kotlin.Int" => Some(Self::Int),
-            "Long" | "kotlin.Long" => Some(Self::Long),
-            "Float" | "kotlin.Float" => Some(Self::Float),
-            "Double" | "kotlin.Double" => Some(Self::Double),
-            "Char" | "kotlin.Char" => Some(Self::Char),
+            "Boolean" | "kotlin.Boolean" | "java.lang.Boolean" => Some(Self::Boolean),
+            "Byte" | "kotlin.Byte" | "java.lang.Byte" => Some(Self::Byte),
+            "Short" | "kotlin.Short" | "java.lang.Short" => Some(Self::Short),
+            "Int" | "kotlin.Int" | "java.lang.Integer" | "Integer" => Some(Self::Int),
+            "Long" | "kotlin.Long" | "java.lang.Long" => Some(Self::Long),
+            "Float" | "kotlin.Float" | "java.lang.Float" => Some(Self::Float),
+            "Double" | "kotlin.Double" | "java.lang.Double" => Some(Self::Double),
+            "Char" | "kotlin.Char" | "java.lang.Character" | "Character" => Some(Self::Char),
             "String" | "kotlin.String" | "java.lang.String" => Some(Self::String),
             "Any" | "kotlin.Any" | "java.lang.Object" | "Object" => Some(Self::Any),
-            "Nothing" | "kotlin.Nothing" => Some(Self::Nothing),
+            "Nothing" | "kotlin.Nothing" | "java.lang.Void" | "Void" => Some(Self::Nothing),
             _ => None,
         }
     }
