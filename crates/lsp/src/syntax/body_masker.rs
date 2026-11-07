@@ -33,10 +33,32 @@ pub fn mask_function_bodies(source: &str) -> String {
             continue;
         }
 
+        if is_platform_modifier(bytes, i, len) {
+            mask_range(bytes, &mut out, i, i + 6);
+            i += 6;
+            continue;
+        }
+
         i += 1;
     }
 
     String::from_utf8(out).unwrap_or_else(|_| source.to_string())
+}
+
+fn is_platform_modifier(bytes: &[u8], i: usize, len: usize) -> bool {
+    if i + 6 > len {
+        return false;
+    }
+    let word = &bytes[i..i + 6];
+    if word != b"expect" && word != b"actual" {
+        return false;
+    }
+    let prev_ok = i == 0 || !bytes[i - 1].is_ascii_alphanumeric() && bytes[i - 1] != b'_';
+    if !prev_ok || i + 6 >= len || !bytes[i + 6].is_ascii_whitespace() {
+        return false;
+    }
+    let next_tok = skip_whitespace(bytes, i + 6, len);
+    is_declaration_keyword(bytes, next_tok, len) || bytes.get(next_tok) == Some(&b'@')
 }
 
 fn is_fun_keyword(bytes: &[u8], i: usize, len: usize) -> bool {
@@ -55,11 +77,14 @@ fn handle_fun_declaration(bytes: &[u8], out: &mut [u8], mut i: usize, len: usize
     }
 
     let mut paren_depth = 0;
+    let mut seen_params = false;
+    let mut at_line_start = false;
     while i < len {
         let b = bytes[i];
         if b == b'/' && i + 1 < len {
             if bytes[i + 1] == b'/' {
                 i = skip_line_comment(bytes, i + 2, len);
+                at_line_start = true;
                 continue;
             } else if bytes[i + 1] == b'*' {
                 i = skip_block_comment(bytes, i + 2, len);
@@ -68,10 +93,21 @@ fn handle_fun_declaration(bytes: &[u8], out: &mut [u8], mut i: usize, len: usize
         }
         if b == b'"' {
             i = skip_string(bytes, i, len);
+            at_line_start = false;
             continue;
         }
         if b == b'\'' {
             i = skip_char(bytes, i, len);
+            at_line_start = false;
+            continue;
+        }
+        if b == b'\n' {
+            at_line_start = true;
+            i += 1;
+            continue;
+        }
+        if b.is_ascii_whitespace() {
+            i += 1;
             continue;
         }
 
@@ -79,17 +115,26 @@ fn handle_fun_declaration(bytes: &[u8], out: &mut [u8], mut i: usize, len: usize
             paren_depth += 1;
         } else if b == b')' && paren_depth > 0 {
             paren_depth -= 1;
+            if paren_depth == 0 {
+                seen_params = true;
+            }
         } else if paren_depth == 0 {
             if b == b'=' || b == b';' {
                 return i + 1;
             }
-            if b == b'}' || is_declaration_keyword(bytes, i, len) {
+            if b == b'}'
+                || (seen_params
+                    && at_line_start
+                    && (b == b'@' || is_declaration_keyword(bytes, i, len)))
+                || (!seen_params && is_declaration_keyword(bytes, i, len))
+            {
                 return i;
             }
             if b == b'{' {
                 return mask_block_body(bytes, out, i + 1, len);
             }
         }
+        at_line_start = false;
         i += 1;
     }
     i
@@ -170,6 +215,7 @@ fn is_declaration_keyword(bytes: &[u8], i: usize, len: usize) -> bool {
         b"class",
         b"interface",
         b"object",
+        b"companion",
         b"fun",
         b"val",
         b"var",
@@ -180,6 +226,25 @@ fn is_declaration_keyword(bytes: &[u8], i: usize, len: usize) -> bool {
         b"protected",
         b"public",
         b"internal",
+        b"suspend",
+        b"inline",
+        b"expect",
+        b"actual",
+        b"operator",
+        b"infix",
+        b"external",
+        b"tailrec",
+        b"const",
+        b"lateinit",
+        b"typealias",
+        b"constructor",
+        b"init",
+        b"sealed",
+        b"data",
+        b"value",
+        b"enum",
+        b"annotation",
+        b"inner",
     ];
     for kw in KEYWORDS {
         if is_word_at(bytes, i, len, kw) {

@@ -197,6 +197,7 @@ pub fn is_ast_evaluable_kind(kind: &str) -> bool {
             | "is_expression"
             | "as_expression"
             | "navigation_expression"
+            | "callable_reference"
             | "call_expression"
             | "lambda_literal"
             | "if_expression"

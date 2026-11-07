@@ -2,24 +2,23 @@ use std::collections::HashSet;
 use tower_lsp::lsp_types::{Position, SymbolKind, Url};
 use tree_sitter::Node;
 
-use super::ast_eval::{AstEvalContext, infer_expression_node};
 use super::call::solve_call_decl_info_return_type_traced;
 use super::call_parser::{CallInfo, parse_call_expression};
 use super::constructor::find_constructor_return_type;
 use super::context::InferenceContext;
-use super::expression::infer_receiver_type_depth;
 use super::overload::{TypedCandidate, score_typed_candidate};
 use super::qualification::{is_container_member_imported, is_declaration_visible, qualify_type};
 use super::scope_function::collect_visible_containers_url_depth;
+pub use super::scope_stack::infer_single_expression_function_return_type;
+use super::scope_stack::infer_single_expression_with_root;
 use super::signature::SignatureInfo;
 use super::trace::Tracer;
 use super::types::KotlinType;
 use crate::indexer::{DeclarationItem, WorkspaceIndex};
-use crate::parser::{find_enclosing_declaration_node, find_node_at_position, parse_source};
 use crate::syntax::ast_call_view::parse_call_arg;
-use crate::syntax::ast_extra::extract_single_expression_body;
-use crate::syntax::ast_util::extract_initializer_node;
-use crate::syntax::signature::extract_return_type_from_signature;
+use crate::syntax::signature::{
+    extract_receiver_type_from_signature, extract_return_type_from_signature,
+};
 
 /// Infer the return type of a function given its name and calling context
 pub fn infer_function_return_type(
@@ -73,7 +72,13 @@ pub fn find_function_return_type_depth(
         return Some(inferred);
     }
 
-    find_definition_function_return_type(ctx, fn_name, &call_info)
+    if let Some(inferred) =
+        find_definition_function_return_type(ctx.reborrow(), fn_name, &call_info)
+    {
+        return Some(inferred);
+    }
+
+    super::scope_stack::find_local_function_return_type(ctx, fn_name)
 }
 
 fn is_callable_top_level_or_in_scope(
@@ -85,11 +90,11 @@ fn is_callable_top_level_or_in_scope(
     if !matches!(decl.kind, SymbolKind::FUNCTION | SymbolKind::METHOD) {
         return false;
     }
-    if !is_declaration_visible(ctx.index, ctx.current_url, url, decl) {
+    if decl.is_private && url != ctx.current_url {
         return false;
     }
     let Some(ref container) = decl.container_name else {
-        return true;
+        return is_declaration_visible(ctx.index, ctx.current_url, url, decl);
     };
     let short_container = container.rsplit('.').next().unwrap_or(container.as_str());
     if is_container_member_imported(ctx.index, ctx.current_url, short_container, &decl.name) {
@@ -105,7 +110,15 @@ fn is_callable_top_level_or_in_scope(
             ctx.depth,
         )
     });
-    containers.contains(container.as_str()) || containers.contains(short_container)
+    if !containers.contains(container.as_str()) && !containers.contains(short_container) {
+        return false;
+    }
+    let is_extension = decl
+        .signature
+        .as_deref()
+        .and_then(extract_receiver_type_from_signature)
+        .is_some();
+    !is_extension || is_declaration_visible(ctx.index, ctx.current_url, url, decl)
 }
 
 fn rank_top_level_candidates<'a>(
@@ -282,66 +295,4 @@ fn resolve_candidate_decl_return_type(
             })
     });
     single_expr.or_else(|| (decl.kind == SymbolKind::FUNCTION).then_some(KotlinType::UNIT))
-}
-
-fn infer_single_expression_with_root(
-    index: &WorkspaceIndex,
-    decl_url: &Url,
-    decl: &DeclarationItem,
-    decl_source: &str,
-    root: Option<Node>,
-    depth: usize,
-) -> Option<KotlinType> {
-    if depth > super::MAX_INFERENCE_DEPTH {
-        return None;
-    }
-    let parsed_tree = root.is_none().then(|| parse_source(decl_source)).flatten();
-    let root_node = root.or_else(|| parsed_tree.as_ref().map(|t| t.root_node()))?;
-    let id_node = find_node_at_position(root_node, decl.selection_range.start)?;
-    let fn_node = find_enclosing_declaration_node(id_node);
-
-    if let Some(expr_node) = extract_initializer_node(&fn_node).or_else(|| {
-        fn_node
-            .children(&mut fn_node.walk())
-            .find(|c| c.kind() == "function_body")
-            .and_then(|body| extract_initializer_node(&body))
-    }) {
-        let mut tracer = Tracer::Noop;
-        let inf_ctx = InferenceContext::new(
-            index,
-            decl_url,
-            decl.selection_range.start,
-            decl_source,
-            Some(root_node),
-            depth + 1,
-            &mut tracer,
-        );
-        if let Some(inferred) =
-            infer_expression_node(&mut AstEvalContext::from_ctx(inf_ctx), expr_node)
-        {
-            return Some(inferred);
-        }
-    }
-
-    let rhs_expr = extract_single_expression_body(&fn_node, decl_source)?;
-    infer_receiver_type_depth(
-        index,
-        decl_url,
-        rhs_expr,
-        decl.selection_range.start,
-        decl_source,
-        Some(root_node),
-        depth + 1,
-    )
-}
-
-/// Infer return type for single-expression functions (`fun foo() = expr`)
-pub fn infer_single_expression_function_return_type(
-    index: &WorkspaceIndex,
-    decl_url: &Url,
-    decl: &DeclarationItem,
-    decl_source: &str,
-    depth: usize,
-) -> Option<KotlinType> {
-    infer_single_expression_with_root(index, decl_url, decl, decl_source, None, depth)
 }

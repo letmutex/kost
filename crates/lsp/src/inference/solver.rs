@@ -131,7 +131,7 @@ impl<'a> ConstraintSystem<'a> {
     ) -> bool {
         let clean_param_type = param_type.unwrap_nullable_ref();
         if let KotlinType::Function { return_type, .. } = clean_param_type {
-            if return_type.as_ref() == &KotlinType::UNIT {
+            if return_type.substitute(&self.bindings) == KotlinType::UNIT {
                 return true;
             }
             self.add_subtype_constraint(actual_lambda_return, return_type.as_ref())
@@ -183,14 +183,23 @@ impl<'a> ConstraintSystem<'a> {
     }
 
     pub fn add_subtype_constraint(&mut self, sub: &KotlinType, sup: &KotlinType) -> bool {
-        if let (KotlinType::Nothing, _) | (_, KotlinType::DynamicOrAny) = (sub, sup) {
+        if matches!(sup, KotlinType::DynamicOrAny) {
             return true;
         }
 
         if let Some(name) = self.as_type_param(sup).cloned() {
             return self.record_binding(&name, sub.clone());
         }
+        if matches!(sub, KotlinType::Nothing) {
+            return true;
+        }
         if let Some(name) = self.as_type_param(sub).cloned() {
+            if let Some(existing) = self.bindings.get(&name).cloned() {
+                let mut checker = ConstraintSystem::new(self.index, Vec::new());
+                if checker.add_subtype_constraint(&existing, sup) {
+                    return true;
+                }
+            }
             return self.record_binding(&name, sup.clone());
         }
 
@@ -292,40 +301,5 @@ impl<'a> ConstraintSystem<'a> {
             self.bindings.insert(param.clone(), ty);
             true
         }
-    }
-
-    pub fn solve_in_place(&mut self) -> &AHashMap<SmolStr, KotlinType> {
-        for constraint in &self.constraints {
-            if constraint.is_upper {
-                let target_ty =
-                    if let Some(bound_ty) = self.bindings.get(&constraint.type_param).cloned() {
-                        let mut checker = ConstraintSystem::new(self.index, Vec::new());
-                        if !checker.add_subtype_constraint(&bound_ty, &constraint.bound) {
-                            unify_two_types(self.index, &bound_ty, &constraint.bound)
-                                .filter(|u| {
-                                    *u != KotlinType::ANY || constraint.bound == KotlinType::ANY
-                                })
-                                .unwrap_or_else(|| constraint.bound.clone())
-                        } else {
-                            bound_ty
-                        }
-                    } else {
-                        constraint.bound.clone()
-                    };
-                self.bindings
-                    .insert(constraint.type_param.clone(), target_ty);
-            }
-        }
-        &self.bindings
-    }
-
-    pub fn solve(mut self) -> AHashMap<SmolStr, KotlinType> {
-        self.solve_in_place();
-        self.bindings
-    }
-
-    pub fn solve_and_substitute(&mut self, target: &KotlinType) -> KotlinType {
-        self.solve_in_place();
-        target.substitute(&self.bindings)
     }
 }

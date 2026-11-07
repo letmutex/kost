@@ -215,11 +215,13 @@ fn resolve_this_keyword(
     }
     if let Some(ext_rec) = crate::syntax::ast_util::find_enclosing_extension_receiver(t, source) {
         let full = resolve_full_type_name(index, current_url, &ext_rec);
-        return super::types::parse_type_signature(&full);
+        return super::types::parse_type_signature(&full)
+            .map(|ty| super::qualification::qualify_type(index, current_url, &ty));
     }
     if let Some(name) = find_enclosing_class_name(t, source) {
         let full = resolve_full_type_name(index, current_url, &name);
-        return super::types::parse_type_signature(&full);
+        return super::types::parse_type_signature(&full)
+            .map(|ty| super::qualification::qualify_type(index, current_url, &ty));
     }
     None
 }
@@ -301,7 +303,7 @@ pub fn collect_visible_containers_url_depth(
     depth: usize,
 ) -> HashSet<String> {
     let mut enclosing = collect_enclosing_classes(root, pos, source);
-    if depth <= 2
+    if depth <= super::MAX_INFERENCE_DEPTH
         && let Some(root_node) = root
     {
         let ctx = super::scope_stack::build_scope_context(

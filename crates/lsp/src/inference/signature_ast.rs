@@ -20,7 +20,8 @@ pub fn parse_signature_from_ast(source: &str) -> Option<SignatureInfo> {
 }
 
 fn parse_decl_from_source(source: &str) -> Option<SignatureInfo> {
-    let tree = parse_source(source)?;
+    let masked = crate::body_masker::mask_function_bodies(source);
+    let tree = parse_source(&masked)?;
     let root = tree.root_node();
     let mut cursor = root.walk();
     for child in root.children(&mut cursor) {
@@ -272,6 +273,7 @@ fn parse_property_declaration(node: &Node, source: &str) -> Option<SignatureInfo
 
     let mut receiver = None;
     let mut return_type = None;
+    let mut seen_var_decl = false;
 
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
@@ -287,6 +289,7 @@ fn parse_property_declaration(node: &Node, source: &str) -> Option<SignatureInfo
                 }
             }
             "variable_declaration" => {
+                seen_var_decl = true;
                 let mut var_cursor = child.walk();
                 for vchild in child.children(&mut var_cursor) {
                     if is_type_node(&vchild) {
@@ -297,7 +300,12 @@ fn parse_property_declaration(node: &Node, source: &str) -> Option<SignatureInfo
             }
             _ => {
                 if is_type_node(&child) {
-                    return_type = ast_node_to_kotlin_type(&child, source, &param_name_refs, false);
+                    if seen_var_decl {
+                        return_type =
+                            ast_node_to_kotlin_type(&child, source, &param_name_refs, false);
+                    } else if receiver.is_none() {
+                        receiver = ast_node_to_kotlin_type(&child, source, &param_name_refs, false);
+                    }
                 }
             }
         }

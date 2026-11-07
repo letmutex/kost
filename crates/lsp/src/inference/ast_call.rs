@@ -1,11 +1,13 @@
-use tower_lsp::lsp_types::Position;
+use tower_lsp::lsp_types::{Position, SymbolKind, Url};
 use tree_sitter::Node;
 
 use super::ast_eval::{AstEvalContext, infer_expression_node};
+use super::callable_reference::resolve_callable_reference;
 use super::types::KotlinType;
+use crate::indexer::WorkspaceIndex;
 use crate::syntax::ast_call_view::AstCallView;
 
-fn find_member_access_operator<'a>(
+pub(crate) fn find_member_access_operator<'a>(
     suffix_node: Node<'a>,
     source: &'a str,
 ) -> Option<(Node<'a>, &'a str)> {
@@ -30,7 +32,7 @@ pub fn infer_invocation(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinTy
     }
 }
 
-/// Infer navigation expression (e.g. `obj.prop`, `obj?.prop`, `obj.method()`)
+/// Infer navigation expression (e.g. `obj.prop`, `obj?.prop`, `obj.method()`, `Type::member`)
 pub fn infer_navigation_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinType> {
     let lhs_node = node.named_child(0)?;
     let suffix_node = node
@@ -38,7 +40,12 @@ pub fn infer_navigation_node(ctx: &mut AstEvalContext, node: Node) -> Option<Kot
         .find(|c| c.kind() == "navigation_suffix")?;
     let (op_node, op_text) = find_member_access_operator(suffix_node, ctx.node_source)?;
     if op_text == "::" {
-        return None;
+        let member_node = suffix_node
+            .children(&mut suffix_node.walk())
+            .find(|c| c.kind() == "simple_identifier")?;
+        let member_name = ctx.node_text(member_node)?;
+        let lhs_resolved = resolve_callable_ref_lhs(ctx, lhs_node)?;
+        return resolve_callable_reference(ctx, Some(lhs_resolved), member_name);
     }
     let is_safe = op_text == "?.";
     let mut sub_ctx = ctx.sub();
@@ -50,16 +57,112 @@ pub fn infer_navigation_node(ctx: &mut AstEvalContext, node: Node) -> Option<Kot
     let is_lhs_nullable = lhs_ty.is_nullable();
     let non_null_lhs = lhs_ty.make_non_null();
     let nav_pos = crate::position::point_to_position(suffix_node.start_position());
-    let member_res = super::member::resolve_member_type_kt_depth_traced(
+    let mut member_res = super::member::resolve_member_type_kt_depth_traced(
         ctx.sub_with_pos(nav_pos),
         &non_null_lhs,
         member_expr,
     )?;
-    let mut kt_res = member_res;
     if is_safe || is_lhs_nullable {
-        kt_res = kt_res.make_nullable();
+        member_res = member_res.make_nullable();
     }
-    Some(kt_res)
+    Some(member_res)
+}
+
+pub fn infer_callable_reference_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinType> {
+    let mut lhs_node = None;
+    let mut member_node = None;
+    let mut seen_colons = false;
+    let mut cursor = node.walk();
+    for child in node.children(&mut cursor) {
+        if child.kind() == "::" {
+            seen_colons = true;
+        } else if !seen_colons && child.is_named() && lhs_node.is_none() {
+            lhs_node = Some(child);
+        } else if seen_colons && child.kind() == "simple_identifier" && member_node.is_none() {
+            member_node = Some(child);
+        }
+    }
+    let member_name = ctx.node_text(member_node?)?;
+    let lhs_resolved = match lhs_node {
+        Some(lhs) => Some(resolve_callable_ref_lhs(ctx, lhs)?),
+        None => None,
+    };
+    resolve_callable_reference(ctx, lhs_resolved, member_name)
+}
+
+fn is_singleton_object_type(index: &WorkspaceIndex, current_url: &Url, ty: &KotlinType) -> bool {
+    let short = ty.base_name().rsplit('.').next().unwrap_or(ty.base_name());
+    index.name_to_decls.get(short).is_some_and(|decls| {
+        decls.iter().any(|(url, decl)| {
+            decl.kind == SymbolKind::OBJECT
+                && decl.container_name.is_none()
+                && super::qualification::is_declaration_visible(
+                    index,
+                    current_url,
+                    url.as_ref(),
+                    decl,
+                )
+        })
+    })
+}
+
+fn is_known_type_identifier(index: &WorkspaceIndex, ident: &str) -> bool {
+    if super::model::PrimitiveType::from_name(ident).is_some()
+        || super::types::standard::StandardInterface::from_name(ident).is_some()
+        || index.type_aliases.contains_key(ident)
+    {
+        return true;
+    }
+    let short = ident.rsplit('.').next().unwrap_or(ident);
+    index.name_to_decls.get(short).is_some_and(|decls| {
+        decls.iter().any(|(_, decl)| {
+            matches!(
+                decl.kind,
+                SymbolKind::CLASS
+                    | SymbolKind::INTERFACE
+                    | SymbolKind::ENUM
+                    | SymbolKind::OBJECT
+                    | SymbolKind::TYPE_PARAMETER
+            )
+        })
+    })
+}
+
+pub(crate) fn resolve_callable_ref_lhs(
+    ctx: &mut AstEvalContext,
+    lhs: Node,
+) -> Option<(KotlinType, bool)> {
+    if crate::inference::types::ast_type::is_type_node(&lhs) {
+        let parsed =
+            crate::inference::types::ast_node_to_kotlin_type(&lhs, ctx.node_source, &[], false)?;
+        let qualified = super::qualification::qualify_type(ctx.index, ctx.current_url, &parsed);
+        let is_unbound = !is_singleton_object_type(ctx.index, ctx.current_url, &qualified);
+        return Some((qualified, is_unbound));
+    }
+    if matches!(lhs.kind(), "simple_identifier" | "type_identifier") {
+        let lhs_text = ctx.node_text(lhs)?;
+        if let Some(local_ty) = super::variable::resolve_local_receiver(
+            ctx.index,
+            ctx.current_url,
+            lhs_text,
+            ctx.pos,
+            ctx.source,
+            ctx.root,
+            ctx.depth + 1,
+        ) {
+            return Some((local_ty, false));
+        }
+        if is_known_type_identifier(ctx.index, lhs_text) {
+            let full =
+                super::qualification::resolve_full_type_name(ctx.index, ctx.current_url, lhs_text);
+            let parsed = super::types::parse_type_signature(&full)?;
+            let qualified = super::qualification::qualify_type(ctx.index, ctx.current_url, &parsed);
+            let is_unbound = !is_singleton_object_type(ctx.index, ctx.current_url, &qualified);
+            return Some((qualified, is_unbound));
+        }
+    }
+    let expr_ty = infer_expression_node(&mut ctx.sub(), lhs)?;
+    Some((expr_ty, false))
 }
 
 fn find_call_pos(call_view: Option<&AstCallView>, fallback: Node) -> Position {

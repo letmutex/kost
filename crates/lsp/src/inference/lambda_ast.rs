@@ -272,27 +272,33 @@ pub fn find_last_expression_in_lambda<'a>(
         last_direct_child
     }?;
 
-    let (expr_node, expr_text) =
-        if matches!(target_node.kind(), "jump_expression" | "return_expression") {
-            let mut expr_child = None;
-            let mut c = target_node.walk();
-            for child in target_node.children(&mut c) {
-                if child.is_named() && !child.kind().contains("label") {
-                    expr_child = Some(child);
-                }
+    let is_return_jump = target_node.kind() == "return_expression"
+        || (target_node.kind() == "jump_expression"
+            && target_node
+                .utf8_text(source.as_bytes())
+                .ok()
+                .is_some_and(|t| t.trim_start().starts_with("return")));
+
+    let (expr_node, expr_text) = if is_return_jump {
+        let mut expr_child = None;
+        let mut c = target_node.walk();
+        for child in target_node.children(&mut c) {
+            if child.is_named() && !child.kind().contains("label") {
+                expr_child = Some(child);
             }
-            if let Some(child) = expr_child {
-                let child_text = child.utf8_text(source.as_bytes()).ok()?.trim();
-                (child, child_text)
-            } else {
-                let full_text = target_node.utf8_text(source.as_bytes()).ok()?.trim();
-                let stripped = full_text.strip_prefix("return").unwrap_or(full_text).trim();
-                (target_node, stripped)
-            }
+        }
+        if let Some(child) = expr_child {
+            let child_text = child.utf8_text(source.as_bytes()).ok()?.trim();
+            (child, child_text)
         } else {
-            let text = target_node.utf8_text(source.as_bytes()).ok()?.trim();
-            (target_node, text)
-        };
+            let full_text = target_node.utf8_text(source.as_bytes()).ok()?.trim();
+            let stripped = full_text.strip_prefix("return").unwrap_or(full_text).trim();
+            (target_node, stripped)
+        }
+    } else {
+        let text = target_node.utf8_text(source.as_bytes()).ok()?.trim();
+        (target_node, text)
+    };
 
     (!expr_text.is_empty()).then_some((expr_node, expr_text))
 }

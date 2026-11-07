@@ -1,0 +1,20 @@
+[[tests]]
+name = "select_clause_result_type"
+file = "kotlinx-coroutines-core/common/test/selects/SelectDeferredTest.kt"
+variable = "res"
+position = { line = 15, col = 12 }
+expected_type = "String"
+
+[[tests]]
+name = "select_mutex_lock_result"
+file = "kotlinx-coroutines-core/common/test/selects/SelectMutexTest.kt"
+variable = "res"
+position = { line = 16, col = 12 }
+expected_type = "String"
+
+[[tests]]
+name = "select_channel_receive_result"
+file = "kotlinx-coroutines-core/common/test/selects/SelectRendezvousChannelTest.kt"
+variable = "res"
+position = { line = 249, col = 16 }
+expected_type = "String"

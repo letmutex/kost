@@ -234,11 +234,18 @@ fn populate_value_arg_constraints(
     value_args: &[&str],
     inferred_arg_types: Option<&[Option<KotlinType>]>,
 ) {
-    for (idx, arg_expr) in value_args.iter().enumerate() {
-        let expected_param = if let Some(info) = sig_info {
-            info.params
+    let parsed_args: Vec<_> = value_args
+        .iter()
+        .map(|arg| crate::syntax::ast_call_view::parse_call_arg(arg))
+        .collect();
+    let mapped_params =
+        sig_info.map(|info| super::overload::map_call_args_to_params(&info.params, &parsed_args));
+
+    for (idx, parsed_arg) in parsed_args.iter().enumerate() {
+        let expected_param = if let Some(ref mapped) = mapped_params {
+            mapped
                 .get(idx)
-                .or_else(|| info.params.last().filter(|p| p.is_vararg))
+                .and_then(|p| *p)
                 .and_then(|p| system.parse_with_params(&p.type_name))
         } else if let Some(param_str) = crate::signature::extract_param_type_by_index(sig, idx) {
             system.parse_with_params(&param_str)
@@ -246,6 +253,9 @@ fn populate_value_arg_constraints(
             None
         };
 
+        let substituted_expected = expected_param
+            .as_ref()
+            .map(|ty| ty.substitute(&system.bindings));
         let arg_type = inferred_arg_types
             .and_then(|args| args.get(idx))
             .and_then(|opt| opt.as_ref())
@@ -253,8 +263,8 @@ fn populate_value_arg_constraints(
             .or_else(|| {
                 super::expression::infer_receiver_type_expected_traced(
                     ctx.sub(),
-                    arg_expr,
-                    expected_param.as_ref(),
+                    &parsed_arg.expr,
+                    substituted_expected.as_ref(),
                 )
             });
 
