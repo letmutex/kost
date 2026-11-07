@@ -148,41 +148,48 @@ pub fn load_project_config(config_file_path: &Path) -> Result<ProjectConfig, Str
 
 pub fn resolve_project_root_path(config_file_path: &Path, configured_path: &str) -> PathBuf {
     let configured = Path::new(configured_path);
-    if configured.is_absolute() && configured.exists() {
-        return std::fs::canonicalize(configured).unwrap_or_else(|_| configured.to_path_buf());
+    if configured.is_absolute() {
+        let canonical =
+            std::fs::canonicalize(configured).unwrap_or_else(|_| configured.to_path_buf());
+        return strip_unc_prefix(&canonical);
     }
 
     let config_dir = config_file_path.parent().unwrap_or_else(|| Path::new("."));
     let direct_relative = config_dir.join(configured);
-    if direct_relative.exists() {
-        return std::fs::canonicalize(&direct_relative).unwrap_or(direct_relative);
+    let canonical = std::fs::canonicalize(&direct_relative).unwrap_or(direct_relative);
+    strip_unc_prefix(&canonical)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_resolve_project_root_path_anchored_relative() {
+        let temp_dir = std::env::temp_dir().join("test_lsp_config_rel");
+        let project_dir = temp_dir.join("fixtures").join("my_project");
+        let target_dir = temp_dir.join("repos").join("my_target");
+        let _ = std::fs::create_dir_all(&project_dir);
+        let _ = std::fs::create_dir_all(&target_dir);
+
+        let config_file = project_dir.join("project.toml");
+        let resolved = resolve_project_root_path(&config_file, "../../repos/my_target");
+        let expected = strip_unc_prefix(&std::fs::canonicalize(&target_dir).unwrap());
+        assert_eq!(resolved, expected);
+
+        let _ = std::fs::remove_dir_all(&temp_dir);
     }
 
-    // Walk up from config_dir to search for the path relative to parent directories / repo root
-    let mut current = Some(config_dir);
-    while let Some(dir) = current {
-        let candidate = dir.join(configured);
-        if candidate.exists() {
-            return std::fs::canonicalize(&candidate).unwrap_or(candidate);
-        }
-        current = dir.parent();
-    }
+    #[test]
+    fn test_resolve_project_root_path_absolute() {
+        let temp_dir = std::env::temp_dir().join("test_lsp_config_abs");
+        let _ = std::fs::create_dir_all(&temp_dir);
 
-    // Try from current working directory and its parents
-    if let Ok(cwd) = std::env::current_dir() {
-        let candidate = cwd.join(configured);
-        if candidate.exists() {
-            return std::fs::canonicalize(&candidate).unwrap_or(candidate);
-        }
-        let mut cur = Some(cwd.as_path());
-        while let Some(dir) = cur {
-            let candidate = dir.join(configured);
-            if candidate.exists() {
-                return std::fs::canonicalize(&candidate).unwrap_or(candidate);
-            }
-            cur = dir.parent();
-        }
-    }
+        let dummy_config = temp_dir.join("dummy").join("project.toml");
+        let resolved = resolve_project_root_path(&dummy_config, temp_dir.to_str().unwrap());
+        let expected = strip_unc_prefix(&std::fs::canonicalize(&temp_dir).unwrap());
+        assert_eq!(resolved, expected);
 
-    direct_relative
+        let _ = std::fs::remove_dir_all(&temp_dir);
+    }
 }
