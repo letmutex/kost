@@ -143,14 +143,14 @@ dependencies = [
 
 [[package]]
 name = "cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "common",
 ]
 
 [[package]]
 name = "common"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "ignore",
@@ -251,7 +251,7 @@ dependencies = [
 
 [[package]]
 name = "dep"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "bytes",
@@ -328,7 +328,7 @@ dependencies = [
 
 [[package]]
 name = "format"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "cli",
@@ -738,7 +738,7 @@ dependencies = [
 
 [[package]]
 name = "kost"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "cli",
@@ -764,7 +764,7 @@ checksum = "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2"
 
 [[package]]
 name = "lint"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "cli",
@@ -816,7 +816,7 @@ checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
 name = "lsp"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "common",
@@ -838,7 +838,7 @@ dependencies = [
 
 [[package]]
 name = "lsp-integration-tests"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "common",
@@ -1180,7 +1180,7 @@ dependencies = [
 
 [[package]]
 name = "resolver"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "ahash",
  "common",
@@ -1871,7 +1871,7 @@ checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
 name = "update"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "cli",
  "common",
