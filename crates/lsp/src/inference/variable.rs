@@ -109,6 +109,29 @@ pub fn resolve_local_receiver_traced(
     tracer: &mut Tracer,
 ) -> Option<KotlinType> {
     let offset = crate::position::position_to_byte_offset(pos, source);
+    if depth == 0
+        && let Some(r) = root
+        && let Some(pos_node) = find_node_at_position(r, pos)
+        && pos_node.utf8_text(source.as_bytes()).ok().map(str::trim) == Some(clean)
+        && crate::syntax::ast_util::extract_receiver_node(&pos_node).is_some()
+    {
+        let nav_node = pos_node
+            .parent()
+            .filter(|p| p.kind() == "navigation_expression")
+            .or_else(|| {
+                pos_node
+                    .parent()
+                    .and_then(|p| p.parent())
+                    .filter(|gp| gp.kind() == "navigation_expression")
+            });
+        if let Some(nav) = nav_node {
+            let ctx = InferenceContext::new(index, current_url, pos, source, root, depth, tracer);
+            let mut eval_ctx = super::ast_eval::AstEvalContext::from_ctx(ctx);
+            if let Some(member_ty) = super::ast_call::infer_navigation_node(&mut eval_ctx, nav) {
+                return Some(member_ty);
+            }
+        }
+    }
     let target_node = root.and_then(|r| {
         r.named_descendant_for_byte_range(offset, offset)
             .or_else(|| {
@@ -134,10 +157,14 @@ pub fn resolve_local_receiver_traced(
             crate::syntax::scope::BindingRole::Value,
         )
     })?;
-    let decl_node = if found_node.kind() == "variable_declaration"
+    let decl_node = if (found_node.kind() == "variable_declaration"
         && found_node
             .parent()
-            .is_some_and(|p| p.kind() == "property_declaration")
+            .is_some_and(|p| p.kind() == "property_declaration"))
+        || (found_node.kind() == "simple_identifier"
+            && found_node
+                .parent()
+                .is_some_and(|p| p.kind() == "catch_block"))
     {
         found_node.parent().unwrap()
     } else {

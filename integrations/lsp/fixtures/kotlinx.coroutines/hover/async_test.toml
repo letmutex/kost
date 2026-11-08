@@ -1,0 +1,9 @@
+[[tests]]
+name = "cancellation_exception_message_hover"
+file = "kotlinx-coroutines-core/common/test/AsyncTest.kt"
+symbol = "message"
+position = { line = 60, col = 35 }
+contains = [
+    "message",
+    "String?"
+]
