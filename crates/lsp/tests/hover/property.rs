@@ -206,3 +206,39 @@ fun process() {
         "Completions should contain destructured variable 'lon'"
     );
 }
+
+#[test]
+fn test_hover_catch_parameter_member_property() {
+    let mut index = WorkspaceIndex::new();
+    let url = Url::parse("file:///project/CatchProperty.kt").unwrap();
+    let code = r#"
+package test.general
+
+open class BaseError(open val message: String? = null)
+class CustomError(override val message: String? = null) : BaseError(message)
+
+fun consume(text: String?) {}
+
+fun test(action: () -> Unit) {
+    try {
+        action()
+    } catch (e: CustomError) {
+        consume(e.message)
+    }
+}
+"#;
+    index.index_source(url.clone(), code);
+
+    let pos = Position::new(12, 18);
+    let hover = find_hover(&index, &url, "message", pos, code);
+    assert!(
+        hover.is_some(),
+        "Hover should resolve for catch parameter member property"
+    );
+    let hover_text = match hover.unwrap().contents {
+        HoverContents::Scalar(MarkedString::String(text)) => text,
+        _ => panic!("unexpected hover contents"),
+    };
+    assert!(hover_text.contains("message"));
+    assert!(hover_text.contains("String?"));
+}

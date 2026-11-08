@@ -4,3 +4,10 @@ file = "kotlinx-coroutines-core/common/test/AsyncTest.kt"
 variable = "d"
 position = { line = 39, col = 12 }
 expected_type = "kotlinx.coroutines.Deferred<Unit>"
+
+[[tests]]
+name = "cancellation_exception_message_type"
+file = "kotlinx-coroutines-core/common/test/AsyncTest.kt"
+variable = "message"
+position = { line = 60, col = 35 }
+expected_type = "String?"

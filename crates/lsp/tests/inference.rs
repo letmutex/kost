@@ -4,6 +4,7 @@ mod inference {
     mod test_bidirectional_inference;
     mod test_bytecode_generics;
     mod test_callable_reference;
+    mod test_catch_parameter;
     mod test_companion_call;
     mod test_constructor;
     mod test_control_flow_edge_cases;
