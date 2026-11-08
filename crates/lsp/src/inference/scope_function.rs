@@ -133,9 +133,27 @@ pub fn resolve_it_keyword_traced(
     depth: usize,
     tracer: &mut super::trace::Tracer,
 ) -> Option<KotlinType> {
+    resolve_it_keyword_after_byte_traced(index, current_url, t, pos, source, root, depth, 0, tracer)
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn resolve_it_keyword_after_byte_traced(
+    index: &WorkspaceIndex,
+    current_url: &Url,
+    t: Node,
+    pos: Position,
+    source: &str,
+    root: Option<Node>,
+    depth: usize,
+    min_lambda_start_byte: usize,
+    tracer: &mut super::trace::Tracer,
+) -> Option<KotlinType> {
     tracer.enter_scope("LambdaParameter", "it");
     let lambdas = super::lambda_ast::collect_enclosing_lambdas(t);
     for lambda_node in lambdas {
+        if lambda_node.start_byte() < min_lambda_start_byte {
+            break;
+        }
         if super::lambda_ast::lambda_has_explicit_params(lambda_node) {
             tracer.record_step(|| {
                 "Enclosing lambda has explicit parameters, continuing search to outer scope"
