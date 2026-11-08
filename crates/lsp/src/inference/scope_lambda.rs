@@ -93,15 +93,21 @@ impl<'a> LambdaSolveCtx<'a> {
         }
     }
 
-    fn solve_for_decl(&self, decl_url: &Url, decl: &DeclarationItem) -> Option<KotlinType> {
+    fn solve_for_decl(
+        &self,
+        decl_url: &Url,
+        decl: &DeclarationItem,
+        require_defaults: bool,
+    ) -> Option<KotlinType> {
         let sig = decl.signature.as_deref()?;
         let sig_info = super::signature::SignatureInfo::from_decl(decl);
-        self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref())
+        self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref(), require_defaults)
     }
 
     pub(crate) fn solve_for_signature(&self, decl_url: &Url, sig: &str) -> Option<KotlinType> {
         let sig_info = super::signature::SignatureInfo::parse(sig);
-        self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref())
+        self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref(), true)
+            .or_else(|| self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref(), false))
     }
 
     fn apply_receiver_and_arg_constraints(
@@ -159,6 +165,7 @@ impl<'a> LambdaSolveCtx<'a> {
         system: &ConstraintSystem,
         sig: &str,
         sig_info: Option<&super::signature::SignatureInfo>,
+        require_defaults: bool,
     ) -> Option<KotlinType> {
         let get_param = |p: &super::signature::SignatureParam| {
             p.kotlin_type
@@ -172,13 +179,15 @@ impl<'a> LambdaSolveCtx<'a> {
                     &info.params,
                     self.arg_idx,
                 );
-                return super::signature::are_unpassed_parameters_compatible(
-                    &info.params,
-                    idx,
-                    self.arg_idx,
-                )
-                .then(|| info.params.get(idx).and_then(get_param))
-                .flatten();
+                let defaults_ok = !require_defaults
+                    || super::signature::are_unpassed_parameters_compatible(
+                        &info.params,
+                        idx,
+                        self.arg_idx,
+                    );
+                return defaults_ok
+                    .then(|| info.params.get(idx).and_then(get_param))
+                    .flatten();
             }
             let mapped = super::overload::map_call_args_to_params(&info.params, &self.parsed_args);
             return mapped
@@ -202,6 +211,7 @@ impl<'a> LambdaSolveCtx<'a> {
         decl_url: &Url,
         sig: &str,
         sig_info: Option<&super::signature::SignatureInfo>,
+        require_defaults: bool,
     ) -> Option<KotlinType> {
         let mut system = if let Some(info) = sig_info {
             ConstraintSystem::from_signature_info(self.index, info)
@@ -223,7 +233,8 @@ impl<'a> LambdaSolveCtx<'a> {
             system.bind(param, arg_ty.clone());
         }
 
-        let target_ty = self.extract_target_lambda_param_type(&system, sig, sig_info)?;
+        let target_ty =
+            self.extract_target_lambda_param_type(&system, sig, sig_info, require_defaults)?;
 
         if (!target_ty.is_function() && !super::types::is_functional_or_sam(&target_ty, self.index))
             || !self.apply_receiver_and_arg_constraints(&mut system, sig, sig_info)
@@ -279,9 +290,11 @@ impl<'a> LambdaSolveCtx<'a> {
                 ))
             });
         }
-        for (decl_url, decl) in candidates {
-            if let Some(k_ty) = self.solve_for_decl(decl_url, decl) {
-                return Some(k_ty);
+        for require_defaults in [true, false] {
+            for (decl_url, decl) in &candidates {
+                if let Some(k_ty) = self.solve_for_decl(decl_url, decl, require_defaults) {
+                    return Some(k_ty);
+                }
             }
         }
         None
