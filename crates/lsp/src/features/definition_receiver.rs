@@ -25,6 +25,36 @@ pub struct ReceiverMemberQuery<'a> {
     pub inferred_types: &'a [Option<KotlinType>],
 }
 
+fn receiver_member_sort_rank(
+    index: &WorkspaceIndex,
+    current_url: &Url,
+    current_pkg: Option<&str>,
+    url: &Url,
+    is_expect: bool,
+) -> u8 {
+    let in_same_pkg = url == current_url
+        || current_pkg.is_some_and(|pkg| {
+            index
+                .files
+                .get(url)
+                .and_then(|file_symbols| file_symbols.package_name.as_deref())
+                == Some(pkg)
+        });
+    if in_same_pkg {
+        if is_expect {
+            0
+        } else if url == current_url {
+            1
+        } else {
+            2
+        }
+    } else if is_expect {
+        3
+    } else {
+        4
+    }
+}
+
 pub fn find_receiver_member_definition(
     index: &WorkspaceIndex,
     query: ReceiverMemberQuery<'_>,
@@ -66,20 +96,14 @@ pub fn find_receiver_member_definition(
                 continue;
             }
 
-            matching.sort_by_key(|(url, _)| {
-                if url.as_ref() == query.current_url {
-                    0
-                } else if current_pkg.is_some_and(|pkg| {
-                    index
-                        .files
-                        .get(url.as_ref())
-                        .and_then(|file_symbols| file_symbols.package_name.as_deref())
-                        == Some(pkg)
-                }) {
-                    1
-                } else {
-                    2
-                }
+            matching.sort_by_key(|(url, decl)| {
+                receiver_member_sort_rank(
+                    index,
+                    query.current_url,
+                    current_pkg,
+                    url.as_ref(),
+                    decl.is_expect,
+                )
             });
 
             all_matching.extend(matching);

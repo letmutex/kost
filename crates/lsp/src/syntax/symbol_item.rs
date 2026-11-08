@@ -32,6 +32,7 @@ pub struct DeclarationItem {
     pub container_name: Option<SmolStr>,
     pub is_private: bool,
     pub is_override: bool,
+    pub is_expect: bool,
     pub modifiers: ClassModifiers,
 }
 
@@ -42,6 +43,7 @@ pub struct DeclarationMetadata {
     pub container_name: Option<SmolStr>,
     pub is_private: bool,
     pub is_override: bool,
+    pub is_expect: bool,
     pub modifiers: ClassModifiers,
 }
 
@@ -58,6 +60,7 @@ impl DeclarationMetadata {
             container_name,
             is_private,
             is_override: false,
+            is_expect: false,
             modifiers: ClassModifiers::default(),
         }
     }
@@ -76,6 +79,7 @@ impl DeclarationMetadata {
             container_name,
             is_private,
             is_override,
+            is_expect: false,
             modifiers,
         }
     }
@@ -106,6 +110,7 @@ impl DeclarationItem {
             container_name: metadata.container_name,
             is_private: metadata.is_private,
             is_override: metadata.is_override,
+            is_expect: metadata.is_expect,
             modifiers: metadata.modifiers,
         }
     }
@@ -226,6 +231,33 @@ pub fn map_declaration_item_info<'a>(
     }
 }
 
+pub fn has_expect_modifier(node: &Node, source: &str) -> bool {
+    let bytes = source.as_bytes();
+    let start = node.start_byte().min(bytes.len());
+    let mut idx = start;
+    while idx > 0 && bytes[idx - 1].is_ascii_whitespace() {
+        idx -= 1;
+    }
+    if idx >= 6 && &bytes[idx - 6..idx] == b"expect" {
+        let prev_ok =
+            idx == 6 || (!bytes[idx - 7].is_ascii_alphanumeric() && bytes[idx - 7] != b'_');
+        if prev_ok {
+            return true;
+        }
+    }
+    let header_end = find_identifier_node(node)
+        .map_or(node.end_byte(), |id| id.start_byte())
+        .min(bytes.len());
+    if start < header_end
+        && let Some(header) = source.get(start..header_end)
+    {
+        return header
+            .split(|c: char| !c.is_ascii_alphanumeric() && c != '_')
+            .any(|tok| tok == "expect");
+    }
+    false
+}
+
 pub fn create_declaration_item(
     name: &str,
     kind: SymbolKind,
@@ -267,18 +299,21 @@ pub fn create_declaration_item(
         actual_kind = SymbolKind::INTERFACE;
     }
 
+    let mut metadata = DeclarationMetadata::with_modifiers(
+        doc_comment.map(SmolStr::new),
+        signature.map(SmolStr::new),
+        item_container.as_deref().map(SmolStr::new),
+        is_private,
+        is_override,
+        modifiers,
+    );
+    metadata.is_expect = has_expect_modifier(&decl_node, source);
+
     DeclarationItem::new(
         name,
         actual_kind,
         node_to_range(&decl_node),
         id_range,
-        DeclarationMetadata::with_modifiers(
-            doc_comment.map(SmolStr::new),
-            signature.map(SmolStr::new),
-            item_container.as_deref().map(SmolStr::new),
-            is_private,
-            is_override,
-            modifiers,
-        ),
+        metadata,
     )
 }

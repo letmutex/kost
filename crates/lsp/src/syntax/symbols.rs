@@ -1,6 +1,6 @@
 use super::symbol_item::{
     DeclarationItem, DeclarationMetadata, FileSymbols, ImportItem, create_declaration_item,
-    map_declaration_item_info,
+    has_expect_modifier, map_declaration_item_info,
 };
 use smol_str::SmolStr;
 use tower_lsp::lsp_types::SymbolKind;
@@ -152,7 +152,7 @@ pub fn parse_file_symbols(parser: &mut KotlinParser, source: &str) -> Option<Fil
         }
     }
 
-    collect_declarations(root, source, None, &mut file_symbols);
+    collect_declarations(root, source, None, false, &mut file_symbols);
     Some(file_symbols)
 }
 
@@ -160,6 +160,7 @@ fn handle_infix_declaration(
     child: &Node,
     source: &str,
     container: &Option<String>,
+    container_is_expect: bool,
     file_symbols: &mut FileSymbols,
 ) -> bool {
     let Some((name, kind, id_node, body_node)) = check_infix_class_or_interface(child, source)
@@ -168,23 +169,32 @@ fn handle_infix_declaration(
     };
     let sig = extract_signature(child, source);
     let is_priv = is_private_declaration(child, source);
+    let is_expect = container_is_expect || has_expect_modifier(child, source);
+    let mut metadata = DeclarationMetadata::new(
+        extract_doc_comment(child, source).map(SmolStr::new),
+        sig.map(SmolStr::new),
+        container.as_deref().map(SmolStr::new),
+        is_priv,
+    );
+    metadata.is_expect = is_expect;
     file_symbols.declarations.push(DeclarationItem::new(
         name,
         kind,
         node_to_range(child),
         node_to_range(&id_node),
-        DeclarationMetadata::new(
-            extract_doc_comment(child, source).map(SmolStr::new),
-            sig.map(SmolStr::new),
-            container.as_deref().map(SmolStr::new),
-            is_priv,
-        ),
+        metadata,
     ));
     let next_container = container
         .as_ref()
         .map(|p| common::concat_str!(p, ".", name))
         .unwrap_or_else(|| name.to_string());
-    collect_declarations(body_node, source, Some(next_container), file_symbols);
+    collect_declarations(
+        body_node,
+        source,
+        Some(next_container),
+        is_expect,
+        file_symbols,
+    );
     true
 }
 
@@ -192,11 +202,18 @@ fn collect_declarations(
     node: Node,
     source: &str,
     container: Option<String>,
+    container_is_expect: bool,
     file_symbols: &mut FileSymbols,
 ) {
     let mut cursor = node.walk();
     for child in node.children(&mut cursor) {
-        if handle_infix_declaration(&child, source, &container, file_symbols) {
+        if handle_infix_declaration(
+            &child,
+            source,
+            &container,
+            container_is_expect,
+            file_symbols,
+        ) {
             continue;
         }
 
@@ -215,12 +232,18 @@ fn collect_declarations(
                         | "modifiers"
                 )
             {
-                collect_declarations(child, source, container.clone(), file_symbols);
+                collect_declarations(
+                    child,
+                    source,
+                    container.clone(),
+                    container_is_expect,
+                    file_symbols,
+                );
             }
             continue;
         };
 
-        let item = create_declaration_item(
+        let mut item = create_declaration_item(
             name,
             kind,
             decl_node,
@@ -229,22 +252,27 @@ fn collect_declarations(
             &file_symbols.imports,
             file_symbols.package_name.as_deref(),
         );
+        item.is_expect |= container_is_expect;
+        let item_is_expect = item.is_expect;
         file_symbols.declarations.push(item);
 
         super::hierarchy::handle_declaration_extensions(&decl_node, source, name, file_symbols);
 
-        let dk = decl_node.kind();
-
-        let should_recurse = matches!(
-            dk,
+        if matches!(
+            decl_node.kind(),
             "class_declaration" | "object_declaration" | "companion_object"
-        );
-        if should_recurse {
+        ) {
             let next_container = container
                 .as_ref()
                 .map(|p| common::concat_str!(p, ".", name))
                 .unwrap_or_else(|| name.to_string());
-            collect_declarations(decl_node, source, Some(next_container), file_symbols);
+            collect_declarations(
+                decl_node,
+                source,
+                Some(next_container),
+                item_is_expect,
+                file_symbols,
+            );
         }
     }
 }

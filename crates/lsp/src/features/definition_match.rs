@@ -13,6 +13,7 @@ pub fn matches_context_role(kind: SymbolKind, is_call: bool) -> bool {
             kind,
             SymbolKind::PROPERTY
                 | SymbolKind::VARIABLE
+                | SymbolKind::ENUM
                 | SymbolKind::ENUM_MEMBER
                 | SymbolKind::FIELD
                 | SymbolKind::CLASS
@@ -27,24 +28,32 @@ pub fn pick_best_declaration<'a>(
     iter: impl Iterator<Item = &'a DeclarationItem>,
     is_call: bool,
 ) -> Option<&'a DeclarationItem> {
+    let mut best_role_match = None;
+    let mut best_expect_fallback = None;
     let mut fallback = None;
     for decl in iter {
         if matches_context_role(decl.kind, is_call) {
-            return Some(decl);
-        }
-        if fallback.is_none() {
+            if decl.is_expect {
+                return Some(decl);
+            }
+            best_role_match.get_or_insert(decl);
+        } else if decl.is_expect {
+            best_expect_fallback.get_or_insert(decl);
+        } else if fallback.is_none() {
             fallback = Some(decl);
         }
     }
-    fallback
+    best_role_match.or(best_expect_fallback).or(fallback)
 }
 
-/// Choose the best matching location, preferring source files (.kt / .kts) over bytecode (.class)
-/// and matching syntactic role (function vs property/value).
+/// Choose the best matching location, preferring source files (.kt / .kts) over bytecode (.class),
+/// `expect` declarations over `actual` declarations, and matching syntactic role.
 pub fn pick_best_match<'a>(
     iter: impl Iterator<Item = &'a DeclarationRef>,
     is_call: bool,
 ) -> Option<Location> {
+    let mut best_source_matched = None;
+    let mut best_source_expect_fallback = None;
     let mut best_source_fallback = None;
     let mut best_bytecode_matched = None;
     let mut best_bytecode_fallback = None;
@@ -58,7 +67,12 @@ pub fn pick_best_match<'a>(
         };
 
         if is_src && matches_role {
-            return Some(loc);
+            if decl.is_expect {
+                return Some(loc);
+            }
+            best_source_matched.get_or_insert(loc);
+        } else if is_src && decl.is_expect {
+            best_source_expect_fallback.get_or_insert(loc);
         } else if is_src {
             best_source_fallback.get_or_insert(loc);
         } else if matches_role {
@@ -68,7 +82,9 @@ pub fn pick_best_match<'a>(
         }
     }
 
-    best_bytecode_matched
+    best_source_matched
+        .or(best_source_expect_fallback)
+        .or(best_bytecode_matched)
         .or(best_source_fallback)
         .or(best_bytecode_fallback)
 }
@@ -138,14 +154,19 @@ fn is_preferred_match(
     let Some((best_cand, best_score)) = best else {
         return true;
     };
-    score > best_score
-        || (score == best_score
-            && target_location.is_some_and(|target_loc| {
-                cand.0.as_ref() == &target_loc.uri
-                    && cand.1.selection_range == target_loc.range
-                    && !(best_cand.0.as_ref() == &target_loc.uri
-                        && best_cand.1.selection_range == target_loc.range)
-            }))
+    if score != best_score {
+        return score > best_score;
+    }
+    if let Some(target_loc) = target_location {
+        let cand_is_target =
+            cand.0.as_ref() == &target_loc.uri && cand.1.selection_range == target_loc.range;
+        let best_is_target = best_cand.0.as_ref() == &target_loc.uri
+            && best_cand.1.selection_range == target_loc.range;
+        if cand_is_target != best_is_target {
+            return cand_is_target;
+        }
+    }
+    cand.1.is_expect && !best_cand.1.is_expect
 }
 
 pub fn pick_best_match_with_overload<'a>(
