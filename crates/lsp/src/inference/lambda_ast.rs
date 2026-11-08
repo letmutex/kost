@@ -142,11 +142,7 @@ pub fn extract_call_argument_expressions<'a>(call_node: Node<'a>, source: &'a st
     if let Some(view) = crate::syntax::ast_call_view::AstCallView::from_node(call_node) {
         view.value_arguments
             .iter()
-            .filter_map(|arg| {
-                crate::syntax::ast_call_view::AstCallView::argument_expression(*arg)
-                    .or(Some(*arg))
-                    .and_then(|e| source.get(e.start_byte()..e.end_byte()).map(str::trim))
-            })
+            .filter_map(|arg| source.get(arg.start_byte()..arg.end_byte()).map(str::trim))
             .collect()
     } else {
         Vec::new()

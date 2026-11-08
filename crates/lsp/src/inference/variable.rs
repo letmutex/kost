@@ -98,6 +98,56 @@ pub fn resolve_local_receiver_kt_traced(
     resolve_local_receiver_traced(index, current_url, clean, pos, source, root, depth, tracer)
 }
 
+fn try_infer_cursor_navigation(
+    index: &WorkspaceIndex,
+    current_url: &Url,
+    clean: &str,
+    pos: Position,
+    source: &str,
+    root: Option<Node>,
+    depth: usize,
+    tracer: &mut Tracer,
+) -> Option<KotlinType> {
+    if depth != 0 {
+        return None;
+    }
+    let r = root?;
+    let pos_node = find_node_at_position(r, pos)?;
+    if pos_node.utf8_text(source.as_bytes()).ok().map(str::trim) != Some(clean)
+        || crate::syntax::ast_util::extract_receiver_node(&pos_node).is_none()
+    {
+        return None;
+    }
+    let nav_node = pos_node
+        .parent()
+        .filter(|p| p.kind() == "navigation_expression")
+        .or_else(|| {
+            pos_node
+                .parent()
+                .and_then(|p| p.parent())
+                .filter(|gp| gp.kind() == "navigation_expression")
+        })?;
+    let ctx = InferenceContext::new(index, current_url, pos, source, root, depth, tracer);
+    let mut eval_ctx = super::ast_eval::AstEvalContext::from_ctx(ctx);
+    super::ast_call::infer_navigation_node(&mut eval_ctx, nav_node)
+}
+
+fn promote_binding_to_decl_node(found_node: Node) -> Node {
+    if (found_node.kind() == "variable_declaration"
+        && found_node
+            .parent()
+            .is_some_and(|p| p.kind() == "property_declaration"))
+        || (found_node.kind() == "simple_identifier"
+            && found_node
+                .parent()
+                .is_some_and(|p| p.kind() == "catch_block"))
+    {
+        found_node.parent().unwrap()
+    } else {
+        found_node
+    }
+}
+
 pub fn resolve_local_receiver_traced(
     index: &WorkspaceIndex,
     current_url: &Url,
@@ -108,30 +158,12 @@ pub fn resolve_local_receiver_traced(
     depth: usize,
     tracer: &mut Tracer,
 ) -> Option<KotlinType> {
-    let offset = crate::position::position_to_byte_offset(pos, source);
-    if depth == 0
-        && let Some(r) = root
-        && let Some(pos_node) = find_node_at_position(r, pos)
-        && pos_node.utf8_text(source.as_bytes()).ok().map(str::trim) == Some(clean)
-        && crate::syntax::ast_util::extract_receiver_node(&pos_node).is_some()
+    if let Some(member_ty) =
+        try_infer_cursor_navigation(index, current_url, clean, pos, source, root, depth, tracer)
     {
-        let nav_node = pos_node
-            .parent()
-            .filter(|p| p.kind() == "navigation_expression")
-            .or_else(|| {
-                pos_node
-                    .parent()
-                    .and_then(|p| p.parent())
-                    .filter(|gp| gp.kind() == "navigation_expression")
-            });
-        if let Some(nav) = nav_node {
-            let ctx = InferenceContext::new(index, current_url, pos, source, root, depth, tracer);
-            let mut eval_ctx = super::ast_eval::AstEvalContext::from_ctx(ctx);
-            if let Some(member_ty) = super::ast_call::infer_navigation_node(&mut eval_ctx, nav) {
-                return Some(member_ty);
-            }
-        }
+        return Some(member_ty);
     }
+    let offset = crate::position::position_to_byte_offset(pos, source);
     let target_node = root.and_then(|r| {
         r.named_descendant_for_byte_range(offset, offset)
             .or_else(|| {
@@ -156,20 +188,23 @@ pub fn resolve_local_receiver_traced(
             usize::MAX,
             crate::syntax::scope::BindingRole::Value,
         )
-    })?;
-    let decl_node = if (found_node.kind() == "variable_declaration"
-        && found_node
-            .parent()
-            .is_some_and(|p| p.kind() == "property_declaration"))
-        || (found_node.kind() == "simple_identifier"
-            && found_node
-                .parent()
-                .is_some_and(|p| p.kind() == "catch_block"))
+    });
+    if clean == "it"
+        && let Some(it_ty) = super::scope_function::resolve_it_keyword_after_byte_traced(
+            index,
+            current_url,
+            target_node,
+            pos,
+            source,
+            root,
+            depth,
+            found_node.map_or(0, |n| n.start_byte() + 1),
+            tracer,
+        )
     {
-        found_node.parent().unwrap()
-    } else {
-        found_node
-    };
+        return Some(it_ty);
+    }
+    let decl_node = promote_binding_to_decl_node(found_node?);
     tracer.record_step(|| common::concat_str!("Found local declaration `", clean, "`"));
     let ctx = InferenceContext::new(index, current_url, pos, source, root, depth, tracer);
     infer_decl_node_type(&decl_node, clean, ctx)

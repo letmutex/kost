@@ -24,6 +24,7 @@ mod inference {
     mod test_infix;
     mod test_lambda;
     mod test_lambda_context;
+    mod test_lambda_context_advanced;
     mod test_lambda_return;
     mod test_local_function;
     mod test_model;

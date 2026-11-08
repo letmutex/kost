@@ -1,13 +1,14 @@
-use tower_lsp::lsp_types::{Position, SymbolKind, Url};
+use tower_lsp::lsp_types::{Position, Url};
 use tree_sitter::Node;
 
-use super::context::InferenceContext;
 use super::expression::infer_receiver_type_depth;
 pub use super::lambda_call_solve::get_builtin_scope_function;
 use super::lambda_call_solve::resolve_fallback_type_param;
+use super::overload::score_overload_candidate_parsed;
 use super::solver::ConstraintSystem;
 use super::types::KotlinType;
-use crate::indexer::WorkspaceIndex;
+use crate::indexer::{DeclarationItem, WorkspaceIndex, is_source_url};
+use crate::syntax::ast_call_view::{ParsedCallArg, parse_call_arg};
 
 fn find_last_functional_param_in_sig(sig: &str, index: &WorkspaceIndex) -> Option<KotlinType> {
     let params = crate::inference::signature::parse_signature_params(sig);
@@ -22,7 +23,8 @@ pub(crate) struct LambdaSolveCtx<'a> {
     pub(crate) current_url: &'a Url,
     pub(crate) receiver_type: Option<&'a KotlinType>,
     pub(crate) explicit_type_args: &'a [KotlinType],
-    pub(crate) value_args: &'a [&'a str],
+    pub(crate) parsed_args: Vec<ParsedCallArg>,
+    pub(crate) inferred_arg_types: Vec<Option<KotlinType>>,
     pub(crate) arg_idx: usize,
     pub(crate) is_trailing: bool,
     pub(crate) pos: Position,
@@ -32,19 +34,80 @@ pub(crate) struct LambdaSolveCtx<'a> {
 }
 
 impl<'a> LambdaSolveCtx<'a> {
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn new(
+        index: &'a WorkspaceIndex,
+        current_url: &'a Url,
+        receiver_type: Option<&'a KotlinType>,
+        explicit_type_args: &'a [KotlinType],
+        value_args: &[&str],
+        arg_idx: usize,
+        is_trailing: bool,
+        pos: Position,
+        source: &'a str,
+        root: Option<Node<'a>>,
+        depth: usize,
+    ) -> Self {
+        let parsed_args: Vec<_> = value_args.iter().map(|a| parse_call_arg(a)).collect();
+        let inferred_arg_types = parsed_args
+            .iter()
+            .enumerate()
+            .map(|(idx, p)| {
+                if (!is_trailing && idx == arg_idx) || p.expr.trim_start().starts_with('{') {
+                    None
+                } else {
+                    infer_receiver_type_depth(
+                        index,
+                        current_url,
+                        &p.expr,
+                        pos,
+                        source,
+                        root,
+                        depth + 1,
+                    )
+                }
+            })
+            .collect();
+        Self {
+            index,
+            current_url,
+            receiver_type,
+            explicit_type_args,
+            parsed_args,
+            inferred_arg_types,
+            arg_idx,
+            is_trailing,
+            pos,
+            source,
+            root,
+            depth,
+        }
+    }
+
+    pub(crate) fn with_receiver(&self, receiver_type: &'a KotlinType) -> Self {
+        Self {
+            receiver_type: Some(receiver_type),
+            parsed_args: self.parsed_args.clone(),
+            inferred_arg_types: self.inferred_arg_types.clone(),
+            ..*self
+        }
+    }
+
     fn solve_for_decl(
         &self,
         decl_url: &Url,
-        decl: &crate::indexer::DeclarationItem,
+        decl: &DeclarationItem,
+        require_defaults: bool,
     ) -> Option<KotlinType> {
         let sig = decl.signature.as_deref()?;
         let sig_info = super::signature::SignatureInfo::from_decl(decl);
-        self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref())
+        self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref(), require_defaults)
     }
 
-    fn solve_for_signature(&self, decl_url: &Url, sig: &str) -> Option<KotlinType> {
+    pub(crate) fn solve_for_signature(&self, decl_url: &Url, sig: &str) -> Option<KotlinType> {
         let sig_info = super::signature::SignatureInfo::parse(sig);
-        self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref())
+        self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref(), true)
+            .or_else(|| self.solve_for_sig_and_info(decl_url, sig, sig_info.as_ref(), false))
     }
 
     fn apply_receiver_and_arg_constraints(
@@ -68,30 +131,30 @@ impl<'a> LambdaSolveCtx<'a> {
         } else if sig_info.is_some_and(|info| info.receiver.is_some()) {
             return false;
         }
-
-        for (arg_pos_idx, arg_expr) in self.value_args.iter().enumerate() {
-            let parsed_arg = crate::syntax::ast_call_view::parse_call_arg(arg_expr);
-            let Some(arg_ty) = infer_receiver_type_depth(
-                self.index,
-                self.current_url,
-                &parsed_arg.expr,
-                self.pos,
-                self.source,
-                self.root,
-                self.depth + 1,
-            ) else {
-                continue;
-            };
-            let expected_opt = if let Some(info) = sig_info {
-                info.params
-                    .get(arg_pos_idx)
-                    .and_then(|p| p.kotlin_type.clone())
+        if sig_info.is_some_and(|info| {
+            super::overload::validate_call_arguments(&info.params, &self.parsed_args).is_none()
+        }) {
+            return false;
+        }
+        let mapped_params = sig_info
+            .map(|info| super::overload::map_call_args_to_params(&info.params, &self.parsed_args));
+        for (idx, arg_ty_opt) in self.inferred_arg_types.iter().enumerate() {
+            let Some(arg_ty) = arg_ty_opt else { continue };
+            let expected_opt = if let Some(ref mapped) = mapped_params {
+                mapped.get(idx).and_then(|p| *p).and_then(|p| {
+                    p.kotlin_type
+                        .clone()
+                        .or_else(|| system.parse_with_params(&p.type_name))
+                })
             } else {
-                crate::signature::extract_param_type_by_index(sig, arg_pos_idx)
+                crate::signature::extract_param_type_by_index(sig, idx)
                     .and_then(|p_str| system.parse_with_params(&p_str))
             };
-            if let Some(expected) = expected_opt {
-                system.add_subtype_constraint(&arg_ty, &expected);
+            if let Some(expected) = expected_opt
+                && !matches!(arg_ty.unwrap_nullable_ref(), KotlinType::Function { .. })
+                && !system.add_subtype_constraint(arg_ty, &expected)
+            {
+                return false;
             }
         }
         true
@@ -102,35 +165,43 @@ impl<'a> LambdaSolveCtx<'a> {
         system: &ConstraintSystem,
         sig: &str,
         sig_info: Option<&super::signature::SignatureInfo>,
+        require_defaults: bool,
     ) -> Option<KotlinType> {
-        if self.is_trailing {
-            sig_info
-                .and_then(|info| {
-                    let idx = super::lambda_call_solve::map_trailing_lambda_param_index(
-                        self.index,
+        let get_param = |p: &super::signature::SignatureParam| {
+            p.kotlin_type
+                .clone()
+                .or_else(|| system.parse_with_params(&p.type_name))
+        };
+        if let Some(info) = sig_info {
+            if self.is_trailing {
+                let idx = super::lambda_call_solve::map_trailing_lambda_param_index(
+                    self.index,
+                    &info.params,
+                    self.arg_idx,
+                );
+                let defaults_ok = !require_defaults
+                    || super::signature::are_unpassed_parameters_compatible(
                         &info.params,
+                        idx,
                         self.arg_idx,
                     );
-                    info.params.get(idx).and_then(|p| {
-                        p.kotlin_type
-                            .clone()
-                            .or_else(|| system.parse_with_params(&p.type_name))
-                    })
-                })
-                .or_else(|| find_last_functional_param_in_sig(sig, self.index))
+                return defaults_ok
+                    .then(|| info.params.get(idx).and_then(get_param))
+                    .flatten();
+            }
+            let mapped = super::overload::map_call_args_to_params(&info.params, &self.parsed_args);
+            return mapped
+                .get(self.arg_idx)
+                .copied()
+                .flatten()
+                .or_else(|| info.params.get(self.arg_idx))
+                .and_then(get_param);
+        }
+        if self.is_trailing {
+            find_last_functional_param_in_sig(sig, self.index)
         } else {
-            sig_info
-                .and_then(|info| {
-                    info.params.get(self.arg_idx).and_then(|p| {
-                        p.kotlin_type
-                            .clone()
-                            .or_else(|| system.parse_with_params(&p.type_name))
-                    })
-                })
-                .or_else(|| {
-                    crate::signature::extract_param_type_by_index(sig, self.arg_idx)
-                        .and_then(|p_str| system.parse_with_params(&p_str))
-                })
+            crate::signature::extract_param_type_by_index(sig, self.arg_idx)
+                .and_then(|p_str| system.parse_with_params(&p_str))
                 .or_else(|| find_last_functional_param_in_sig(sig, self.index))
         }
     }
@@ -140,6 +211,7 @@ impl<'a> LambdaSolveCtx<'a> {
         decl_url: &Url,
         sig: &str,
         sig_info: Option<&super::signature::SignatureInfo>,
+        require_defaults: bool,
     ) -> Option<KotlinType> {
         let mut system = if let Some(info) = sig_info {
             ConstraintSystem::from_signature_info(self.index, info)
@@ -161,7 +233,8 @@ impl<'a> LambdaSolveCtx<'a> {
             system.bind(param, arg_ty.clone());
         }
 
-        let target_ty = self.extract_target_lambda_param_type(&system, sig, sig_info)?;
+        let target_ty =
+            self.extract_target_lambda_param_type(&system, sig, sig_info, require_defaults)?;
 
         if (!target_ty.is_function() && !super::types::is_functional_or_sam(&target_ty, self.index))
             || !self.apply_receiver_and_arg_constraints(&mut system, sig, sig_info)
@@ -169,6 +242,15 @@ impl<'a> LambdaSolveCtx<'a> {
             return None;
         }
 
+        if let Some(info) = sig_info
+            && !super::lambda_call_extension::check_type_param_bounds_satisfaction(
+                self.index,
+                &info.type_params,
+                &system.bindings,
+            )
+        {
+            return None;
+        }
         let mut solved = system.solve_and_substitute(&target_ty);
         if let KotlinType::Function {
             receiver,
@@ -193,133 +275,33 @@ impl<'a> LambdaSolveCtx<'a> {
         ))
     }
 
-    fn find_in_containers(&self, containers: &[String], method_name: &str) -> Option<KotlinType> {
-        for container_name in containers {
-            if let Some(decls) = self.index.container_to_decls.get(container_name.as_str()) {
-                for (decl_url, decl) in decls.iter().filter(|(_, d)| d.name == method_name) {
-                    let is_ext = super::signature::SignatureInfo::from_decl(decl)
-                        .is_some_and(|info| info.receiver.is_some());
-                    let is_visible = if is_ext {
-                        super::qualification::is_declaration_visible(
-                            self.index,
-                            self.current_url,
-                            decl_url.as_ref(),
-                            decl,
-                        )
-                    } else {
-                        !decl.is_private || decl_url.as_ref() == self.current_url
-                    };
-                    if is_visible && let Some(k_ty) = self.solve_for_decl(decl_url.as_ref(), decl) {
-                        return Some(k_ty);
-                    }
+    pub(crate) fn sort_and_solve_candidates(
+        &self,
+        mut candidates: Vec<(&Url, &DeclarationItem)>,
+    ) -> Option<KotlinType> {
+        if !self.parsed_args.is_empty() && candidates.len() > 1 {
+            candidates.sort_by_cached_key(|(url, decl)| {
+                std::cmp::Reverse(score_overload_candidate_parsed(
+                    decl,
+                    is_source_url(url),
+                    &self.parsed_args,
+                    &self.inferred_arg_types,
+                    self.index,
+                ))
+            });
+        }
+        for require_defaults in [true, false] {
+            for (decl_url, decl) in &candidates {
+                if let Some(k_ty) = self.solve_for_decl(decl_url, decl, require_defaults) {
+                    return Some(k_ty);
                 }
             }
         }
         None
     }
-
-    fn find_in_declarations_or_builtin(
-        &self,
-        name: &str,
-        require_function: bool,
-        supertypes: &[String],
-    ) -> Option<KotlinType> {
-        if let Some(decls) = self.index.name_to_decls.get(name) {
-            for (decl_url, decl) in decls {
-                let is_ok = matches!(
-                    decl.kind,
-                    SymbolKind::FUNCTION | SymbolKind::METHOD | SymbolKind::CONSTRUCTOR
-                ) && (!require_function || decl.kind == SymbolKind::FUNCTION)
-                    && self.receiver_type.is_none_or(|rec| {
-                        super::lambda_call_extension::is_extension_container_plausible(
-                            self.index, rec, supertypes, decl,
-                        )
-                    })
-                    && super::qualification::is_declaration_visible(
-                        self.index,
-                        self.current_url,
-                        decl_url.as_ref(),
-                        decl,
-                    );
-                if is_ok && let Some(k_ty) = self.solve_for_decl(decl_url.as_ref(), decl) {
-                    return Some(k_ty);
-                }
-            }
-        }
-        let builtin_sig = get_builtin_scope_function(name)?;
-        self.solve_for_signature(self.current_url, builtin_sig)
-    }
-}
-
-pub(crate) fn resolve_member_lambda_type(
-    ctx: &LambdaSolveCtx,
-    receiver_type: &KotlinType,
-    method_name: &str,
-) -> Option<KotlinType> {
-    let clean_container = receiver_type.base_name();
-    let supertypes = ctx.index.get_all_supertypes(clean_container);
-    let all_containers =
-        super::member_ranking::collect_candidate_containers(clean_container, ctx.index);
-
-    ctx.find_in_containers(&all_containers, method_name)
-        .or_else(|| ctx.find_in_declarations_or_builtin(method_name, false, &supertypes))
-}
-
-pub(crate) fn resolve_toplevel_lambda_type(
-    ctx: &LambdaSolveCtx,
-    callee_name: &str,
-) -> Option<KotlinType> {
-    if let Some(res) = ctx.find_in_declarations_or_builtin(callee_name, true, &[]) {
-        return Some(res);
-    }
-    for implicit_rec in super::scope_stack::collect_implicit_receivers(
-        ctx.index,
-        ctx.current_url,
-        ctx.pos,
-        ctx.source,
-        ctx.root,
-        ctx.depth,
-    ) {
-        let member_ctx = LambdaSolveCtx {
-            receiver_type: Some(&implicit_rec),
-            ..*ctx
-        };
-        if let Some(res) = resolve_member_lambda_type(&member_ctx, &implicit_rec, callee_name) {
-            return Some(res);
-        }
-    }
-    None
-}
-
-pub fn resolve_lambda_signature_for_receiver(
-    ctx: InferenceContext<'_, '_, '_>,
-    receiver_type: Option<&KotlinType>,
-    callee: &str,
-    explicit_type_args: &[KotlinType],
-    value_args: &[&str],
-    arg_idx: usize,
-    is_trailing: bool,
-) -> Option<KotlinType> {
-    let solve_ctx = LambdaSolveCtx {
-        index: ctx.index,
-        current_url: ctx.current_url,
-        receiver_type,
-        explicit_type_args,
-        value_args,
-        arg_idx,
-        is_trailing,
-        pos: ctx.pos,
-        source: ctx.source,
-        root: ctx.root,
-        depth: ctx.depth,
-    };
-    if let Some(rec) = receiver_type {
-        resolve_member_lambda_type(&solve_ctx, rec, callee)
-    } else {
-        resolve_toplevel_lambda_type(&solve_ctx, callee)
-    }
 }
 
 pub use super::scope_enclosing_lambda::{
-    resolve_enclosing_lambda_type, resolve_lambda_type_for_call_and_lambda,
+    resolve_enclosing_lambda_type, resolve_lambda_signature_for_receiver,
+    resolve_lambda_type_for_call_and_lambda,
 };

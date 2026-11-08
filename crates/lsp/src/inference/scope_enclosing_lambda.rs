@@ -1,13 +1,151 @@
 use smol_str::SmolStr;
-use tower_lsp::lsp_types::{Position, Url};
+use tower_lsp::lsp_types::{Position, SymbolKind, Url};
 use tree_sitter::Node;
 
+use super::context::InferenceContext;
 use super::expression::infer_receiver_type_depth;
-use super::scope_lambda::{
-    LambdaSolveCtx, resolve_member_lambda_type, resolve_toplevel_lambda_type,
-};
+use super::lambda_call_solve::get_builtin_scope_function;
+use super::scope_lambda::LambdaSolveCtx;
 use super::types::KotlinType;
 use crate::indexer::WorkspaceIndex;
+
+impl<'a> LambdaSolveCtx<'a> {
+    pub(crate) fn find_in_containers(
+        &self,
+        containers: &[String],
+        method_name: &str,
+    ) -> Option<KotlinType> {
+        for container_name in containers {
+            if let Some(decls) = self.index.container_to_decls.get(container_name.as_str()) {
+                let mut candidates = Vec::new();
+                for (decl_url, decl) in decls.iter().filter(|(_, d)| d.name == method_name) {
+                    let is_ext = super::signature::SignatureInfo::from_decl(decl)
+                        .is_some_and(|info| info.receiver.is_some());
+                    let is_visible = if is_ext {
+                        super::qualification::is_declaration_visible(
+                            self.index,
+                            self.current_url,
+                            decl_url.as_ref(),
+                            decl,
+                        )
+                    } else {
+                        !decl.is_private || decl_url.as_ref() == self.current_url
+                    };
+                    if is_visible {
+                        candidates.push((decl_url.as_ref(), decl.as_ref()));
+                    }
+                }
+                if let Some(k_ty) = self.sort_and_solve_candidates(candidates) {
+                    return Some(k_ty);
+                }
+            }
+        }
+        None
+    }
+
+    pub(crate) fn find_in_declarations_or_builtin(
+        &self,
+        name: &str,
+        require_function: bool,
+        supertypes: &[String],
+    ) -> Option<KotlinType> {
+        if let Some(decls) = self.index.name_to_decls.get(name) {
+            let mut candidates = Vec::new();
+            for (decl_url, decl) in decls {
+                let is_ok = matches!(
+                    decl.kind,
+                    SymbolKind::FUNCTION | SymbolKind::METHOD | SymbolKind::CONSTRUCTOR
+                ) && (!require_function
+                    || (decl.kind == SymbolKind::FUNCTION && decl.container_name.is_none()))
+                    && self.receiver_type.is_none_or(|rec| {
+                        super::lambda_call_extension::is_extension_container_plausible(
+                            self.index, rec, supertypes, decl,
+                        )
+                    })
+                    && super::qualification::is_declaration_visible(
+                        self.index,
+                        self.current_url,
+                        decl_url.as_ref(),
+                        decl,
+                    );
+                if is_ok {
+                    candidates.push((decl_url.as_ref(), decl.as_ref()));
+                }
+            }
+            if let Some(k_ty) = self.sort_and_solve_candidates(candidates) {
+                return Some(k_ty);
+            }
+        }
+        let builtin_sig = get_builtin_scope_function(name)?;
+        self.solve_for_signature(self.current_url, builtin_sig)
+    }
+}
+
+pub(crate) fn resolve_member_lambda_type(
+    ctx: &LambdaSolveCtx,
+    receiver_type: &KotlinType,
+    method_name: &str,
+) -> Option<KotlinType> {
+    let clean_container = receiver_type.base_name();
+    let supertypes = ctx.index.get_all_supertypes(clean_container);
+    let all_containers =
+        super::member_ranking::collect_candidate_containers(clean_container, ctx.index);
+
+    ctx.find_in_containers(&all_containers, method_name)
+        .or_else(|| ctx.find_in_declarations_or_builtin(method_name, false, &supertypes))
+}
+
+pub(crate) fn resolve_toplevel_lambda_type(
+    ctx: &LambdaSolveCtx,
+    callee_name: &str,
+) -> Option<KotlinType> {
+    if let Some(res) = ctx.find_in_declarations_or_builtin(callee_name, true, &[]) {
+        return Some(res);
+    }
+    for implicit_rec in super::scope_stack::collect_implicit_receivers(
+        ctx.index,
+        ctx.current_url,
+        ctx.pos,
+        ctx.source,
+        ctx.root,
+        ctx.depth,
+    ) {
+        let member_ctx = ctx.with_receiver(&implicit_rec);
+        if let Some(res) = resolve_member_lambda_type(&member_ctx, &implicit_rec, callee_name) {
+            return Some(res);
+        }
+    }
+    None
+}
+
+pub fn resolve_lambda_signature_for_receiver(
+    ctx: InferenceContext<'_, '_, '_>,
+    receiver_type: Option<&KotlinType>,
+    callee: &str,
+    explicit_type_args: &[KotlinType],
+    value_args: &[&str],
+    arg_idx: usize,
+    is_trailing: bool,
+) -> Option<KotlinType> {
+    let solve_ctx = LambdaSolveCtx::new(
+        ctx.index,
+        ctx.current_url,
+        receiver_type,
+        explicit_type_args,
+        value_args,
+        arg_idx,
+        is_trailing,
+        ctx.pos,
+        ctx.source,
+        ctx.root,
+        ctx.depth,
+    );
+    if let Some(rec) = receiver_type {
+        resolve_member_lambda_type(&solve_ctx, rec, callee)
+    } else {
+        resolve_toplevel_lambda_type(&solve_ctx, callee)
+    }
+}
 
 fn dispatch_enclosing_lambda_callee<'a>(
     ctx: LambdaSolveCtx<'a>,
@@ -58,7 +196,7 @@ pub fn resolve_lambda_type_for_call_and_lambda(
     current_url: &Url,
     call_node: Node,
     l_node: Node,
-    pos: Position,
+    _pos: Position,
     source: &str,
     root: Option<Node>,
     depth: usize,
@@ -95,19 +233,20 @@ pub fn resolve_lambda_type_for_call_and_lambda(
             arg.start_byte() <= l_node.start_byte() && l_node.end_byte() <= arg.end_byte()
         })
     });
-    let ctx = LambdaSolveCtx {
+    let call_pos = crate::position::point_to_position(call_node.start_position());
+    let ctx = LambdaSolveCtx::new(
         index,
         current_url,
-        receiver_type: None,
-        explicit_type_args: &explicit_type_args,
-        value_args: effective_value_args,
-        arg_idx: effective_arg_idx,
+        None,
+        &explicit_type_args,
+        effective_value_args,
+        effective_arg_idx,
         is_trailing,
-        pos,
+        call_pos,
         source,
         root,
         depth,
-    };
+    );
 
     dispatch_enclosing_lambda_callee(ctx, callee_node, callee_clean)
 }
