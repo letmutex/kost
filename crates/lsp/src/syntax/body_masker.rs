@@ -207,7 +207,10 @@ fn is_word_at(bytes: &[u8], i: usize, len: usize, word: &[u8]) -> bool {
     if i + wlen > len || &bytes[i..i + wlen] != word {
         return false;
     }
-    i + wlen == len || bytes[i + wlen].is_ascii_whitespace() || bytes[i + wlen] == b'{'
+    i + wlen == len
+        || bytes[i + wlen].is_ascii_whitespace()
+        || bytes[i + wlen] == b'{'
+        || bytes[i + wlen] == b'('
 }
 
 fn is_declaration_keyword(bytes: &[u8], i: usize, len: usize) -> bool {

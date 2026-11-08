@@ -4,6 +4,12 @@ mod hover {
     mod code_link;
     mod delegated_var;
     mod disambiguation;
+    mod expect_actual_class;
+    mod expect_actual_constructor;
+    mod expect_actual_enum;
+    mod expect_actual_function;
+    mod expect_actual_type;
+    mod expect_actual_variable;
     mod function;
     mod large_doc;
     mod overload;

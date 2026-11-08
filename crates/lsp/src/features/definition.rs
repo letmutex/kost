@@ -2,8 +2,10 @@ use tower_lsp::lsp_types::{Location, Position, SymbolKind, Url};
 use tree_sitter::Node;
 
 use super::completion_context::extract_receiver_before_node;
-use super::definition_local::find_local_binding;
-use super::definition_match::{find_global_or_imported_definition, pick_best_decl_with_overload};
+use super::definition_local::{
+    collect_indexed_containers_at_pos, find_current_file_definition, find_local_binding,
+};
+use super::definition_match::find_global_or_imported_definition;
 use super::definition_receiver::{
     ReceiverMemberQuery, find_decl_in_package, find_receiver_member_definition,
 };
@@ -15,7 +17,7 @@ use crate::syntax::ast_util::{
     extract_callable_reference_receiver, is_call_callee, is_callable_reference_target,
 };
 use crate::syntax::scope::BindingRole;
-use crate::syntax::symbol_item::{DeclarationItem, FileSymbols};
+use crate::syntax::symbol_item::DeclarationItem;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct DefinitionOptions<'a> {
@@ -190,23 +192,28 @@ fn is_declaration_visible_in_scope<'a>(
             return true;
         };
         let visible_containers = cell.get_or_init(|| {
-            crate::inference::scope_function::collect_visible_containers_with_url(
-                index,
-                current_url,
-                root,
-                pos,
-                source,
-            )
-            .into_iter()
-            .map(|enclosing| {
-                enclosing
-                    .split('<')
-                    .next()
-                    .unwrap_or(&enclosing)
-                    .trim()
-                    .to_string()
-            })
-            .collect()
+            let mut containers: Vec<String> =
+                crate::inference::scope_function::collect_visible_containers_with_url(
+                    index,
+                    current_url,
+                    root,
+                    pos,
+                    source,
+                )
+                .into_iter()
+                .map(|enclosing| {
+                    enclosing
+                        .split('<')
+                        .next()
+                        .unwrap_or(&enclosing)
+                        .trim()
+                        .to_string()
+                })
+                .collect();
+            if let Some(file_syms) = index.files.get(current_url) {
+                collect_indexed_containers_at_pos(file_syms, pos, &mut containers);
+            }
+            containers
         });
         visible_containers.iter().any(|enclosing_class| {
             crate::syntax::hierarchy::containers_match(enclosing_class, container.as_str())
@@ -305,32 +312,4 @@ fn find_node_receiver_or_named_def(
         return (true, Some(arg_loc));
     }
     (false, None)
-}
-
-fn find_current_file_definition<F>(
-    current_file: Option<&FileSymbols>,
-    query: &DefinitionQuery<'_>,
-    is_visible: &F,
-) -> Option<Location>
-where
-    F: Fn(&DeclarationItem) -> bool,
-{
-    let file_symbols = current_file?;
-    let matching = file_symbols
-        .declarations
-        .iter()
-        .filter(|decl| decl.name == query.symbol_name && is_visible(decl));
-    let decl = pick_best_decl_with_overload(
-        matching,
-        query.is_call,
-        query.raw_args,
-        query.inferred_types,
-        query.index,
-        Some(query.current_url),
-        query.target_location,
-    )?;
-    Some(Location::new(
-        query.current_url.clone(),
-        decl.selection_range,
-    ))
 }
