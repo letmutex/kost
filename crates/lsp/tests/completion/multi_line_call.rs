@@ -23,7 +23,7 @@ fn find_position_of(source: &str, pattern: &str) -> Position {
 }
 
 #[test]
-fn test_multi_line_function_call_completion() {
+fn multi_line_function_call_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Call.kt").unwrap();
     let source = r#"package com.example
@@ -60,7 +60,7 @@ fun caller() {
 }
 
 #[test]
-fn test_multi_line_function_call_with_existing_argument_completion() {
+fn multi_line_function_call_with_existing_argument_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/CallArgs.kt").unwrap();
     let source = r#"package com.example
@@ -93,7 +93,7 @@ fun caller() {
 }
 
 #[test]
-fn test_multi_line_member_method_call_completion() {
+fn multi_line_member_method_call_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/MemberCall.kt").unwrap();
     let source = r#"package com.example

@@ -113,7 +113,7 @@ mod tests {
     use super::local_timestamp;
 
     #[test]
-    fn test_local_timestamp_format() {
+    fn local_timestamp_format() {
         let ts = local_timestamp();
         assert_eq!(ts.len(), 23); // YYYY-MM-DD HH:MM:SS.mmm
         assert_eq!(&ts[4..5], "-");

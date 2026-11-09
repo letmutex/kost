@@ -165,7 +165,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_resolve_project_root_path_anchored_relative() {
+    fn resolve_project_root_path_anchored_relative() {
         let temp_dir = std::env::temp_dir().join("test_lsp_config_rel");
         let project_dir = temp_dir.join("fixtures").join("my_project");
         let target_dir = temp_dir.join("repos").join("my_target");
@@ -181,7 +181,7 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_project_root_path_absolute() {
+    fn resolve_project_root_path_absolute() {
         let temp_dir = std::env::temp_dir().join("test_lsp_config_abs");
         let _ = std::fs::create_dir_all(&temp_dir);
 

@@ -1,7 +1,7 @@
 use resolver::{RepositoryRegistry, ScriptDialect};
 
 #[test]
-fn test_repositories_preserve_exact_gradle_declaration_order() {
+fn repositories_preserve_exact_gradle_declaration_order() {
     let mut registry = RepositoryRegistry::new();
     let kts_script = r#"
         repositories {
@@ -34,7 +34,7 @@ fn test_repositories_preserve_exact_gradle_declaration_order() {
 }
 
 #[test]
-fn test_settings_dependency_resolution_repos_precede_plugin_management_repos() {
+fn settings_dependency_resolution_repos_precede_plugin_management_repos() {
     let mut registry = RepositoryRegistry::new();
     let settings_kts = r#"
         pluginManagement {
@@ -75,7 +75,7 @@ fn test_settings_dependency_resolution_repos_precede_plugin_management_repos() {
 }
 
 #[test]
-fn test_groovy_repo_map_literal_bare_label_and_bare_uri_shorthand() {
+fn groovy_repo_map_literal_bare_label_and_bare_uri_shorthand() {
     let mut registry = RepositoryRegistry::new();
     let groovy_script = r#"
         repositories {
@@ -108,7 +108,7 @@ fn test_groovy_repo_map_literal_bare_label_and_bare_uri_shorthand() {
 }
 
 #[test]
-fn test_calls_outside_repositories_block_are_ignored() {
+fn calls_outside_repositories_block_are_ignored() {
     let mut registry = RepositoryRegistry::new();
     let kts_script = r#"
         maven("https://outside.example.com/repo")
@@ -134,7 +134,7 @@ fn test_calls_outside_repositories_block_are_ignored() {
 }
 
 #[test]
-fn test_publishing_repositories_block_is_ignored() {
+fn publishing_repositories_block_is_ignored() {
     let mut kt_registry = RepositoryRegistry::new();
     let kts_script = r#"
         publishing {
@@ -178,7 +178,7 @@ fn test_publishing_repositories_block_is_ignored() {
 }
 
 #[test]
-fn test_groovy_double_quoted_ext_script_detected_and_interpolated() {
+fn groovy_double_quoted_ext_script_detected_and_interpolated() {
     let groovy_script = r#"
 ext {
     roomVersion = "2.6.1"
@@ -205,7 +205,7 @@ dependencies {
 }
 
 #[test]
-fn test_kotlin_chained_plugin_version_call_extracted() {
+fn kotlin_chained_plugin_version_call_extracted() {
     let kts_script = r#"
 plugins {
     id("org.jetbrains.kotlin.jvm").version("2.0.21").apply(false)
@@ -216,7 +216,7 @@ plugins {
 }
 
 #[test]
-fn test_sibling_submodules_inherit_root_vars_without_leaking_local_vars() {
+fn sibling_submodules_inherit_root_vars_without_leaking_local_vars() {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -254,7 +254,7 @@ fn test_sibling_submodules_inherit_root_vars_without_leaking_local_vars() {
 }
 
 #[test]
-fn test_transitive_graph_deduplicates_unsorted_direct_dependencies() {
+fn transitive_graph_deduplicates_unsorted_direct_dependencies() {
     let direct = vec![
         resolver::DependencyCoordinate::new("com.example", "lib", Some("2.0.0")),
         resolver::DependencyCoordinate::new("com.example", "lib", Some("1.0.0")),

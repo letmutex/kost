@@ -145,7 +145,7 @@ mod tests {
     use crate::editorconfig::property::apply_file_properties;
 
     #[test]
-    fn test_editorconfig_resolves_child_override() {
+    fn editorconfig_resolves_child_override() {
         let parent_content = r#"
 root = true
 [*]
@@ -174,7 +174,7 @@ ktlint_standard_no-semi = disabled
     }
 
     #[test]
-    fn test_editorconfig_normalizes_underscore_and_hyphen_rule_keys() {
+    fn editorconfig_normalizes_underscore_and_hyphen_rule_keys() {
         let content = "[*.kt]\nktlint_standard_no_semi = disabled\n";
         let file = EditorConfigFile::parse(content).unwrap();
         let mut resolved = ResolvedEditorConfig::new();
@@ -185,7 +185,7 @@ ktlint_standard_no-semi = disabled
     }
 
     #[test]
-    fn test_editorconfig_unsets_rule_toggle_and_updates_tab_indent() {
+    fn editorconfig_unsets_rule_toggle_and_updates_tab_indent() {
         let content =
             "[*.kt]\nindent_size = tab\ntab_width = 8\nktlint_standard_no_semi = disabled\n";
         let unset_content = "[*.kt]\nktlint_standard_no_semi = unset\n";
@@ -202,7 +202,7 @@ ktlint_standard_no-semi = disabled
     }
 
     #[test]
-    fn test_global_ktlint_toggle_disables_all_rules() {
+    fn global_ktlint_toggle_disables_all_rules() {
         let content = "[*.kt]\nktlint = disabled\n";
         let file = EditorConfigFile::parse(content).unwrap();
         let mut resolved = ResolvedEditorConfig::new();
@@ -213,7 +213,7 @@ ktlint_standard_no-semi = disabled
     }
 
     #[test]
-    fn test_ruleset_toggle_overrides_global_ktlint_toggle() {
+    fn ruleset_toggle_overrides_global_ktlint_toggle() {
         let content = "[*.kt]\nktlint = disabled\nktlint_standard = enabled\n";
         let file = EditorConfigFile::parse(content).unwrap();
         let mut resolved = ResolvedEditorConfig::new();
@@ -224,7 +224,7 @@ ktlint_standard_no-semi = disabled
     }
 
     #[test]
-    fn test_specific_rule_toggle_overrides_ruleset_and_global_toggle() {
+    fn specific_rule_toggle_overrides_ruleset_and_global_toggle() {
         let content = "[*.kt]\nktlint = disabled\nktlint_standard = disabled\nktlint_standard_no-semi = enabled\n";
         let file = EditorConfigFile::parse(content).unwrap();
         let mut resolved = ResolvedEditorConfig::new();
@@ -235,7 +235,7 @@ ktlint_standard_no-semi = disabled
     }
 
     #[test]
-    fn test_non_standard_ruleset_toggle() {
+    fn non_standard_ruleset_toggle() {
         let content = "[*.kt]\nktlint_compose = disabled\nktlint_compose_specific_rule = enabled\n";
         let file = EditorConfigFile::parse(content).unwrap();
         let mut resolved = ResolvedEditorConfig::new();
@@ -247,7 +247,7 @@ ktlint_standard_no-semi = disabled
     }
 
     #[test]
-    fn test_malformed_toggle_keys_ignored() {
+    fn malformed_toggle_keys_ignored() {
         let content = "[*.kt]\nktlint__no-semi = disabled\nktlint_standard_ = disabled\n";
         let file = EditorConfigFile::parse(content).unwrap();
         let mut resolved = ResolvedEditorConfig::new();
@@ -258,7 +258,7 @@ ktlint_standard_no-semi = disabled
     }
 
     #[test]
-    fn test_global_ktlint_enabled_respects_default_disabled() {
+    fn global_ktlint_enabled_respects_default_disabled() {
         let content = "[*.kt]\nktlint = enabled\n";
         let file = EditorConfigFile::parse(content).unwrap();
         let mut resolved = ResolvedEditorConfig::new();

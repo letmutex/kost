@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_completion_disabled_in_line_and_block_comments() {
+fn completion_disabled_in_line_and_block_comments() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/TestComments.kt").unwrap();
     let file_code = r#"
@@ -41,7 +41,7 @@ fun test(user: User) {
 }
 
 #[test]
-fn test_completion_disabled_in_plain_strings() {
+fn completion_disabled_in_plain_strings() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/TestStrings.kt").unwrap();
     let file_code = r#"
@@ -72,7 +72,7 @@ fun test(user: User) {
 }
 
 #[test]
-fn test_completion_enabled_in_string_template_interpolation() {
+fn completion_enabled_in_string_template_interpolation() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/TestInterpolation.kt").unwrap();
     let file_code = r#"
@@ -120,7 +120,7 @@ fun test(user: User) {
 }
 
 #[test]
-fn test_completion_disabled_for_raw_numbers() {
+fn completion_disabled_for_raw_numbers() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/TestNumbers.kt").unwrap();
     let file_code = r#"

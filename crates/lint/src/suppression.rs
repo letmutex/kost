@@ -234,7 +234,7 @@ mod tests {
     use super::SuppressionLocator;
 
     #[test]
-    fn test_suppression_hints_multi_rule() {
+    fn suppression_hints_multi_rule() {
         let code = r#"@Suppress("ktlint:standard:no-semi", "ktlint:statistics:too-many-parameters")
 fun suppressedMultiple(a: Int, b: Int, c: Int, d: Int, e: Int, f: Int, g: Int, h: Int) {
     enum class Inner { X, Y; }

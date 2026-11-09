@@ -6,7 +6,7 @@ use lsp::syntax::signature::extract_return_type_from_signature;
 use lsp::syntax::symbols::parse_file_symbols;
 
 #[test]
-fn test_extract_receiver_and_partial() {
+fn extract_receiver_and_partial_cases() {
     assert_eq!(
         extract_receiver_and_partial("user."),
         Some(("user".to_string(), "".to_string()))
@@ -27,7 +27,7 @@ fn test_extract_receiver_and_partial() {
 }
 
 #[test]
-fn test_extract_return_type_from_signature() {
+fn extract_return_type_from_signature_cases() {
     assert_eq!(
         extract_return_type_from_signature("fun getUser(id: String): User"),
         Some("User".to_string())
@@ -53,7 +53,7 @@ fn test_extract_return_type_from_signature() {
 }
 
 #[test]
-fn test_extract_return_type_with_spaced_generics() {
+fn extract_return_type_with_spaced_generics() {
     assert_eq!(
         extract_return_type_from_signature("fun getMap(): Map<String, User>"),
         Some("Map<String, User>".to_string()),
@@ -62,7 +62,7 @@ fn test_extract_return_type_with_spaced_generics() {
 }
 
 #[test]
-fn test_extract_return_type_functional_type() {
+fn extract_return_type_functional_type() {
     assert_eq!(
         extract_return_type_from_signature("fun getHandler(): () -> Unit"),
         Some("() -> Unit".to_string()),
@@ -78,7 +78,7 @@ fn test_extract_return_type_functional_type() {
 }
 
 #[test]
-fn test_extract_return_type_from_signature_ignores_modified_class_and_interface() {
+fn extract_return_type_from_signature_ignores_modified_class_and_interface() {
     assert_eq!(
         extract_return_type_from_signature("open class Base(val item: String) : Super"),
         None
@@ -104,7 +104,7 @@ fn test_extract_return_type_from_signature_ignores_modified_class_and_interface(
 }
 
 #[test]
-fn test_extract_receiver_type_from_extension_signature() {
+fn extract_receiver_type_from_extension_signature() {
     // Standard extension function and property
     assert_eq!(
         extract_receiver_type_from_signature("fun String.firstChar(): Char"),
@@ -167,7 +167,7 @@ fn test_extract_receiver_type_from_extension_signature() {
 }
 
 #[test]
-fn test_extract_receiver_type_with_complex_annotations_and_generics() {
+fn extract_receiver_type_with_complex_annotations_and_generics() {
     // Escaped quotes in annotation strings
     assert_eq!(
         extract_receiver_type_from_signature(r#"@Deprecated("use \"other\"") val Int.dp: Dp"#),
@@ -198,7 +198,7 @@ fn test_extract_receiver_type_with_complex_annotations_and_generics() {
 }
 
 #[test]
-fn test_extract_return_type_class_with_modifiers_returns_none() {
+fn extract_return_type_class_with_modifiers_returns_none() {
     assert_eq!(
         extract_return_type_from_signature("open class Person(val name: String) : Base()"),
         None
@@ -218,7 +218,7 @@ fn test_extract_return_type_class_with_modifiers_returns_none() {
 }
 
 #[test]
-fn test_extract_class_supertypes_excludes_where_clause_bounds() {
+fn extract_class_supertypes_excludes_where_clause_bounds() {
     let code1 = "interface CopyableThrowable<T> where T : Throwable, T : CopyableThrowable<T>";
     let tree1 = parse_source(code1).unwrap();
     let root1 = tree1.root_node();
@@ -254,7 +254,7 @@ fn test_extract_class_supertypes_excludes_where_clause_bounds() {
 }
 
 #[test]
-fn test_extract_class_supertypes_with_where_like_name() {
+fn extract_class_supertypes_with_where_like_name() {
     let code = "class Service : Somewhere<Data>() where T : Constraint";
     let tree = parse_source(code).unwrap();
     let root = tree.root_node();
@@ -274,7 +274,7 @@ fn test_extract_class_supertypes_with_where_like_name() {
 }
 
 #[test]
-fn test_extract_type_alias_target_with_inline_comment() {
+fn extract_type_alias_target_with_inline_comment() {
     let code = "typealias Callback = /* inline doc */ () -> Unit";
     let tree = parse_source(code).unwrap();
     let root = tree.root_node();
@@ -289,7 +289,7 @@ fn test_extract_type_alias_target_with_inline_comment() {
 }
 
 #[test]
-fn test_parse_import_alias_with_inline_comment() {
+fn parse_import_alias_with_inline_comment() {
     let mut parser = KotlinParser::new();
     let code = "import com.example.Foo as /* inline doc */ RenamedFoo";
     let symbols = parse_file_symbols(&mut parser, code).expect("symbols should parse");
@@ -299,7 +299,7 @@ fn test_parse_import_alias_with_inline_comment() {
 }
 
 #[test]
-fn test_extract_type_alias_target_with_suspend_modifier() {
+fn extract_type_alias_target_with_suspend_modifier() {
     let code = "typealias Handler = suspend () -> Unit";
     let tree = parse_source(code).unwrap();
     let root = tree.root_node();

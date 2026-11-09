@@ -1,5 +1,5 @@
 #[test]
-fn test_catalog_dependencies_parsing() {
+fn catalog_dependencies_parsing() {
     let toml = r#"
 [versions]
 coroutines-ver = "1.8.0"
@@ -36,7 +36,7 @@ okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version = "4.12.0" }
 }
 
 #[test]
-fn test_script_dependencies_with_android_and_kmp_configurations() {
+fn script_dependencies_with_android_and_kmp_configurations() {
     let temp_dir = std::env::temp_dir().join("kost_test_script_kmp_configs");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -62,7 +62,7 @@ fn test_script_dependencies_with_android_and_kmp_configurations() {
 }
 
 #[test]
-fn test_script_dependencies_comment_stripping() {
+fn script_dependencies_comment_stripping() {
     let temp_dir = std::env::temp_dir().join("kost_test_script_comments");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -88,7 +88,7 @@ fn test_script_dependencies_comment_stripping() {
 }
 
 #[test]
-fn test_script_dependencies_property_interpolation() {
+fn script_dependencies_property_interpolation() {
     let temp_dir = std::env::temp_dir().join("kost_test_script_props");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -120,7 +120,7 @@ fn test_script_dependencies_property_interpolation() {
 }
 
 #[test]
-fn test_script_dependencies_platform_bom_and_named_arguments() {
+fn script_dependencies_platform_bom_and_named_arguments() {
     let temp_dir = std::env::temp_dir().join("kost_test_script_bom");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -154,7 +154,7 @@ fn test_script_dependencies_platform_bom_and_named_arguments() {
 }
 
 #[test]
-fn test_script_variable_prefix_collision_and_local_val_interpolation() {
+fn script_variable_prefix_collision_and_local_val_interpolation() {
     let temp_dir = std::env::temp_dir().join("kost_test_script_var_prefix");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -187,7 +187,7 @@ fn test_script_variable_prefix_collision_and_local_val_interpolation() {
 }
 
 #[test]
-fn test_groovy_command_expression_dependencies_ast_extraction() {
+fn groovy_command_expression_dependencies_ast_extraction() {
     let temp_dir = std::env::temp_dir().join("kost_test_groovy_command_deps");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -217,7 +217,7 @@ fn test_groovy_command_expression_dependencies_ast_extraction() {
 }
 
 #[test]
-fn test_groovy_named_map_dependencies_ast_extraction() {
+fn groovy_named_map_dependencies_ast_extraction() {
     let temp_dir = std::env::temp_dir().join("kost_test_groovy_named_map");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -244,7 +244,7 @@ fn test_groovy_named_map_dependencies_ast_extraction() {
 }
 
 #[test]
-fn test_groovy_gstring_and_ext_property_interpolation() {
+fn groovy_gstring_and_ext_property_interpolation() {
     let temp_dir = std::env::temp_dir().join("kost_test_groovy_gstring_props");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -276,7 +276,7 @@ fn test_groovy_gstring_and_ext_property_interpolation() {
 }
 
 #[test]
-fn test_groovy_dsl_repository_closure_and_shorthand_urls() {
+fn groovy_dsl_repository_closure_and_shorthand_urls() {
     let mut registry = dep::RepositoryRegistry::new();
     let groovy_script = r#"
         repositories {

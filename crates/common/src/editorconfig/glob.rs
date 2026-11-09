@@ -229,7 +229,7 @@ mod tests {
     use super::compile_glob;
 
     #[test]
-    fn test_glob_matches_extension_choice() {
+    fn glob_matches_extension_choice() {
         let regex = compile_glob("*.{kt,kts}").unwrap();
         assert!(regex.is_match("Main.kt"));
         assert!(regex.is_match("build.gradle.kts"));
@@ -238,7 +238,7 @@ mod tests {
     }
 
     #[test]
-    fn test_glob_matches_directory_anchored_pattern() {
+    fn glob_matches_directory_anchored_pattern() {
         let regex = compile_glob("src/**.kt").unwrap();
         assert!(regex.is_match("src/Main.kt"));
         assert!(regex.is_match("src/nested/Deep.kt"));
@@ -247,14 +247,14 @@ mod tests {
     }
 
     #[test]
-    fn test_glob_matches_character_class() {
+    fn glob_matches_character_class() {
         let regex = compile_glob("[a-z]*.kt").unwrap();
         assert!(regex.is_match("foo.kt"));
         assert!(!regex.is_match("Foo.kt"));
     }
 
     #[test]
-    fn test_glob_negated_character_class_does_not_match_slash() {
+    fn glob_negated_character_class_does_not_match_slash() {
         let regex = compile_glob("foo/[!a]bar.kt").unwrap();
         assert!(regex.is_match("foo/bbar.kt"));
         assert!(!regex.is_match("foo/abar.kt"));
@@ -262,7 +262,7 @@ mod tests {
     }
 
     #[test]
-    fn test_glob_directory_wildcard_matches_zero_or_more_directories() {
+    fn glob_directory_wildcard_matches_zero_or_more_directories() {
         let regex = compile_glob("src/**/test.kt").unwrap();
         assert!(regex.is_match("src/test.kt"));
         assert!(regex.is_match("src/sub/test.kt"));
@@ -271,7 +271,7 @@ mod tests {
     }
 
     #[test]
-    fn test_glob_leading_wildcard_directories() {
+    fn glob_leading_wildcard_directories() {
         let regex = compile_glob("**/test.kt").unwrap();
         assert!(regex.is_match("test.kt"));
         assert!(regex.is_match("src/test.kt"));
@@ -279,7 +279,7 @@ mod tests {
     }
 
     #[test]
-    fn test_glob_numeric_range_and_non_numeric_braces() {
+    fn glob_numeric_range_and_non_numeric_braces() {
         let num_regex = compile_glob("file{1..3}.kt").unwrap();
         assert!(num_regex.is_match("file1.kt"));
         assert!(num_regex.is_match("file2.kt"));
@@ -292,7 +292,7 @@ mod tests {
     }
 
     #[test]
-    fn test_glob_single_braced_element_matches_literal_braces() {
+    fn glob_single_braced_element_matches_literal_braces() {
         let regex = compile_glob("prefix_{foo}.kt").unwrap();
         assert!(regex.is_match("prefix_{foo}.kt"));
         assert!(!regex.is_match("prefix_foo.kt"));

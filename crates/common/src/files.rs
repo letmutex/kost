@@ -145,7 +145,7 @@ mod tests {
     use std::path::{Path, PathBuf};
 
     #[test]
-    fn test_is_kotlin_file_extensions() {
+    fn is_kotlin_file_extensions() {
         assert!(is_kotlin_file(Path::new("src/Main.kt")));
         assert!(is_kotlin_file(Path::new("build.gradle.kts")));
         assert!(is_kotlin_file(Path::new("File.KT")));
@@ -155,13 +155,13 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_missing_path_fails() {
+    fn resolve_missing_path_fails() {
         let err = resolve_target_files(&["non_existent_file.kt".to_string()]).unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
     }
 
     #[test]
-    fn test_clean_path_strips_current_dir_prefix() {
+    fn clean_path_strips_current_dir_prefix() {
         assert_eq!(
             clean_path(PathBuf::from("./src/Main.kt")),
             PathBuf::from("src/Main.kt")
@@ -173,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn test_resolve_target_files_nested_hierarchy_filters_non_kotlin() {
+    fn resolve_target_files_nested_hierarchy_filters_non_kotlin() {
         let unique_id = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
             .unwrap()

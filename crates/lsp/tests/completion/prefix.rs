@@ -22,7 +22,7 @@ fn make_fn_decl(name: &str, sig: Option<&str>, doc: Option<&str>) -> Declaration
 }
 
 #[test]
-fn test_completion_finds_prefix_match_past_max_earlier_items() {
+fn completion_finds_prefix_match_past_max_earlier_items() {
     let mut index = WorkspaceIndex::new();
 
     let mut dummy_decls = Vec::new();
@@ -81,7 +81,7 @@ fn test_completion_finds_prefix_match_past_max_earlier_items() {
 }
 
 #[test]
-fn test_completion_prefix_sorted_alphabetically_before_substring_matches() {
+fn completion_prefix_sorted_alphabetically_before_substring_matches() {
     let mut index = WorkspaceIndex::new();
 
     let decls = vec![
@@ -107,7 +107,7 @@ fn test_completion_prefix_sorted_alphabetically_before_substring_matches() {
 }
 
 #[test]
-fn test_completion_prefix_saturated_replaces_bytecode_with_source() {
+fn completion_prefix_saturated_replaces_bytecode_with_source() {
     let mut index = WorkspaceIndex::new();
 
     let mut bytecode_decls = Vec::new();
@@ -166,7 +166,7 @@ fn test_completion_prefix_saturated_replaces_bytecode_with_source() {
 }
 
 #[test]
-fn test_completion_empty_prefix_returns_up_to_limit() {
+fn completion_empty_prefix_returns_up_to_limit() {
     let mut index = WorkspaceIndex::new();
     let mut bytecode_decls = Vec::new();
     for i in 0..10 {

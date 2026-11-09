@@ -1,7 +1,7 @@
 use format::cli::run;
 
 #[test]
-fn test_cli_run_help_flag_succeeds() {
+fn cli_run_help_flag_succeeds() {
     let result = run(&["--help".to_string()]);
     assert!(result.is_ok());
 
@@ -10,7 +10,7 @@ fn test_cli_run_help_flag_succeeds() {
 }
 
 #[test]
-fn test_cli_run_unknown_option_returns_error() {
+fn cli_run_unknown_option_returns_error() {
     let result = run(&["--unknown-flag".to_string()]);
     assert!(result.is_err());
     let err_message = result.unwrap_err();
@@ -19,7 +19,7 @@ fn test_cli_run_unknown_option_returns_error() {
 }
 
 #[test]
-fn test_cli_run_missing_style_argument_returns_error() {
+fn cli_run_missing_style_argument_returns_error() {
     let result = run(&["--style".to_string()]);
     assert!(result.is_err());
     let err_message = result.unwrap_err();
@@ -28,7 +28,7 @@ fn test_cli_run_missing_style_argument_returns_error() {
 }
 
 #[test]
-fn test_cli_run_invalid_style_value_returns_error() {
+fn cli_run_invalid_style_value_returns_error() {
     let result = run(&["--style=invalid_style_name".to_string()]);
     assert!(result.is_err());
     let err_message = result.unwrap_err();
@@ -37,7 +37,7 @@ fn test_cli_run_invalid_style_value_returns_error() {
 }
 
 #[test]
-fn test_cli_run_non_existent_target_returns_error() {
+fn cli_run_non_existent_target_returns_error() {
     let result = run(&["this_file_does_not_exist_at_all.kt".to_string()]);
     assert!(result.is_err());
     let err_message = result.unwrap_err();
@@ -45,7 +45,7 @@ fn test_cli_run_non_existent_target_returns_error() {
 }
 
 #[test]
-fn test_cli_run_cannot_mix_stdin_with_file_targets() {
+fn cli_run_cannot_mix_stdin_with_file_targets() {
     let result = run(&["-".to_string(), "Main.kt".to_string()]);
     assert!(result.is_err());
     let err_message = result.unwrap_err();
@@ -53,7 +53,7 @@ fn test_cli_run_cannot_mix_stdin_with_file_targets() {
 }
 
 #[test]
-fn test_check_mode_tolerates_parse_errors_by_default() {
+fn check_mode_tolerates_parse_errors_by_default() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_check_syntax_ok_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -67,7 +67,7 @@ fn test_check_mode_tolerates_parse_errors_by_default() {
 }
 
 #[test]
-fn test_check_mode_fails_on_parse_errors_with_reject_flag() {
+fn check_mode_fails_on_parse_errors_with_reject_flag() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_check_syntax_rej_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -87,7 +87,7 @@ fn test_check_mode_fails_on_parse_errors_with_reject_flag() {
 }
 
 #[test]
-fn test_check_mode_unformatted_file_fails_regardless_of_parse_errors() {
+fn check_mode_unformatted_file_fails_regardless_of_parse_errors() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_check_mixed_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -109,7 +109,7 @@ fn test_check_mode_unformatted_file_fails_regardless_of_parse_errors() {
 }
 
 #[test]
-fn test_check_file_classifies_parse_error_outcome() {
+fn check_file_classifies_parse_error_outcome() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_check_outcome_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -131,7 +131,7 @@ fn test_check_file_classifies_parse_error_outcome() {
 }
 
 #[test]
-fn test_check_mode_unformatted_and_parse_error_combined_failure_with_reject_flag() {
+fn check_mode_unformatted_and_parse_error_combined_failure_with_reject_flag() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_check_comb_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -154,7 +154,7 @@ fn test_check_mode_unformatted_and_parse_error_combined_failure_with_reject_flag
 }
 
 #[test]
-fn test_editorconfig_ij_formatter_disabled_skips_in_place_modifications() {
+fn editorconfig_ij_formatter_disabled_skips_in_place_modifications() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_fmt_skip_inplace_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -183,7 +183,7 @@ fn test_editorconfig_ij_formatter_disabled_skips_in_place_modifications() {
 }
 
 #[test]
-fn test_editorconfig_ktfmt_disabled_bypasses_check_mode_failure() {
+fn editorconfig_ktfmt_disabled_bypasses_check_mode_failure() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_fmt_skip_check_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -207,7 +207,7 @@ fn test_editorconfig_ktfmt_disabled_bypasses_check_mode_failure() {
 }
 
 #[test]
-fn test_editorconfig_child_section_re_enables_formatting_for_subpath() {
+fn editorconfig_child_section_re_enables_formatting_for_subpath() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_fmt_re_enable_", &pid));
     let sub_dir = temp_dir.join("formatted");
@@ -251,7 +251,7 @@ fn test_editorconfig_child_section_re_enables_formatting_for_subpath() {
 }
 
 #[test]
-fn test_no_editorconfig_flag_ignores_formatter_disabled_rules() {
+fn no_editorconfig_flag_ignores_formatter_disabled_rules() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_fmt_no_ec_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();

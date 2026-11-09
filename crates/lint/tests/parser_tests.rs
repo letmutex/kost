@@ -5,7 +5,7 @@ use lint::config::error::ConfigError;
 use lint::types::{Severity, WherePolicy};
 
 #[test]
-fn test_custom_rule_id_rejects_colon() {
+fn custom_rule_id_rejects_colon() {
     let yaml = r#"
 lint:
   rules:
@@ -25,7 +25,7 @@ lint:
 }
 
 #[test]
-fn test_custom_rule_id_rejects_non_kebab_case() {
+fn custom_rule_id_rejects_non_kebab_case() {
     let yaml = r#"
 lint:
   rules:
@@ -46,7 +46,7 @@ lint:
 }
 
 #[test]
-fn test_custom_rule_binds_filename_as_scope() {
+fn custom_rule_binds_filename_as_scope() {
     let yaml = r#"
 lint:
   rules:
@@ -74,7 +74,7 @@ lint:
 }
 
 #[test]
-fn test_empty_options_block_is_rejected() {
+fn empty_options_block_is_rejected() {
     let yaml = r#"
 lint:
   rules:
@@ -95,7 +95,7 @@ lint:
 }
 
 #[test]
-fn test_message_placeholder_validation_rejects_unknown_property() {
+fn message_placeholder_validation_rejects_unknown_property() {
     let yaml = r#"
 lint:
   rules:
@@ -120,7 +120,7 @@ lint:
 }
 
 #[test]
-fn test_message_placeholder_validation_rejects_scope_mismatch() {
+fn message_placeholder_validation_rejects_scope_mismatch() {
     let yaml = r#"
 lint:
   rules:
@@ -145,7 +145,7 @@ lint:
 }
 
 #[test]
-fn test_condition_rejects_incompatible_scope_mixing() {
+fn condition_rejects_incompatible_scope_mixing() {
     let yaml = r#"
 lint:
   rules:
@@ -175,7 +175,7 @@ lint:
 }
 
 #[test]
-fn test_condition_identifies_incompatible_scope_in_multi_scope_rule() {
+fn condition_identifies_incompatible_scope_in_multi_scope_rule() {
     let yaml = r#"
 lint:
   rules:
@@ -205,7 +205,7 @@ lint:
 }
 
 #[test]
-fn test_condition_rejects_deferred_file_aggregate_in_child_scope() {
+fn condition_rejects_deferred_file_aggregate_in_child_scope() {
     let yaml = r#"
 lint:
   rules:
@@ -228,7 +228,7 @@ lint:
 }
 
 #[test]
-fn test_condition_allows_deferred_file_aggregate_in_file_scope() {
+fn condition_allows_deferred_file_aggregate_in_file_scope() {
     let yaml = r#"
 lint:
   rules:
@@ -248,7 +248,7 @@ lint:
 }
 
 #[test]
-fn test_message_placeholder_rejects_deferred_file_aggregate_in_child_scope() {
+fn message_placeholder_rejects_deferred_file_aggregate_in_child_scope() {
     let yaml = r#"
 lint:
   rules:
@@ -276,7 +276,7 @@ lint:
 }
 
 #[test]
-fn test_condition_supports_hierarchical_scope_mixing() {
+fn condition_supports_hierarchical_scope_mixing() {
     let yaml = r#"
 lint:
   rules:
@@ -299,7 +299,7 @@ lint:
 }
 
 #[test]
-fn test_undeclared_options_reference_rejected_when_rule_has_no_options() {
+fn undeclared_options_reference_rejected_when_rule_has_no_options() {
     let yaml = r#"
 lint:
   rules:

@@ -23,7 +23,7 @@ fn find_position_of(source: &str, pattern: &str) -> Position {
 }
 
 #[test]
-fn test_hover_delegated_var_state_by_retain() {
+fn hover_delegated_var_state_by_retain() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///StateHolder.kt").unwrap();
     let source = r#"package com.example
@@ -65,7 +65,7 @@ fun render() {
 }
 
 #[test]
-fn test_hover_delegated_var_selected_tab_by_remember() {
+fn hover_delegated_var_selected_tab_by_remember() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///TabComponent.kt").unwrap();
     let source = r#"package com.example

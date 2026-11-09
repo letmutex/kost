@@ -176,7 +176,7 @@ mod tests {
     use crate::CliError;
 
     #[test]
-    fn test_parse_lint_empty_args() {
+    fn parse_lint_empty_args() {
         let args = LintArgs::parse(&[]).unwrap();
         assert_eq!(args.rulesets, None);
         assert!(args.targets.is_empty());
@@ -184,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_lint_rulesets_flag() {
+    fn parse_lint_rulesets_flag() {
         let raw = vec![
             "--rulesets".to_string(),
             "standard,statistics".to_string(),
@@ -197,7 +197,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_lint_rulesets_equals_syntax() {
+    fn parse_lint_rulesets_equals_syntax() {
         let raw = vec!["--rulesets=standard".to_string(), "src/".to_string()];
         let args = LintArgs::parse(&raw).unwrap();
         assert_eq!(args.rulesets.as_deref(), Some("standard"));
@@ -205,21 +205,21 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_lint_missing_rulesets_value() {
+    fn parse_lint_missing_rulesets_value() {
         let raw = vec!["--rulesets".to_string()];
         let err = LintArgs::parse(&raw).unwrap_err();
         assert_eq!(err, CliError::MissingOptionValue("--rulesets".to_string()));
     }
 
     #[test]
-    fn test_parse_lint_empty_rulesets_equals_value() {
+    fn parse_lint_empty_rulesets_equals_value() {
         let raw = vec!["--rulesets=".to_string()];
         let err = LintArgs::parse(&raw).unwrap_err();
         assert_eq!(err, CliError::MissingOptionValue("--rulesets".to_string()));
     }
 
     #[test]
-    fn test_parse_lint_double_dash_delimiter() {
+    fn parse_lint_double_dash_delimiter() {
         let raw = vec![
             "--rulesets".to_string(),
             "standard".to_string(),
@@ -233,28 +233,28 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_lint_unknown_option() {
+    fn parse_lint_unknown_option() {
         let raw = vec!["--invalid".to_string()];
         let err = LintArgs::parse(&raw).unwrap_err();
         assert_eq!(err, CliError::UnknownOption("--invalid".to_string()));
     }
 
     #[test]
-    fn test_parse_lint_unknown_short_option() {
+    fn parse_lint_unknown_short_option() {
         let raw = vec!["-x".to_string()];
         let err = LintArgs::parse(&raw).unwrap_err();
         assert_eq!(err, CliError::UnknownOption("-x".to_string()));
     }
 
     #[test]
-    fn test_parse_lint_rulesets_followed_by_flag_fails() {
+    fn parse_lint_rulesets_followed_by_flag_fails() {
         let raw = vec!["--rulesets".to_string(), "--help".to_string()];
         let err = LintArgs::parse(&raw).unwrap_err();
         assert_eq!(err, CliError::MissingOptionValue("--rulesets".to_string()));
     }
 
     #[test]
-    fn test_parse_lint_rulesets_followed_by_double_dash_fails() {
+    fn parse_lint_rulesets_followed_by_double_dash_fails() {
         let raw = vec![
             "--rulesets".to_string(),
             "--".to_string(),
@@ -265,14 +265,14 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_lint_help() {
+    fn parse_lint_help() {
         let raw = vec!["--help".to_string()];
         let args = LintArgs::parse(&raw).unwrap();
         assert!(args.help);
     }
 
     #[test]
-    fn test_parse_lint_editorconfig_flags() {
+    fn parse_lint_editorconfig_flags() {
         let raw = vec![
             "--no-editorconfig".to_string(),
             "--stdin-path=src/App.kt".to_string(),
@@ -283,7 +283,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_lint_editorconfig_path_space_separated() {
+    fn parse_lint_editorconfig_path_space_separated() {
         let raw = vec![
             "--editorconfig".to_string(),
             ".editorconfig".to_string(),
@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_lint_editorconfig_missing_path_value_error() {
+    fn parse_lint_editorconfig_missing_path_value_error() {
         let raw = vec!["--editorconfig".to_string()];
         let result = LintArgs::parse(&raw);
         assert_eq!(

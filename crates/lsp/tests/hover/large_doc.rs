@@ -84,7 +84,7 @@ fn build_generated_line_comments(count: usize, line_prefix: &str) -> String {
 }
 
 #[test]
-fn test_hover_generic_interface_after_imports_with_generated_kdoc() {
+fn hover_generic_interface_after_imports_with_generated_kdoc() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///GenericFlow.kt").unwrap();
 
@@ -126,7 +126,7 @@ fn test_hover_generic_interface_after_imports_with_generated_kdoc() {
 }
 
 #[test]
-fn test_hover_large_kdoc_over_ten_kb() {
+fn hover_large_kdoc_over_ten_kb() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///LargeDoc.kt").unwrap();
 
@@ -168,7 +168,7 @@ fn test_hover_large_kdoc_over_ten_kb() {
 }
 
 #[test]
-fn test_hover_large_line_comments_before_property() {
+fn hover_large_line_comments_before_property() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///LargeLineDoc.kt").unwrap();
 

@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_excludes_implicit_member_access_shadowed_by_local_variable() {
+fn references_excludes_implicit_member_access_shadowed_by_local_variable() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Worker.kt").unwrap();
     let code = r#"
@@ -32,7 +32,7 @@ class Worker {
 }
 
 #[test]
-fn test_references_excludes_implicit_member_access_shadowed_by_parameter() {
+fn references_excludes_implicit_member_access_shadowed_by_parameter() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Worker.kt").unwrap();
     let code = r#"
@@ -60,7 +60,7 @@ class Worker {
 }
 
 #[test]
-fn test_references_excludes_top_level_function_shadowed_by_inner_parameter_direct_call() {
+fn references_excludes_top_level_function_shadowed_by_inner_parameter_direct_call() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Task.kt").unwrap();
     let code = r#"
@@ -88,7 +88,7 @@ class Task {
 }
 
 #[test]
-fn test_references_excludes_top_level_function_shadowed_by_inner_local_variable_direct_call() {
+fn references_excludes_top_level_function_shadowed_by_inner_local_variable_direct_call() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Runner.kt").unwrap();
     let code = r#"

@@ -273,7 +273,7 @@ mod tests {
     use super::{DependencyCoordinate, deduplicate_newest};
 
     #[test]
-    fn test_coordinate_parsing_and_file_names() {
+    fn coordinate_parsing_and_file_names() {
         let dep = DependencyCoordinate::parse("androidx.core:core-ktx:1.15.0@aar").unwrap();
         assert_eq!(dep.group, "androidx.core");
         assert_eq!(dep.name, "core-ktx");
@@ -285,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn test_deduplicate_keeps_highest_version() {
+    fn deduplicate_keeps_highest_version() {
         let deps = vec![
             DependencyCoordinate::parse("androidx.core:core-ktx:1.12.0").unwrap(),
             DependencyCoordinate::parse("androidx.core:core-ktx:1.15.0").unwrap(),
@@ -296,7 +296,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_version_unspecified() {
+    fn is_version_unspecified() {
         assert!(
             DependencyCoordinate::parse("org.example:foo")
                 .unwrap()

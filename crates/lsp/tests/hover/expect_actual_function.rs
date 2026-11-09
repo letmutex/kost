@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_actual_function_resolves_expect_doc() {
+fn hover_actual_function_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/Platform.kt").unwrap();
     let common_source = r#"package com.example
@@ -70,7 +70,7 @@ fun testUsage() {
 }
 
 #[test]
-fn test_hover_actual_overloaded_function_resolves_expect_doc() {
+fn hover_actual_overloaded_function_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/MessageSender.kt").unwrap();
     let common_source = r#"package com.example
@@ -143,7 +143,7 @@ fun testUsage(bytes: ByteArray) {
 }
 
 #[test]
-fn test_hover_actual_extension_function_resolves_expect_doc() {
+fn hover_actual_extension_function_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/Hex.kt").unwrap();
     let common_source = r#"package com.example

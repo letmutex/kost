@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_profiled_captures_top_slowest_occurrences() {
+fn references_profiled_captures_top_slowest_occurrences() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/ProfileTest.kt").unwrap();
     let code = r#"
@@ -54,7 +54,7 @@ fun caller() {
 }
 
 #[test]
-fn test_references_profiled_disabled_when_track_slowest_false() {
+fn references_profiled_disabled_when_track_slowest_false() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/ProfileTestDisabled.kt").unwrap();
     let code = r#"

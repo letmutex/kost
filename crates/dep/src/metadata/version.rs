@@ -118,7 +118,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_select_best_version_prefers_stable_over_prerelease() {
+    fn select_best_version_prefers_stable_over_prerelease() {
         let versions = vec![
             ArtifactVersion::parse("1.2.0"),
             ArtifactVersion::parse("1.3.0-rc01"),
@@ -131,7 +131,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_best_version_falls_back_to_latest_prerelease() {
+    fn select_best_version_falls_back_to_latest_prerelease() {
         let versions = vec![
             ArtifactVersion::parse("0.1.0-alpha01"),
             ArtifactVersion::parse("0.2.0-beta02"),
@@ -143,7 +143,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_best_version_numerical_precedence() {
+    fn select_best_version_numerical_precedence() {
         let versions = vec![
             ArtifactVersion::parse("1.9.0"),
             ArtifactVersion::parse("1.10.1"),

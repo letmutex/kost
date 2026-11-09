@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_excludes_member_function_overload_in_same_class() {
+fn references_excludes_member_function_overload_in_same_class() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Calculator.kt").unwrap();
     let code = r#"
@@ -34,7 +34,7 @@ fun testCalc(calc: Calculator) {
 }
 
 #[test]
-fn test_references_excludes_subclass_method_with_different_signature() {
+fn references_excludes_subclass_method_with_different_signature() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/CustomJob.kt").unwrap();
     let code = r#"
@@ -66,7 +66,7 @@ fun testSubclass(job: CustomJob) {
 }
 
 #[test]
-fn test_references_navigation_receiver_not_pruned_by_callee_arity() {
+fn references_navigation_receiver_not_pruned_by_callee_arity() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/WorkerTest.kt").unwrap();
     let code = r#"
@@ -96,7 +96,7 @@ fun testNavigation() {
 }
 
 #[test]
-fn test_references_arity_filtering_with_default_and_vararg_parameters() {
+fn references_arity_filtering_with_default_and_vararg_parameters() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Logger.kt").unwrap();
     let code = r#"
@@ -129,7 +129,7 @@ fun testLog(logger: Logger) {
 }
 
 #[test]
-fn test_references_arity_unparseable_signature_fallback_not_pruned() {
+fn references_arity_unparseable_signature_fallback_not_pruned() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/RawService.kt").unwrap();
     let code = r#"
@@ -165,7 +165,7 @@ fun testDispatch(service: RawService) {
 }
 
 #[test]
-fn test_references_arity_filtering_with_trailing_lambda_and_value_arguments() {
+fn references_arity_filtering_with_trailing_lambda_and_value_arguments() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/ConvertTest.kt").unwrap();
     let code = r#"
@@ -195,7 +195,7 @@ fun testConvert(c: Converter) {
 }
 
 #[test]
-fn test_references_arity_filtering_zero_params_with_return_type() {
+fn references_arity_filtering_zero_params_with_return_type() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/ActionTest.kt").unwrap();
     let code = r#"
@@ -225,7 +225,7 @@ fun testAction(action: Action) {
 }
 
 #[test]
-fn test_references_exclude_shadowed_default_parameter_when_exact_overload_exists() {
+fn references_exclude_shadowed_default_parameter_when_exact_overload_exists() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/JobTest.kt").unwrap();
     let code = r#"
@@ -256,7 +256,7 @@ fun testJob(job: Job) {
 }
 
 #[test]
-fn test_references_match_member_property_on_typed_receiver() {
+fn references_match_member_property_on_typed_receiver() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/PropertyTest.kt").unwrap();
     let code = r#"
@@ -283,7 +283,7 @@ fun testWorker(worker: Worker) {
 }
 
 #[test]
-fn test_references_preserves_lambda_call_regardless_of_inferred_return_type() {
+fn references_preserves_lambda_call_regardless_of_inferred_return_type() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Runner.kt").unwrap();
     let code = r#"
@@ -312,7 +312,7 @@ fun test() {
 }
 
 #[test]
-fn test_references_matches_exact_lambda_overload_when_targeted() {
+fn references_matches_exact_lambda_overload_when_targeted() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Runner.kt").unwrap();
     let code = r#"

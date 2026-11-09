@@ -1,5 +1,5 @@
 #[tokio::test]
-async fn test_fetch_rejects_offline_flag() {
+async fn fetch_rejects_offline_flag() {
     let result = dep::run(&[
         "fetch".to_string(),
         "--offline".to_string(),
@@ -13,7 +13,7 @@ async fn test_fetch_rejects_offline_flag() {
 }
 
 #[tokio::test]
-async fn test_fetch_resolves_unspecified_version_from_repository() {
+async fn fetch_resolves_unspecified_version_from_repository() {
     let temp_dir = std::env::temp_dir().join(common::concat_str!(
         "kost_test_fetch_unspecified_",
         &std::process::id().to_string()
@@ -86,7 +86,7 @@ async fn test_fetch_resolves_unspecified_version_from_repository() {
 }
 
 #[tokio::test]
-async fn test_list_resolves_unspecified_version_from_cache_offline() {
+async fn list_resolves_unspecified_version_from_cache_offline() {
     let temp_dir = std::env::temp_dir().join(common::concat_str!(
         "kost_test_unspecified_offline_",
         &std::process::id().to_string()

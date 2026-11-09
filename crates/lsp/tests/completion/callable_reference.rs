@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_completion_unbound_reference_omits_call_parens() {
+fn completion_unbound_reference_omits_call_parens() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/UnboundCompletion.kt").unwrap();
     let source = r#"
@@ -35,7 +35,7 @@ fun main() {
 }
 
 #[test]
-fn test_completion_unbound_reference_excludes_keywords() {
+fn completion_unbound_reference_excludes_keywords() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NoKeywordsCompletion.kt").unwrap();
     let source = r#"
@@ -75,7 +75,7 @@ fun main() {
 }
 
 #[test]
-fn test_completion_unbound_reference_suggests_constructors() {
+fn completion_unbound_reference_suggests_constructors() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ConstructorCompletion.kt").unwrap();
     let source = r#"
@@ -106,7 +106,7 @@ fun main() {
     }
 }
 #[test]
-fn test_completion_callable_reference_inside_arguments() {
+fn completion_callable_reference_inside_arguments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ArgumentCallableCompletion.kt").unwrap();
     let source = r#"
@@ -136,7 +136,7 @@ fun main() {
 }
 
 #[test]
-fn test_unbound_callable_reference_completion_after_return_keyword() {
+fn unbound_callable_reference_completion_after_return_keyword() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ReturnCallableCompletion.kt").unwrap();
     let source = r#"
@@ -162,7 +162,7 @@ fun getAction(): () -> Unit {
 }
 
 #[test]
-fn test_unbound_callable_reference_completion_after_else_keyword() {
+fn unbound_callable_reference_completion_after_else_keyword() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ElseCallableCompletion.kt").unwrap();
     let source = r#"
@@ -186,7 +186,7 @@ fun pickAction(cond: Boolean): () -> Unit = if (cond) { () -> Unit } else ::def
 }
 
 #[test]
-fn test_completion_unbound_callable_not_suppressed_by_local_variable() {
+fn completion_unbound_callable_not_suppressed_by_local_variable() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/LocalVarPoisoning.kt").unwrap();
     let source = r#"
@@ -213,7 +213,7 @@ fun main() {
 }
 
 #[test]
-fn test_unbound_callable_reference_completion_after_previous_statement() {
+fn unbound_callable_reference_completion_after_previous_statement() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/StatementPrecededCallableCompletion.kt").unwrap();
     let source = r#"
@@ -240,7 +240,7 @@ fun main() {
 }
 
 #[test]
-fn test_unbound_callable_reference_excludes_local_variables() {
+fn unbound_callable_reference_excludes_local_variables() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/LocalVarCallableCompletion.kt").unwrap();
     let source = r#"
@@ -270,7 +270,7 @@ fun main() {
 }
 
 #[test]
-fn test_completion_callable_reference_after_labeled_return() {
+fn completion_callable_reference_after_labeled_return() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/LabeledReturnCallable.kt").unwrap();
     let source = r#"
@@ -298,7 +298,7 @@ fun test() {
 }
 
 #[test]
-fn test_completion_callable_reference_after_if_condition() {
+fn completion_callable_reference_after_if_condition() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/IfConditionCallable.kt").unwrap();
     let source = r#"

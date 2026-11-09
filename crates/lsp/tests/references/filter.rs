@@ -21,7 +21,7 @@ fn create_test_target(uri: Url, name: &str) -> ReferenceTarget {
 }
 
 #[test]
-fn test_token_boundary_matches_isolated_identifier() {
+fn token_boundary_matches_isolated_identifier() {
     assert!(contains_identifier_token("val job: Job = create()", "Job"));
     assert!(contains_identifier_token("fun run(job: Job?)", "Job"));
     assert!(contains_identifier_token("val list: List<Job>", "Job"));
@@ -33,7 +33,7 @@ fn test_token_boundary_matches_isolated_identifier() {
 }
 
 #[test]
-fn test_token_boundary_rejects_identifier_substring() {
+fn token_boundary_rejects_identifier_substring() {
     assert!(!contains_identifier_token("val job = JobSupport()", "Job"));
     assert!(!contains_identifier_token("class CompletableJob", "Job"));
     assert!(!contains_identifier_token("val myJobInstance = 1", "Job"));
@@ -43,7 +43,7 @@ fn test_token_boundary_rejects_identifier_substring() {
 }
 
 #[test]
-fn test_token_boundary_matches_interpolated_identifier() {
+fn token_boundary_matches_interpolated_identifier() {
     assert!(contains_identifier_token("\"Hello, $name!\"", "name"));
     assert!(contains_identifier_token("\"${name}: value\"", "name"));
     assert!(!contains_identifier_token(
@@ -53,14 +53,14 @@ fn test_token_boundary_matches_interpolated_identifier() {
 }
 
 #[test]
-fn test_token_boundary_handles_non_ascii_delimiters() {
+fn token_boundary_handles_non_ascii_delimiters() {
     assert!(contains_identifier_token("/* 注释 */ Job", "Job"));
     assert!(!contains_identifier_token("Jobé", "Job"));
     assert!(!contains_identifier_token("éJob", "Job"));
 }
 
 #[test]
-fn test_candidate_pruning_retains_declaring_file() {
+fn candidate_pruning_retains_declaring_file() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Target.kt").unwrap();
     let source = "class Target";
@@ -79,7 +79,7 @@ fn test_candidate_pruning_retains_declaring_file() {
 }
 
 #[test]
-fn test_candidate_pruning_retains_same_package() {
+fn candidate_pruning_retains_same_package() {
     let mut index = WorkspaceIndex::new();
     let declaring_url = Url::parse("file:///project/Target.kt").unwrap();
     let consumer_url = Url::parse("file:///project/Consumer.kt").unwrap();
@@ -102,7 +102,7 @@ fn test_candidate_pruning_retains_same_package() {
 }
 
 #[test]
-fn test_candidate_pruning_retains_explicit_import() {
+fn candidate_pruning_retains_explicit_import() {
     let mut index = WorkspaceIndex::new();
     let declaring_url = Url::parse("file:///project/Target.kt").unwrap();
     let consumer_url = Url::parse("file:///project/Consumer.kt").unwrap();
@@ -126,7 +126,7 @@ fn test_candidate_pruning_retains_explicit_import() {
 }
 
 #[test]
-fn test_candidate_pruning_retains_star_import() {
+fn candidate_pruning_retains_star_import() {
     let mut index = WorkspaceIndex::new();
     let declaring_url = Url::parse("file:///project/Target.kt").unwrap();
     let consumer_url = Url::parse("file:///project/Consumer.kt").unwrap();
@@ -150,7 +150,7 @@ fn test_candidate_pruning_retains_star_import() {
 }
 
 #[test]
-fn test_candidate_pruning_retains_implicit_kotlin_package() {
+fn candidate_pruning_retains_implicit_kotlin_package() {
     let mut index = WorkspaceIndex::new();
     let declaring_url = Url::parse("file:///project/Collections.kt").unwrap();
     let consumer_url = Url::parse("file:///project/Consumer.kt").unwrap();
@@ -173,7 +173,7 @@ fn test_candidate_pruning_retains_implicit_kotlin_package() {
 }
 
 #[test]
-fn test_candidate_pruning_rejects_unrelated_package_import() {
+fn candidate_pruning_rejects_unrelated_package_import() {
     let mut index = WorkspaceIndex::new();
     let declaring_url = Url::parse("file:///project/Target.kt").unwrap();
     let consumer_url = Url::parse("file:///project/Consumer.kt").unwrap();
@@ -197,7 +197,7 @@ fn test_candidate_pruning_rejects_unrelated_package_import() {
 }
 
 #[test]
-fn test_candidate_pruning_retains_fully_qualified_reference() {
+fn candidate_pruning_retains_fully_qualified_reference() {
     let mut index = WorkspaceIndex::new();
     let declaring_url = Url::parse("file:///project/Target.kt").unwrap();
     let consumer_url = Url::parse("file:///project/Consumer.kt").unwrap();
@@ -221,7 +221,7 @@ fn test_candidate_pruning_retains_fully_qualified_reference() {
 }
 
 #[test]
-fn test_candidate_pruning_supertype_suffix_requires_dot_boundary() {
+fn candidate_pruning_supertype_suffix_requires_dot_boundary() {
     let mut index = WorkspaceIndex::new();
     let declaring_url = Url::parse("file:///project/Node.kt").unwrap();
     let consumer_url = Url::parse("file:///project/Consumer.kt").unwrap();
@@ -251,7 +251,7 @@ fn test_candidate_pruning_supertype_suffix_requires_dot_boundary() {
 }
 
 #[test]
-fn test_candidate_pruning_rejects_unimported_extension_function() {
+fn candidate_pruning_rejects_unimported_extension_function() {
     let mut index = WorkspaceIndex::new();
     let declaring_url = Url::parse("file:///project/Extensions.kt").unwrap();
     let declaring_code = "package com.example.utils\n\nfun String.customTrim(): String = this";
@@ -280,7 +280,7 @@ fn test_candidate_pruning_rejects_unimported_extension_function() {
 }
 
 #[test]
-fn test_candidate_pruning_matches_generic_supertype_container() {
+fn candidate_pruning_matches_generic_supertype_container() {
     let mut index = WorkspaceIndex::new();
     let declaring_url = Url::parse("file:///project/Node.kt").unwrap();
     let consumer_url = Url::parse("file:///project/Consumer.kt").unwrap();

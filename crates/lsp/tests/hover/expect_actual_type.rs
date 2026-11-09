@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_actual_interface_resolves_expect_doc() {
+fn hover_actual_interface_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/AudioSink.kt").unwrap();
     let common_source = r#"package com.example
@@ -60,7 +60,7 @@ fun playAudio(sink: AudioSink) {
 }
 
 #[test]
-fn test_hover_actual_object_resolves_expect_doc() {
+fn hover_actual_object_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/CryptoEngine.kt").unwrap();
     let common_source = r#"package com.example
@@ -123,7 +123,7 @@ fun testUsage() {
 }
 
 #[test]
-fn test_hover_actual_companion_object_resolves_expect_doc() {
+fn hover_actual_companion_object_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/ClientEndpoint.kt").unwrap();
     let common_source = r#"package com.example
@@ -180,7 +180,7 @@ fun testUsage() {
 }
 
 #[test]
-fn test_hover_actual_typealias_resolves_expect_doc() {
+fn hover_actual_typealias_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/PlatformFile.kt").unwrap();
     let common_source = r#"package com.example

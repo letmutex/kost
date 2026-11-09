@@ -5,7 +5,7 @@ use smol_str::SmolStr;
 use tower_lsp::lsp_types::{Position, Range, SymbolKind, Url};
 
 #[test]
-fn test_references_finds_subclass_inherited_method_call() {
+fn references_finds_subclass_inherited_method_call() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/JobHierarchy.kt").unwrap();
     let code = r#"
@@ -36,7 +36,7 @@ fun testInherited(job: CompletableJob) {
 }
 
 #[test]
-fn test_references_finds_subclass_overridden_method_call() {
+fn references_finds_subclass_overridden_method_call() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/JobOverride.kt").unwrap();
     let code = r#"
@@ -69,7 +69,7 @@ fun testOverride(worker: JobSupport) {
 }
 
 #[test]
-fn test_references_finds_scope_function_implicit_receiver_call() {
+fn references_finds_scope_function_implicit_receiver_call() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/JobScope.kt").unwrap();
     let code = r#"
@@ -105,7 +105,7 @@ fun testApply(job: Job) {
 }
 
 #[test]
-fn test_references_excludes_unrelated_class_same_method_name() {
+fn references_excludes_unrelated_class_same_method_name() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Unrelated.kt").unwrap();
     let code = r#"
@@ -139,7 +139,7 @@ fun testMixed(job: Job, channel: Channel) {
 }
 
 #[test]
-fn test_references_excludes_non_callable_nodes_sharing_function_name() {
+fn references_excludes_non_callable_nodes_sharing_function_name() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/NonCallable.kt").unwrap();
     let code = r#"
@@ -171,7 +171,7 @@ fun testParamsAndProps(cancel: Boolean, job: Job) {
 }
 
 #[test]
-fn test_references_excludes_cross_package_same_simple_name() {
+fn references_excludes_cross_package_same_simple_name() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/pkgA/Worker.kt").unwrap();
     let code_a = r#"
@@ -213,7 +213,7 @@ fun callB(worker: Worker) {
 }
 
 #[test]
-fn test_references_excludes_cross_package_nested_classes_with_same_name() {
+fn references_excludes_cross_package_nested_classes_with_same_name() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/pkgA/Outer.kt").unwrap();
     let code_a = r#"
@@ -259,7 +259,7 @@ fun callB(inner: Outer.Inner) {
 }
 
 #[test]
-fn test_references_finds_bytecode_declaration_with_default_range() {
+fn references_finds_bytecode_declaration_with_default_range() {
     let mut index = WorkspaceIndex::new();
     let jar_url = Url::parse("jar:file:///libs/library.jar!/com/example/LibService.class").unwrap();
     let mut file_symbols = FileSymbols {

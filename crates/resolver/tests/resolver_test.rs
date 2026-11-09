@@ -7,7 +7,7 @@ use resolver::{
 };
 
 #[test]
-fn test_ast_build_script_resolves_catalog_bundles_and_plugin_aliases() {
+fn ast_build_script_resolves_catalog_bundles_and_plugin_aliases() {
     let catalog_toml = r#"
 [versions]
 kotlin = "2.0.21"
@@ -73,7 +73,7 @@ dependencies {
 }
 
 #[test]
-fn test_dialect_detection_groovy_double_quoted_labeled_map_and_annotated_kotlin_val() {
+fn dialect_detection_groovy_double_quoted_labeled_map_and_annotated_kotlin_val() {
     let groovy_script = r#"
 dependencies {
     implementation group: "androidx.lifecycle", name: "lifecycle-runtime", version: "2.8.0"
@@ -104,7 +104,7 @@ dependencies {
 }
 
 #[test]
-fn test_groovy_closure_split_statement_resolves_ext_property_reference() {
+fn groovy_closure_split_statement_resolves_ext_property_reference() {
     let groovy_script = r#"
 ext.okhttpCoord = "com.squareup.okhttp3:okhttp:4.12.0"
 dependencies {
@@ -122,7 +122,7 @@ dependencies {
 }
 
 #[test]
-fn test_discover_gradle_files_orders_root_script_before_submodule() {
+fn discover_gradle_files_orders_root_script_before_submodule() {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -156,7 +156,7 @@ fn test_discover_gradle_files_orders_root_script_before_submodule() {
 }
 
 #[test]
-fn test_transitive_graph_kmp_module_redirect_promotes_without_duplicating() {
+fn transitive_graph_kmp_module_redirect_promotes_without_duplicating() {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()
@@ -202,7 +202,7 @@ fn test_transitive_graph_kmp_module_redirect_promotes_without_duplicating() {
 }
 
 #[test]
-fn test_kotlin_non_block_android_call_does_not_set_has_android_block() {
+fn kotlin_non_block_android_call_does_not_set_has_android_block() {
     let script = r#"
 plugins {
     kotlin("jvm") version "2.0.20"
@@ -214,7 +214,7 @@ android("custom-arg")
 }
 
 #[test]
-fn test_groovy_ast_build_script_plugins_and_catalog_accessors() {
+fn groovy_ast_build_script_plugins_and_catalog_accessors() {
     let catalog_toml = r#"
 [versions]
 kotlin = "1.9.24"
@@ -264,7 +264,7 @@ dependencies {
 }
 
 #[test]
-fn test_cached_transitive_graph_combines_descriptors_and_cached_poms() {
+fn cached_transitive_graph_combines_descriptors_and_cached_poms() {
     let nanos = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap()

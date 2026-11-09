@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_member_completion_data_class_synthetic_copy() {
+fn member_completion_data_class_synthetic_copy() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/DataClassCopyTest.kt").unwrap();
     let code = r#"
@@ -36,7 +36,7 @@ fun test(profile: UserProfile) {
 }
 
 #[test]
-fn test_member_completion_enum_synthetic_entries_and_values() {
+fn member_completion_enum_synthetic_entries_and_values() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/EnumSyntheticTest.kt").unwrap();
     let code = r#"

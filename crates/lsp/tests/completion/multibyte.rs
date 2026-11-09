@@ -3,14 +3,14 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_lex_context_outside_comment_or_string_after_cjk_identifier() {
+fn lex_context_outside_comment_or_string_after_cjk_identifier() {
     let source = "val 是 = 1";
     let pos = Position::new(0, 5);
     assert!(!lsp::features::lex_context::is_inside_comment_or_string_text(pos, source));
 }
 
 #[test]
-fn test_completion_finds_identifiers_after_multibyte_string_literal() {
+fn completion_finds_identifiers_after_multibyte_string_literal() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/TestMultibyte.kt").unwrap();
     let file_code = r#"fun test() {
@@ -27,7 +27,7 @@ fn test_completion_finds_identifiers_after_multibyte_string_literal() {
 }
 
 #[test]
-fn test_call_argument_finds_enclosing_callee_after_cjk_identifier() {
+fn call_argument_finds_enclosing_callee_after_cjk_identifier() {
     let source = "val 是 = foo(1)";
     let pos = Position::new(0, 13);
     let res = lsp::features::call_argument::find_enclosing_call_name(pos, source);
@@ -35,7 +35,7 @@ fn test_call_argument_finds_enclosing_callee_after_cjk_identifier() {
 }
 
 #[test]
-fn test_completion_context_scope_after_cjk_identifier() {
+fn completion_context_scope_after_cjk_identifier() {
     let source = "val 是 = 1";
     let pos = Position::new(0, 5);
     let ctx = lsp::features::completion_context::determine_completion_context(pos, source);
@@ -46,7 +46,7 @@ fn test_completion_context_scope_after_cjk_identifier() {
 }
 
 #[test]
-fn test_signature_parser_call_context_after_cjk_identifier() {
+fn signature_parser_call_context_after_cjk_identifier() {
     let source = "val 是 = foo(1";
     let pos = Position::new(0, 14);
     let ctx = lsp::features::signature_parser::find_enclosing_call_context(pos, source);
@@ -57,7 +57,7 @@ fn test_signature_parser_call_context_after_cjk_identifier() {
 }
 
 #[test]
-fn test_position_to_byte_offset_multibyte_character_boundary() {
+fn position_to_byte_offset_multibyte_character_boundary() {
     let source = "val 是 = 1";
     let pos = Position::new(0, 5);
     let offset = lsp::syntax::position::position_to_byte_offset(pos, source);
@@ -69,7 +69,7 @@ fn test_position_to_byte_offset_multibyte_character_boundary() {
 }
 
 #[test]
-fn test_position_to_byte_offset_astral_plane_emoji() {
+fn position_to_byte_offset_astral_plane_emoji() {
     let source = "val 😀 = 1";
     let pos = Position::new(0, 6);
     let offset = lsp::syntax::position::position_to_byte_offset(pos, source);
@@ -81,7 +81,7 @@ fn test_position_to_byte_offset_astral_plane_emoji() {
 }
 
 #[test]
-fn test_position_to_byte_offset_split_surrogate_floor() {
+fn position_to_byte_offset_split_surrogate_floor() {
     let source = "val 😀 = 1";
     let pos = Position::new(0, 5);
     let offset = lsp::syntax::position::position_to_byte_offset(pos, source);
@@ -92,7 +92,7 @@ fn test_position_to_byte_offset_split_surrogate_floor() {
 }
 
 #[test]
-fn test_position_to_byte_offset_crlf_with_multibyte() {
+fn position_to_byte_offset_crlf_with_multibyte() {
     let source = "val 是 = 1\r\nval a = 2";
     let pos = Position::new(1, 4);
     let offset = lsp::syntax::position::position_to_byte_offset(pos, source);
@@ -101,7 +101,7 @@ fn test_position_to_byte_offset_crlf_with_multibyte() {
 }
 
 #[test]
-fn test_lex_context_block_comment_boundaries() {
+fn lex_context_block_comment_boundaries() {
     let source = "/* block */ val x = 1";
     let tree = lsp::syntax::parser::parse_source(source).unwrap();
     let root = Some(tree.root_node());
@@ -123,7 +123,7 @@ fn test_lex_context_block_comment_boundaries() {
 }
 
 #[test]
-fn test_lex_context_line_comment_boundaries() {
+fn lex_context_line_comment_boundaries() {
     let source = "// line comment\nval x = 1";
     let tree = lsp::syntax::parser::parse_source(source).unwrap();
     let root = Some(tree.root_node());
@@ -151,21 +151,21 @@ fn test_lex_context_line_comment_boundaries() {
 }
 
 #[test]
-fn test_lex_context_nested_expression_in_string_template() {
+fn lex_context_nested_expression_in_string_template() {
     let source = "val s = \"${foo({ bar })}\"";
     let pos = Position::new(0, 17);
     assert!(!lsp::features::lex_context::is_inside_comment_or_string_text(pos, source));
 }
 
 #[test]
-fn test_lex_context_nested_block_comments() {
+fn lex_context_nested_block_comments() {
     let source = "/* /* nested */ still comment */ val x = 1";
     let pos = Position::new(0, 17);
     assert!(lsp::features::lex_context::is_inside_comment_or_string_text(pos, source));
 }
 
 #[test]
-fn test_lex_context_string_literal_boundaries() {
+fn lex_context_string_literal_boundaries() {
     let source = "val s = \"hello\"";
     let tree = lsp::syntax::parser::parse_source(source).unwrap();
     let root = Some(tree.root_node());

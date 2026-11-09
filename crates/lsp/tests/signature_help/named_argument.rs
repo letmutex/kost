@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_signature_help_non_zero_named_argument_sets_active_parameter() {
+fn signature_help_non_zero_named_argument_sets_active_parameter() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/AreaHeightSigHelp.kt").unwrap();
     let source = r#"
@@ -38,7 +38,7 @@ fun test() {
 }
 
 #[test]
-fn test_signature_help_trailing_comma_selects_higher_arity_overload() {
+fn signature_help_trailing_comma_selects_higher_arity_overload() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/FormatTrailingComma.kt").unwrap();
     let source = r#"
@@ -70,7 +70,7 @@ fun test() {
 }
 
 #[test]
-fn test_signature_help_call_with_lambda_argument() {
+fn signature_help_call_with_lambda_argument() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/LambdaArgSigHelp.kt").unwrap();
     let source = r#"
@@ -102,7 +102,7 @@ fun test() {
 }
 
 #[test]
-fn test_signature_help_call_with_lambda_cursor_inside_lambda() {
+fn signature_help_call_with_lambda_cursor_inside_lambda() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/LambdaArgInsideSigHelp.kt").unwrap();
     let source = r#"

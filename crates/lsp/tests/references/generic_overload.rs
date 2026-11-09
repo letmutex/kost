@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_resolves_top_level_generic_function_call() {
+fn references_resolves_top_level_generic_function_call() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/GenericCall.kt").unwrap();
     let code = r#"
@@ -31,7 +31,7 @@ fun runner() {
 }
 
 #[test]
-fn test_references_overload_resolution_disambiguates_lambda_return_type_nullability() {
+fn references_overload_resolution_disambiguates_lambda_return_type_nullability() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ReturnNullability.kt").unwrap();
     let code = r#"
@@ -61,7 +61,7 @@ fun runner(tr: TaskRunner) {
 }
 
 #[test]
-fn test_references_alternative_overload_better_match_requires_compatible_arity() {
+fn references_alternative_overload_better_match_requires_compatible_arity() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ArityMatch.kt").unwrap();
     let code = r#"
@@ -92,7 +92,7 @@ fun runner(s: Service) {
 }
 
 #[test]
-fn test_references_overload_resolution_rejects_zero_arg_lambda_for_binary_functional_parameter() {
+fn references_overload_resolution_rejects_zero_arg_lambda_for_binary_functional_parameter() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/LambdaArity.kt").unwrap();
     let code = r#"
@@ -121,7 +121,7 @@ fun runner(h: Handler) {
 }
 
 #[test]
-fn test_references_excludes_call_with_extra_trailing_lambda_when_no_lambda_parameter_available() {
+fn references_excludes_call_with_extra_trailing_lambda_when_no_lambda_parameter_available() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/TrailingVararg.kt").unwrap();
     let code = r#"
@@ -150,7 +150,7 @@ fun runner(l: Logger) {
 }
 
 #[test]
-fn test_references_finds_non_call_usage_of_functional_property() {
+fn references_finds_non_call_usage_of_functional_property() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/PropertyRef.kt").unwrap();
     let code = r#"
@@ -179,7 +179,7 @@ fun runner(b: Button) {
 }
 
 #[test]
-fn test_references_resolves_implicit_receiver_call_for_subsequent_member_overload() {
+fn references_resolves_implicit_receiver_call_for_subsequent_member_overload() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ImplicitOverload.kt").unwrap();
     let code = r#"
@@ -209,7 +209,7 @@ class Calculator {
 }
 
 #[test]
-fn test_references_excludes_call_leaving_required_parameter_unbound() {
+fn references_excludes_call_leaving_required_parameter_unbound() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/UnboundParam.kt").unwrap();
     let code = r#"
@@ -237,7 +237,7 @@ fun runner(s: Service) {
 }
 
 #[test]
-fn test_references_overload_disambiguation_for_trailing_lambda_with_different_arity_alternatives() {
+fn references_overload_disambiguation_for_trailing_lambda_with_different_arity_alternatives() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/TrailingArity.kt").unwrap();
     let code = r#"

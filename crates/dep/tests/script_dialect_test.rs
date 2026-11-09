@@ -1,5 +1,5 @@
 #[test]
-fn test_syntax_error_returns_parse_error() {
+fn syntax_error_returns_parse_error() {
     let temp_dir = std::env::temp_dir().join("kost_test_syntax_error");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -18,7 +18,7 @@ fn test_syntax_error_returns_parse_error() {
 }
 
 #[test]
-fn test_unknown_dialect_returns_parse_error() {
+fn unknown_dialect_returns_parse_error() {
     let temp_dir = std::env::temp_dir().join("kost_test_unknown_dialect");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let _ = std::fs::create_dir_all(&temp_dir);
@@ -32,7 +32,7 @@ fn test_unknown_dialect_returns_parse_error() {
 }
 
 #[test]
-fn test_groovy_repo_uri_wrapper() {
+fn groovy_repo_uri_wrapper() {
     let mut registry = dep::RepositoryRegistry::new();
     let groovy_script = r#"
         repositories {
@@ -62,7 +62,7 @@ fn test_groovy_repo_uri_wrapper() {
 }
 
 #[test]
-fn test_groovy_ext_block_properties() {
+fn groovy_ext_block_properties() {
     let mut deps = Vec::new();
     resolver::ast::groovy::parse_groovy_script(
         r#"
@@ -92,7 +92,7 @@ fn test_groovy_ext_block_properties() {
 }
 
 #[test]
-fn test_groovy_dependencies_closure_argument_list() {
+fn groovy_dependencies_closure_argument_list() {
     let mut deps = Vec::new();
     resolver::ast::groovy::parse_groovy_script(
         r#"
@@ -110,7 +110,7 @@ fn test_groovy_dependencies_closure_argument_list() {
 }
 
 #[test]
-fn test_string_escape_sequences_in_kotlin_and_groovy() {
+fn string_escape_sequences_in_kotlin_and_groovy() {
     let mut kt_props = ahash::AHashMap::default();
     kt_props.insert("notInterpolated".to_string(), "WRONG".to_string());
     let mut kt_deps = Vec::new();
@@ -147,7 +147,7 @@ fn test_string_escape_sequences_in_kotlin_and_groovy() {
 }
 
 #[test]
-fn test_configuration_matching_camel_case_api() {
+fn configuration_matching_camel_case_api() {
     let mut deps = Vec::new();
     resolver::ast::kotlin::parse_kotlin_script(
         r#"
@@ -166,7 +166,7 @@ fn test_configuration_matching_camel_case_api() {
 }
 
 #[test]
-fn test_groovy_command_chain_platform_bom() {
+fn groovy_command_chain_platform_bom() {
     let mut deps = Vec::new();
     resolver::ast::groovy::parse_groovy_script(
         r#"
@@ -184,7 +184,7 @@ fn test_groovy_command_chain_platform_bom() {
 }
 
 #[test]
-fn test_named_arguments_with_variable_and_three_positional_args() {
+fn named_arguments_with_variable_and_three_positional_args() {
     let mut kt_deps = Vec::new();
     resolver::ast::kotlin::parse_kotlin_script(
         r#"
@@ -247,7 +247,7 @@ fn test_named_arguments_with_variable_and_three_positional_args() {
 }
 
 #[test]
-fn test_nested_buildscript_and_delegate_properties() {
+fn nested_buildscript_and_delegate_properties() {
     let mut kt_deps = Vec::new();
     resolver::ast::kotlin::parse_kotlin_script(
         r#"
@@ -294,7 +294,7 @@ fn test_nested_buildscript_and_delegate_properties() {
 }
 
 #[test]
-fn test_repository_property_interpolation() {
+fn repository_property_interpolation() {
     let mut kt_registry = dep::RepositoryRegistry::new();
     let kts_script = r#"
         val customUrl = "https://custom-kotlin.example.com/repo"

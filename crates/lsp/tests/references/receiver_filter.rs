@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_object_member_called_on_instance_variable_and_parameter() {
+fn references_object_member_called_on_instance_variable_and_parameter() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Logger.kt").unwrap();
     let code = r#"
@@ -37,7 +37,7 @@ fun run(paramLogger: Logger) {
 }
 
 #[test]
-fn test_references_named_companion_object_member_called_on_class_name() {
+fn references_named_companion_object_member_called_on_class_name() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Factory.kt").unwrap();
     let code = r#"
@@ -70,7 +70,7 @@ fun run() {
 }
 
 #[test]
-fn test_references_nested_class_within_private_outer_class_restricted_to_file() {
+fn references_nested_class_within_private_outer_class_restricted_to_file() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/Secret.kt").unwrap();
     let file_a_code = r#"
@@ -116,7 +116,7 @@ fun otherCall(unrelated: Unrelated) {
 }
 
 #[test]
-fn test_references_member_on_annotated_type_receiver() {
+fn references_member_on_annotated_type_receiver() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Service.kt").unwrap();
     let code = r#"
@@ -147,7 +147,7 @@ fun run(@NonNull client: Client) {
 }
 
 #[test]
-fn test_references_literal_receiver_matches_standard_interface() {
+fn references_literal_receiver_matches_standard_interface() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Text.kt").unwrap();
     let code = r#"
@@ -182,7 +182,7 @@ fun run(seq: CharSequence) {
 }
 
 #[test]
-fn test_references_candidate_pruning_only_treats_matching_return_types_as_producers() {
+fn references_candidate_pruning_only_treats_matching_return_types_as_producers() {
     let mut index = WorkspaceIndex::new();
     let file_pool_url = Url::parse("file:///project/Pool.kt").unwrap();
     let pool_code = r#"
@@ -237,7 +237,7 @@ fun report() {
 }
 
 #[test]
-fn test_references_container_hierarchy_handles_nullable_receiver_type() {
+fn references_container_hierarchy_handles_nullable_receiver_type() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/NullableText.kt").unwrap();
     let code = r#"
@@ -262,7 +262,7 @@ fun check(seq: CharSequence?) {
 }
 
 #[test]
-fn test_references_float_literal_receiver_matches_float_target() {
+fn references_float_literal_receiver_matches_float_target() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/FloatExt.kt").unwrap();
     let code = r#"
@@ -289,7 +289,7 @@ fun run() {
 }
 
 #[test]
-fn test_references_long_literal_receiver_matches_long_target() {
+fn references_long_literal_receiver_matches_long_target() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/LongExt.kt").unwrap();
     let code = r#"
@@ -316,7 +316,7 @@ fun run() {
 }
 
 #[test]
-fn test_references_float_literal_receiver_matches_number_interface() {
+fn references_float_literal_receiver_matches_number_interface() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Numbers.kt").unwrap();
     let code = r#"

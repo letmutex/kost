@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_interface_method_and_override() {
+fn references_interface_method_and_override() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/InterfaceOverride.kt").unwrap();
     let code = r#"
@@ -47,7 +47,7 @@ class BaseImpl : Base {
 }
 
 #[test]
-fn test_references_abstract_class_method_and_override() {
+fn references_abstract_class_method_and_override() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/AbstractOverride.kt").unwrap();
     let code = r#"
@@ -107,7 +107,7 @@ class ConcreteWorker : AbstractWorker() {
 }
 
 #[test]
-fn test_references_open_class_method_and_override() {
+fn references_open_class_method_and_override() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/OpenOverride.kt").unwrap();
     let code = r#"
@@ -149,7 +149,7 @@ class CustomService : BaseService() {
 }
 
 #[test]
-fn test_references_multilevel_inheritance_override() {
+fn references_multilevel_inheritance_override() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/MultilevelOverride.kt").unwrap();
     let code = r#"
@@ -195,7 +195,7 @@ class LeafComponent : BaseComponent() {
 }
 
 #[test]
-fn test_references_override_property_declaration() {
+fn references_override_property_declaration() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/PropertyOverride.kt").unwrap();
     let code = r#"
@@ -237,7 +237,7 @@ class DefaultConfig : Config {
 }
 
 #[test]
-fn test_references_override_excludes_unrelated_same_arity_overload() {
+fn references_override_excludes_unrelated_same_arity_overload() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/OverloadOverride.kt").unwrap();
     let code = r#"
@@ -266,7 +266,7 @@ class CustomProcessor : Processor() {
 }
 
 #[test]
-fn test_references_override_excludes_any_parameter_mismatch() {
+fn references_override_excludes_any_parameter_mismatch() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/AnyMismatchOverride.kt").unwrap();
     let code = r#"
@@ -294,7 +294,7 @@ class CustomHandler : Handler() {
 }
 
 #[test]
-fn test_references_annotated_override_declaration() {
+fn references_annotated_override_declaration() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/AnnotatedOverride.kt").unwrap();
     let code = r#"

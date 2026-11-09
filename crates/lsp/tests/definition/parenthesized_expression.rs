@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_parenthesized_variable_completion_and_definition() {
+fn parenthesized_variable_completion_and_definition() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/UserTest.kt").unwrap();
     let code = r#"
@@ -41,7 +41,7 @@ fun test(u: User) {
 }
 
 #[test]
-fn test_cast_expression_completion_and_definition() {
+fn cast_expression_completion_and_definition() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/CastTest.kt").unwrap();
     let code = r#"
@@ -80,7 +80,7 @@ fun test(animal: Animal) {
 }
 
 #[test]
-fn test_elvis_expression_completion_and_definition() {
+fn elvis_expression_completion_and_definition() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ElvisTest.kt").unwrap();
     let code = r#"

@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_sibling_subclass_method_call_excludes_unrelated_override() {
+fn sibling_subclass_method_call_excludes_unrelated_override() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/HierarchySibling.kt").unwrap();
     let code = r#"
@@ -37,7 +37,7 @@ class SecondSubclass : Base {
 }
 
 #[test]
-fn test_null_argument_matches_nullable_parameter_overload() {
+fn null_argument_matches_nullable_parameter_overload() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/NullArg.kt").unwrap();
     let code = r#"
@@ -67,7 +67,7 @@ fun testCancel(job: Job) {
 }
 
 #[test]
-fn test_named_argument_matches_parameter_name_overload() {
+fn named_argument_matches_parameter_name_overload() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/NamedArgOverload.kt").unwrap();
     let code = r#"
@@ -101,7 +101,7 @@ fun testNamed(launcher: Launcher) {
 }
 
 #[test]
-fn test_overload_call_with_indirect_external_supertype_argument() {
+fn overload_call_with_indirect_external_supertype_argument() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/ExternalHierarchy.kt").unwrap();
     let code = r#"
@@ -134,7 +134,7 @@ fun testProcess(processor: Processor, element: CustomElement) {
 }
 
 #[test]
-fn test_trailing_lambda_receiver_from_supertype_method_resolves_implicit_call() {
+fn trailing_lambda_receiver_from_supertype_method_resolves_implicit_call() {
     let mut index = WorkspaceIndex::new();
     let base_url = Url::parse("file:///project/TestBase.kt").unwrap();
     let base_code = r#"
@@ -182,8 +182,7 @@ class ConsumerTest : TestBase() {
 }
 
 #[test]
-fn test_trailing_lambda_receiver_binds_to_last_functional_parameter_with_preceding_functional_param()
- {
+fn trailing_lambda_receiver_binds_to_last_functional_parameter_with_preceding_functional_param() {
     let mut index = WorkspaceIndex::new();
     let base_url = Url::parse("file:///project/TestBaseActual.kt").unwrap();
     let base_code = r#"
@@ -231,7 +230,7 @@ class ConsumerTest : TestBase() {
 }
 
 #[test]
-fn test_implicit_call_in_lambda_with_star_imported_supertype_receiver_matches_reference() {
+fn implicit_call_in_lambda_with_star_imported_supertype_receiver_matches_reference() {
     let mut index = WorkspaceIndex::new();
     let scope_url = Url::parse("file:///project/Scope.kt").unwrap();
     let scope_code = r#"
@@ -286,7 +285,7 @@ class Consumer : TestBase() {
 }
 
 #[test]
-fn test_references_infix_call_matches_overloaded_signature() {
+fn references_infix_call_matches_overloaded_signature() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/InfixOverload.kt").unwrap();
     let source = r#"

@@ -4,7 +4,7 @@ use lint::config::ConfigLoader;
 use lint::config::error::ConfigError;
 
 #[test]
-fn test_lint_ignore_single_string_compiles_pattern() {
+fn lint_ignore_single_string_compiles_pattern() {
     let yaml = r#"
 lint:
   imports:
@@ -19,7 +19,7 @@ lint:
 }
 
 #[test]
-fn test_lint_ignore_sequence_compiles_multiple_patterns() {
+fn lint_ignore_sequence_compiles_multiple_patterns() {
     let yaml = r#"
 lint:
   imports:
@@ -38,7 +38,7 @@ lint:
 }
 
 #[test]
-fn test_lint_ignore_null_or_omitted_produces_empty_patterns() {
+fn lint_ignore_null_or_omitted_produces_empty_patterns() {
     let yaml_omitted = r#"
 lint:
   imports:
@@ -60,7 +60,7 @@ lint:
 }
 
 #[test]
-fn test_lint_ignore_normalizes_windows_backslashes() {
+fn lint_ignore_normalizes_windows_backslashes() {
     let yaml = r#"
 lint:
   imports:
@@ -76,7 +76,7 @@ lint:
 }
 
 #[test]
-fn test_lint_ignore_invalid_glob_pattern_fails_with_config_error() {
+fn lint_ignore_invalid_glob_pattern_fails_with_config_error() {
     let yaml = r#"
 lint:
   imports:
@@ -95,7 +95,7 @@ lint:
 }
 
 #[test]
-fn test_lint_ignore_empty_or_whitespace_pattern_fails() {
+fn lint_ignore_empty_or_whitespace_pattern_fails() {
     let yaml_empty = r#"
 lint:
   imports:

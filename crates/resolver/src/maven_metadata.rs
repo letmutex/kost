@@ -133,7 +133,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_maven_metadata_full() {
+    fn parse_maven_metadata_full() {
         let xml = r#"<?xml version="1.0" encoding="UTF-8"?>
 <metadata>
   <groupId>org.jetbrains.kotlinx</groupId>
@@ -164,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_best_version_prerelease_fallback() {
+    fn select_best_version_prerelease_fallback() {
         let xml = r#"<metadata>
   <groupId>com.example</groupId>
   <artifactId>new-lib</artifactId>
@@ -183,7 +183,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_maven_metadata_with_namespaces() {
+    fn parse_maven_metadata_with_namespaces() {
         let xml = r#"<ns2:metadata xmlns:ns2="http://maven.apache.org/METADATA/1.1.0">
   <ns2:groupId>com.google.guava</ns2:groupId>
   <ns2:artifactId>guava</ns2:artifactId>

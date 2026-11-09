@@ -4,7 +4,7 @@ use lsp::syntax::signature::{
 };
 
 #[test]
-fn test_parse_call_arg_empty_name_does_not_treat_as_named() {
+fn parse_call_arg_empty_name_does_not_treat_as_named() {
     let arg1 = parse_call_arg("= 5");
     assert_eq!(
         arg1.name, None,
@@ -28,7 +28,7 @@ fn test_parse_call_arg_empty_name_does_not_treat_as_named() {
 }
 
 #[test]
-fn test_parse_single_param_with_annotations_and_modifiers() {
+fn parse_single_param_with_annotations_and_modifiers() {
     let p1 = parse_single_param("@Deprecated val name: String")
         .expect("Should parse annotated parameter");
     assert_eq!(
@@ -56,7 +56,7 @@ fn test_parse_single_param_with_annotations_and_modifiers() {
 }
 
 #[test]
-fn test_parse_signature_params_function_type_extension_receiver() {
+fn parse_signature_params_function_type_extension_receiver() {
     let params1 = parse_signature_params("fun (() -> Unit).invoke(arg: Int): Unit");
     assert_eq!(
         params1.len(),
@@ -77,7 +77,7 @@ fn test_parse_signature_params_function_type_extension_receiver() {
 }
 
 #[test]
-fn test_parse_signature_params_qualified_return_and_generics() {
+fn parse_signature_params_qualified_return_and_generics() {
     let params1 = parse_signature_params("fun <T> List<T>.process(x: Int): java.lang.String");
     assert_eq!(params1.len(), 1);
     assert_eq!(params1[0].name, "x");
@@ -99,7 +99,7 @@ fn test_parse_signature_params_qualified_return_and_generics() {
 }
 
 #[test]
-fn test_parse_single_param_with_use_site_annotation() {
+fn parse_single_param_with_use_site_annotation() {
     let p1 = parse_single_param(r#"@param:Named("config") timeout: Long"#)
         .expect("Should parse parameter with use-site annotation");
     assert_eq!(
@@ -116,7 +116,7 @@ fn test_parse_single_param_with_use_site_annotation() {
 }
 
 #[test]
-fn test_find_top_level_eq_ignores_compound_operators_and_strings() {
+fn find_top_level_eq_ignores_compound_operators_and_strings() {
     assert_eq!(
         find_top_level_eq("a == b"),
         None,
@@ -135,7 +135,7 @@ fn test_find_top_level_eq_ignores_compound_operators_and_strings() {
 }
 
 #[test]
-fn test_parse_signature_params_with_function_type_generic_constraint() {
+fn parse_signature_params_with_function_type_generic_constraint() {
     let sig = "fun <T : () -> Unit, R : (String) -> Int> transform(item: R): String";
     let params = parse_signature_params(sig);
     assert_eq!(params.len(), 1, "Should find exactly 1 parameter 'item'");
@@ -144,7 +144,7 @@ fn test_parse_signature_params_with_function_type_generic_constraint() {
 }
 
 #[test]
-fn test_parse_call_arg_does_not_treat_leading_digit_as_named_parameter() {
+fn parse_call_arg_does_not_treat_leading_digit_as_named_parameter() {
     let arg = parse_call_arg("123 = 456");
     assert_eq!(
         arg.name, None,
@@ -154,7 +154,7 @@ fn test_parse_call_arg_does_not_treat_leading_digit_as_named_parameter() {
 }
 
 #[test]
-fn test_parse_call_arg_accepts_backtick_escaped_identifier() {
+fn parse_call_arg_accepts_backtick_escaped_identifier() {
     let arg = parse_call_arg("`when` = true");
     assert_eq!(
         arg.name.as_deref(),
@@ -173,7 +173,7 @@ fn test_parse_call_arg_accepts_backtick_escaped_identifier() {
 }
 
 #[test]
-fn test_parse_signature_type_params_ignores_extension_receiver_generics() {
+fn parse_signature_type_params_ignores_extension_receiver_generics() {
     let params = parse_signature_type_params("fun List<String>.sum(): Int");
     assert!(
         params.is_empty(),
@@ -182,7 +182,7 @@ fn test_parse_signature_type_params_ignores_extension_receiver_generics() {
 }
 
 #[test]
-fn test_parse_signature_type_params_ignores_supertype_arguments_in_class_signature() {
+fn parse_signature_type_params_ignores_supertype_arguments_in_class_signature() {
     let params = parse_signature_type_params("class StringList : ArrayList<String>()");
     assert!(
         params.is_empty(),
@@ -197,7 +197,7 @@ fn test_parse_signature_type_params_ignores_supertype_arguments_in_class_signatu
 }
 
 #[test]
-fn test_parse_signature_type_params_with_function_name_containing_keyword_substring() {
+fn parse_signature_type_params_with_function_name_containing_keyword_substring() {
     let params = parse_signature_type_params("fun get_val(item: String): Unit");
     assert!(
         params.is_empty(),
@@ -206,21 +206,21 @@ fn test_parse_signature_type_params_with_function_name_containing_keyword_substr
 }
 
 #[test]
-fn test_parse_signature_type_params_from_typealias() {
+fn parse_signature_type_params_from_typealias() {
     let params = parse_signature_type_params("typealias Handler<T> = (T) -> Unit");
     assert_eq!(params.len(), 1);
     assert_eq!(params[0].name, "T");
 }
 
 #[test]
-fn test_parse_signature_type_params_with_keyword_in_annotation() {
+fn parse_signature_type_params_with_keyword_in_annotation() {
     let params = parse_signature_type_params("@Suppress(\"fun\") fun <T> execute(): Unit");
     assert_eq!(params.len(), 1);
     assert_eq!(params[0].name, "T");
 }
 
 #[test]
-fn test_parse_signature_type_params_with_multiline_where_clause() {
+fn parse_signature_type_params_with_multiline_where_clause() {
     let params =
         parse_signature_type_params("fun <T> execute(item: T): Unit\n    where T : CharSequence");
     assert_eq!(params.len(), 1);
@@ -232,13 +232,13 @@ fn test_parse_signature_type_params_with_multiline_where_clause() {
 }
 
 #[test]
-fn test_split_type_arguments_with_nested_function_type_arrow() {
+fn split_type_arguments_with_nested_function_type_arrow() {
     let args = split_type_arguments("Wrapper<() -> Int, String>, Boolean");
     assert_eq!(args, vec!["Wrapper<() -> Int, String>", "Boolean"]);
 }
 
 #[test]
-fn test_parse_signature_type_params_with_function_type_bound_containing_parentheses() {
+fn parse_signature_type_params_with_function_type_bound_containing_parentheses() {
     let params_class = parse_signature_type_params("class Handler<T : () -> Unit>(val action: T)");
     assert_eq!(params_class.len(), 1);
     assert_eq!(params_class[0].name, "T");
@@ -249,7 +249,7 @@ fn test_parse_signature_type_params_with_function_type_bound_containing_parenthe
 }
 
 #[test]
-fn test_parse_signature_type_params_with_where_keyword_inside_annotation_string() {
+fn parse_signature_type_params_with_where_keyword_inside_annotation_string() {
     let sig = "@Annotation(\"where logic lives\") fun <T> run(x: T): Unit where T : Number";
     let params = parse_signature_type_params(sig);
     assert_eq!(params.len(), 1);
@@ -258,7 +258,7 @@ fn test_parse_signature_type_params_with_where_keyword_inside_annotation_string(
 }
 
 #[test]
-fn test_parse_signature_type_params_ignores_where_identifier_in_function_body() {
+fn parse_signature_type_params_ignores_where_identifier_in_function_body() {
     let sig = "fun <T> execute(): Unit { val where = 1 }";
     let params = parse_signature_type_params(sig);
     assert_eq!(params.len(), 1);
@@ -270,7 +270,7 @@ fn test_parse_signature_type_params_ignores_where_identifier_in_function_body() 
 }
 
 #[test]
-fn test_parse_signature_type_params_with_greater_than_inside_annotation_string() {
+fn parse_signature_type_params_with_greater_than_inside_annotation_string() {
     let sig = "fun <@Anno(\">\") T> execute(): Unit";
     let params = parse_signature_type_params(sig);
     assert_eq!(params.len(), 1);

@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_disambiguates_same_named_function_and_property() {
+fn hover_disambiguates_same_named_function_and_property() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/SameNameTest.kt").unwrap();
     let code = "fun fib(x: Int) {}\nval fib = 10\nval x = fib + 10\nfun call() {\n    fib(5)\n}";
@@ -37,7 +37,7 @@ fn test_hover_disambiguates_same_named_function_and_property() {
 }
 
 #[test]
-fn test_hover_disambiguates_extension_function_and_lambda_parameter() {
+fn hover_disambiguates_extension_function_and_lambda_parameter() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/Modifier.kt").unwrap();
     let file_a_code = r#"package example.base

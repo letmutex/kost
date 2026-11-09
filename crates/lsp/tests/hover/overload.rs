@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_top_level_overload_by_primitive_argument() {
+fn hover_top_level_overload_by_primitive_argument() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/OverloadHover.kt").unwrap();
     let code = r#"
@@ -59,7 +59,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_top_level_overload_by_arity() {
+fn hover_top_level_overload_by_arity() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ArityHover.kt").unwrap();
     let code = r#"
@@ -99,7 +99,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_member_overload_by_named_arguments() {
+fn hover_member_overload_by_named_arguments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NamedHover.kt").unwrap();
     let code = r#"
@@ -144,7 +144,7 @@ fun test(l: Layout) {
 }
 
 #[test]
-fn test_hover_extension_overload() {
+fn hover_extension_overload() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ExtensionOverload.kt").unwrap();
     let code = r#"
@@ -184,7 +184,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_partial_named_argument_overload() {
+fn hover_partial_named_argument_overload() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/AreaHoverOverload.kt").unwrap();
     let code = r#"
@@ -213,7 +213,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_zero_argument_call_prioritizes_parameterless_overload() {
+fn hover_zero_argument_call_prioritizes_parameterless_overload() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ZeroArgHover.kt").unwrap();
     let code = r#"

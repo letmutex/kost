@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_primary_constructor_parameter_property_override() {
+fn references_primary_constructor_parameter_property_override() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/ConstructorPropertyOverride.kt").unwrap();
     let code = r#"
@@ -43,7 +43,7 @@ class DefaultServiceConfig(override val timeoutMs: Long) : ServiceConfig
 }
 
 #[test]
-fn test_references_override_excludes_regular_constructor_parameter() {
+fn references_override_excludes_regular_constructor_parameter() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/RegularConstructorParam.kt").unwrap();
     let code = r#"

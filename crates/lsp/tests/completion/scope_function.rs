@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_apply_scope_function_this_completion() {
+fn apply_scope_function_this_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ApplyTest.kt").unwrap();
     let code = r#"
@@ -40,7 +40,7 @@ fun setup() {
 }
 
 #[test]
-fn test_with_scope_function_this_completion() {
+fn with_scope_function_this_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/WithTest.kt").unwrap();
     let code = r#"
@@ -73,7 +73,7 @@ fun setup() {
 }
 
 #[test]
-fn test_let_scope_function_it_completion() {
+fn let_scope_function_it_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/LetTest.kt").unwrap();
     let code = r#"
@@ -105,7 +105,7 @@ fun test(session: Session) {
 }
 
 #[test]
-fn test_also_scope_function_it_completion() {
+fn also_scope_function_it_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/AlsoTest.kt").unwrap();
     let code = r#"

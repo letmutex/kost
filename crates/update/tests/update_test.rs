@@ -3,7 +3,7 @@ use update::checksum::{compute_sha256, parse_expected_sha256, verify_file_checks
 use update::system::TempDir;
 
 #[test]
-fn test_temp_dir_cleans_up_on_drop() {
+fn temp_dir_cleans_up_on_drop() {
     let temp_dir_path;
     {
         let temp_dir = TempDir::new("test_cleanup").expect("Failed to create temp dir");
@@ -19,7 +19,7 @@ fn test_temp_dir_cleans_up_on_drop() {
 }
 
 #[test]
-fn test_tar_gz_decompression_and_binary_extraction() {
+fn tar_gz_decompression_and_binary_extraction() {
     let temp_dir = TempDir::new("test_tar").expect("Failed to create temp dir");
     let staging_dir = temp_dir.path().join("staging");
     let output_dir = temp_dir.path().join("output");
@@ -50,7 +50,7 @@ fn test_tar_gz_decompression_and_binary_extraction() {
 }
 
 #[test]
-fn test_find_binary_resolves_nested_executable() {
+fn find_binary_resolves_nested_executable() {
     let temp_dir = TempDir::new("test_find").expect("Failed to create temp dir");
     let nested_subdir = temp_dir.path().join("nested_folder");
     std::fs::create_dir_all(&nested_subdir).expect("Failed to create nested folder");
@@ -63,7 +63,7 @@ fn test_find_binary_resolves_nested_executable() {
 }
 
 #[test]
-fn test_compute_sha256_verifies_file_content() {
+fn compute_sha256_verifies_file_content() {
     let temp_dir = TempDir::new("test_hash").expect("Failed to create temp dir");
     let test_file = temp_dir.path().join("sample.txt");
     std::fs::write(&test_file, b"kost test\n").expect("Failed to write sample file");
@@ -76,7 +76,7 @@ fn test_compute_sha256_verifies_file_content() {
 }
 
 #[test]
-fn test_parse_expected_sha256_standard_format() {
+fn parse_expected_sha256_standard_format() {
     let sample_checksum_content = "3476eccb6c5a7477f05581902fcc07e56938a7715531cd735c43d7eed02df3a7  kost-v0.1.0-macos-arm64.tar.gz\n";
     let parsed_hash = parse_expected_sha256(sample_checksum_content).expect("Failed to parse hash");
     assert_eq!(

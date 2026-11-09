@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_cross_file_overload_in_same_package_not_blocked_by_current_file_incompatible_overload() {
+fn cross_file_overload_in_same_package_not_blocked_by_current_file_incompatible_overload() {
     let mut index = WorkspaceIndex::new();
     let url_a = Url::parse("file:///project/SenderA.kt").unwrap();
     let code_a = r#"
@@ -37,7 +37,7 @@ fun send(msg: String): Unit {}
 }
 
 #[test]
-fn test_trailing_lambda_call_resolution() {
+fn trailing_lambda_call_resolution() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Runner.kt").unwrap();
     let code = r#"
@@ -62,7 +62,7 @@ fun test() {
 }
 
 #[test]
-fn test_overloaded_call_with_trailing_lambda_selects_matching_type() {
+fn overloaded_call_with_trailing_lambda_selects_matching_type() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Runner.kt").unwrap();
     let code = r#"
@@ -88,7 +88,7 @@ fun test() {
 }
 
 #[test]
-fn test_overloaded_call_with_lambda_return_type_selects_matching_signature() {
+fn overloaded_call_with_lambda_return_type_selects_matching_signature() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Runner.kt").unwrap();
     let code = r#"
@@ -112,7 +112,7 @@ fun test() {
 }
 
 #[test]
-fn test_qualified_overloaded_call_selects_matching_signature() {
+fn qualified_overloaded_call_selects_matching_signature() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Runner.kt").unwrap();
     let code = r#"
@@ -138,7 +138,7 @@ fun test(s: Service) {
 }
 
 #[test]
-fn test_annotated_lambda_call_resolution() {
+fn annotated_lambda_call_resolution() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Runner.kt").unwrap();
     let code = r#"
@@ -163,8 +163,7 @@ fun test() {
 }
 
 #[test]
-fn test_member_call_with_different_arity_bypasses_incompatible_subclass_decl_and_resolves_superclass()
- {
+fn member_call_with_different_arity_bypasses_incompatible_subclass_decl_and_resolves_superclass() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/AritySubclass.kt").unwrap();
     let code = r#"
@@ -196,7 +195,7 @@ fun test(child: Child) {
 }
 
 #[test]
-fn test_implicit_this_call_to_overloaded_member_resolves_matching_signature() {
+fn implicit_this_call_to_overloaded_member_resolves_matching_signature() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ImplicitThisOverload.kt").unwrap();
     let code = r#"
@@ -225,7 +224,7 @@ class Service {
 }
 
 #[test]
-fn test_definition_direct_call_resolves_to_functional_parameter() {
+fn definition_direct_call_resolves_to_functional_parameter() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/FunctionalParamCall.kt").unwrap();
     let code = r#"

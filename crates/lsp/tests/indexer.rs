@@ -1,4 +1,4 @@
 mod indexer {
-    mod test_indexer;
-    mod test_kdoc;
+    mod basic;
+    mod kdoc;
 }

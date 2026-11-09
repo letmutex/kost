@@ -4,7 +4,7 @@ use lsp::syntax::parser::{extract_identifier_text, find_node_at_position, parse_
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_at_trailing_function_identifier_boundary_with_default_parameter() {
+fn references_at_trailing_function_identifier_boundary_with_default_parameter() {
     let mut index = WorkspaceIndex::new();
     let def_url = Url::parse("file:///project/Component.kt").unwrap();
     let def_code = "fun DeviceInfoSection(modifier: Modifier = Modifier) {}\n";

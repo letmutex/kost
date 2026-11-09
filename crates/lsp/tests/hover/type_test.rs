@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_multiline_class_constructor_and_annotations() {
+fn hover_multiline_class_constructor_and_annotations() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///MessageRepository.kt").unwrap();
     let source = r#"
@@ -59,7 +59,7 @@ fun usage() {
 }
 
 #[test]
-fn test_hover_typealias_object_and_enum() {
+fn hover_typealias_object_and_enum() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///Types.kt").unwrap();
     let source = r#"
@@ -117,7 +117,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_class_strips_inline_comments() {
+fn hover_class_strips_inline_comments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///StateHolder.kt").unwrap();
     let source = r#"
@@ -165,7 +165,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_fields_retain_own_inline_comments() {
+fn hover_fields_retain_own_inline_comments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///StateHolder2.kt").unwrap();
     let source = r#"
@@ -217,7 +217,7 @@ class StateHolder(
 }
 
 #[test]
-fn test_hover_annotations_on_top_of_kdoc_comments() {
+fn hover_annotations_on_top_of_kdoc_comments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///AnnotatedDoc.kt").unwrap();
     let source = r#"

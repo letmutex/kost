@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_supertype_constructor_invocation_overload_resolution() {
+fn supertype_constructor_invocation_overload_resolution() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ConstructorInvocation.kt").unwrap();
     let code = r#"

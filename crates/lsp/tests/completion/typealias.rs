@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_member_completion_and_definition_on_typealias() {
+fn member_completion_and_definition_on_typealias() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/TypeAliasMemberTest.kt").unwrap();
     let code = r#"

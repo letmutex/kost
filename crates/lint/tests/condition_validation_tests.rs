@@ -4,7 +4,7 @@ use lint::config::ConfigLoader;
 use lint::config::error::ConfigError;
 
 #[test]
-fn test_unknown_scope_in_where_shows_rule_id() {
+fn unknown_scope_in_where_shows_rule_id() {
     let yaml = r#"
 lint:
   rules:
@@ -31,7 +31,7 @@ lint:
 }
 
 #[test]
-fn test_unknown_property_in_where_shows_rule_id() {
+fn unknown_property_in_where_shows_rule_id() {
     let yaml = r#"
 lint:
   rules:
@@ -58,7 +58,7 @@ lint:
 }
 
 #[test]
-fn test_startswith_operator_incompatible_property_type_rejected() {
+fn startswith_operator_incompatible_property_type_rejected() {
     let startswith_yaml = r#"
 lint:
   rules:
@@ -90,7 +90,7 @@ lint:
 }
 
 #[test]
-fn test_endswith_operator_incompatible_property_type_rejected() {
+fn endswith_operator_incompatible_property_type_rejected() {
     let endswith_yaml = r#"
 lint:
   rules:
@@ -122,7 +122,7 @@ lint:
 }
 
 #[test]
-fn test_has_operator_incompatible_property_type_rejected() {
+fn has_operator_incompatible_property_type_rejected() {
     let has_yaml = r#"
 lint:
   rules:
@@ -154,7 +154,7 @@ lint:
 }
 
 #[test]
-fn test_empty_option_key_rejected() {
+fn empty_option_key_rejected() {
     let empty_key_yaml = r#"
 lint:
   rules:
@@ -182,7 +182,7 @@ lint:
 }
 
 #[test]
-fn test_invalid_option_key_syntax_rejected() {
+fn invalid_option_key_syntax_rejected() {
     let invalid_key_yaml = r#"
 lint:
   rules:
@@ -210,7 +210,7 @@ lint:
 }
 
 #[test]
-fn test_report_at_unknown_target_rejected() {
+fn report_at_unknown_target_rejected() {
     let yaml = r#"
 lint:
   rules:
@@ -231,7 +231,7 @@ lint:
 }
 
 #[test]
-fn test_report_at_scope_mismatch_rejected() {
+fn report_at_scope_mismatch_rejected() {
     let yaml = r#"
 lint:
   rules:
@@ -257,7 +257,7 @@ lint:
 }
 
 #[test]
-fn test_report_at_multi_target_execution_and_format() {
+fn report_at_multi_target_execution_and_format() {
     let yaml = r#"
 lint:
   rules:

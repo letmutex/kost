@@ -2,7 +2,7 @@ use lsp::features::auto_import_insertion::{find_ast_import_insertion, insert_int
 use lsp::syntax::parser::parse_source;
 
 #[test]
-fn test_auto_import_insertion_alphabetical_order() {
+fn auto_import_insertion_alphabetical_order() {
     let code = r#"package com.example.client
 
 import com.aaa.Alpha
@@ -20,7 +20,7 @@ class Client
 }
 
 #[test]
-fn test_auto_import_insertion_at_end_of_import_list() {
+fn auto_import_insertion_at_end_of_import_list() {
     let code = r#"package com.example.client
 
 import com.aaa.Alpha
@@ -37,7 +37,7 @@ class Client
 }
 
 #[test]
-fn test_auto_import_insertion_after_package_header() {
+fn auto_import_insertion_after_package_header() {
     let code = r#"package com.example.client
 
 class Client
@@ -52,7 +52,7 @@ class Client
 }
 
 #[test]
-fn test_auto_import_insertion_at_file_start_without_package() {
+fn auto_import_insertion_at_file_start_without_package() {
     let code = r#"fun main() {
     println("hello")
 }
@@ -68,7 +68,7 @@ fn test_auto_import_insertion_at_file_start_without_package() {
 }
 
 #[test]
-fn test_auto_import_insertion_preserves_trailing_comment() {
+fn auto_import_insertion_preserves_trailing_comment() {
     let code =
         "package com.example.client\n\nimport com.aaa.Alpha // trailing comment\n\nclass Client\n";
     let tree = parse_source(code).unwrap();
@@ -83,7 +83,7 @@ fn test_auto_import_insertion_preserves_trailing_comment() {
 }
 
 #[test]
-fn test_auto_import_insertion_crlf_line_endings() {
+fn auto_import_insertion_crlf_line_endings() {
     let code = "package com.example.client\r\n\r\nimport com.aaa.Alpha\r\n\r\nclass Client\r\n";
     let tree = parse_source(code).unwrap();
     let (_, text) = find_ast_import_insertion(tree.root_node(), code, "com.zzz.Omega");
@@ -95,7 +95,7 @@ fn test_auto_import_insertion_crlf_line_endings() {
 }
 
 #[test]
-fn test_auto_import_insertion_after_leading_file_comments() {
+fn auto_import_insertion_after_leading_file_comments() {
     let code = "/* Copyright (c) 2026 */\n\nfun main() {}\n";
     let tree = parse_source(code).unwrap();
     let (pos, _) =
@@ -107,7 +107,7 @@ fn test_auto_import_insertion_after_leading_file_comments() {
 }
 
 #[test]
-fn test_auto_import_insertion_preserves_blank_lines_around_import() {
+fn auto_import_insertion_preserves_blank_lines_around_import() {
     let code = "package com.example.client\n\nclass Client\n";
     let tree = parse_source(code).unwrap();
     let (pos, text) =
@@ -121,7 +121,7 @@ fn test_auto_import_insertion_preserves_blank_lines_around_import() {
 }
 
 #[test]
-fn test_auto_import_insertion_creates_blank_lines_when_missing() {
+fn auto_import_insertion_creates_blank_lines_when_missing() {
     let code = "package com.example.client\nclass Client\n";
     let tree = parse_source(code).unwrap();
     let (pos, text) =
@@ -135,7 +135,7 @@ fn test_auto_import_insertion_creates_blank_lines_when_missing() {
 }
 
 #[test]
-fn test_auto_import_insertion_empty_headers_slice_fallback() {
+fn auto_import_insertion_empty_headers_slice_fallback() {
     let (pos, text) =
         insert_into_import_headers(&[], "", "com.example.service.OrderProcessor", "\n");
     assert_eq!(pos.line, 0);
@@ -144,7 +144,7 @@ fn test_auto_import_insertion_empty_headers_slice_fallback() {
 }
 
 #[test]
-fn test_auto_import_insertion_after_shebang() {
+fn auto_import_insertion_after_shebang() {
     let code = "#!/usr/bin/env kotlin\n\nfun main() {}\n";
     let tree = parse_source(code).unwrap();
     let (pos, text) =
@@ -155,7 +155,7 @@ fn test_auto_import_insertion_after_shebang() {
 }
 
 #[test]
-fn test_auto_import_insertion_after_file_annotation() {
+fn auto_import_insertion_after_file_annotation() {
     let code = "@file:JvmName(\"MainUtil\")\n\nfun main() {}\n";
     let tree = parse_source(code).unwrap();
     let (pos, text) =
@@ -166,7 +166,7 @@ fn test_auto_import_insertion_after_file_annotation() {
 }
 
 #[test]
-fn test_auto_import_insertion_at_eof_without_trailing_newline_with_comment() {
+fn auto_import_insertion_at_eof_without_trailing_newline_with_comment() {
     let code = "import com.example.service.A // trailing note   ";
     let tree = parse_source(code).unwrap();
     let (pos, text) = find_ast_import_insertion(tree.root_node(), code, "com.example.service.Z");

@@ -1,7 +1,7 @@
 use cli::{CliError, FormatArgs, FormatStyle, PrintMode};
 
 #[test]
-fn test_parse_fmt_empty_args_defaults_to_kotlinlang() {
+fn parse_fmt_empty_args_defaults_to_kotlinlang() {
     let args = FormatArgs::parse(&[]).unwrap();
     assert!(!args.check);
     assert_eq!(args.style, FormatStyle::Kotlinlang);
@@ -10,7 +10,7 @@ fn test_parse_fmt_empty_args_defaults_to_kotlinlang() {
 }
 
 #[test]
-fn test_parse_fmt_check_flag() {
+fn parse_fmt_check_flag() {
     let raw = vec!["--check".to_string(), "src/Main.kt".to_string()];
     let args = FormatArgs::parse(&raw).unwrap();
     assert!(args.check);
@@ -22,7 +22,7 @@ fn test_parse_fmt_check_flag() {
 }
 
 #[test]
-fn test_parse_fmt_style_options() {
+fn parse_fmt_style_options() {
     let meta_arg = vec!["--style=meta".to_string()];
     let parsed_meta = FormatArgs::parse(&meta_arg).unwrap();
     assert_eq!(parsed_meta.style, FormatStyle::Meta);
@@ -37,14 +37,14 @@ fn test_parse_fmt_style_options() {
 }
 
 #[test]
-fn test_parse_fmt_stdin_target() {
+fn parse_fmt_stdin_target() {
     let raw = vec!["-".to_string()];
     let args = FormatArgs::parse(&raw).unwrap();
     assert_eq!(args.targets, vec!["-"]);
 }
 
 #[test]
-fn test_parse_fmt_delimiter_preserves_targets() {
+fn parse_fmt_delimiter_preserves_targets() {
     let raw = vec![
         "--check".to_string(),
         "--".to_string(),
@@ -60,7 +60,7 @@ fn test_parse_fmt_delimiter_preserves_targets() {
 }
 
 #[test]
-fn test_parse_fmt_unknown_option_error() {
+fn parse_fmt_unknown_option_error() {
     let raw = vec!["--quiet".to_string()];
     let result = FormatArgs::parse(&raw);
     assert_eq!(
@@ -70,7 +70,7 @@ fn test_parse_fmt_unknown_option_error() {
 }
 
 #[test]
-fn test_parse_fmt_missing_style_value_error() {
+fn parse_fmt_missing_style_value_error() {
     let raw = vec!["--style".to_string()];
     let result = FormatArgs::parse(&raw);
     assert_eq!(
@@ -80,7 +80,7 @@ fn test_parse_fmt_missing_style_value_error() {
 }
 
 #[test]
-fn test_parse_fmt_invalid_style_value_error() {
+fn parse_fmt_invalid_style_value_error() {
     let raw = vec!["--style=unknown_preset".to_string()];
     let result = FormatArgs::parse(&raw);
     assert_eq!(
@@ -93,7 +93,7 @@ fn test_parse_fmt_invalid_style_value_error() {
 }
 
 #[test]
-fn test_parse_fmt_editorconfig_flags() {
+fn parse_fmt_editorconfig_flags() {
     let raw = vec![
         "--no-editorconfig".to_string(),
         "--stdin-path=src/App.kt".to_string(),
@@ -104,7 +104,7 @@ fn test_parse_fmt_editorconfig_flags() {
 }
 
 #[test]
-fn test_parse_fmt_editorconfig_path_space_separated() {
+fn parse_fmt_editorconfig_path_space_separated() {
     let raw = vec![
         "--editorconfig".to_string(),
         ".editorconfig".to_string(),
@@ -117,7 +117,7 @@ fn test_parse_fmt_editorconfig_path_space_separated() {
 }
 
 #[test]
-fn test_parse_fmt_editorconfig_missing_path_value_error() {
+fn parse_fmt_editorconfig_missing_path_value_error() {
     let raw = vec!["--editorconfig".to_string()];
     let result = FormatArgs::parse(&raw);
     assert_eq!(
@@ -127,13 +127,13 @@ fn test_parse_fmt_editorconfig_missing_path_value_error() {
 }
 
 #[test]
-fn test_parse_fmt_print_mode_defaults_to_auto() {
+fn parse_fmt_print_mode_defaults_to_auto() {
     let args = FormatArgs::parse(&[]).unwrap();
     assert_eq!(args.print_mode, PrintMode::Auto);
 }
 
 #[test]
-fn test_parse_fmt_print_mode_options() {
+fn parse_fmt_print_mode_options() {
     let full_arg = vec!["--print-mode=full".to_string()];
     assert_eq!(
         FormatArgs::parse(&full_arg).unwrap().print_mode,
@@ -160,7 +160,7 @@ fn test_parse_fmt_print_mode_options() {
 }
 
 #[test]
-fn test_parse_fmt_print_mode_invalid_value_error() {
+fn parse_fmt_print_mode_invalid_value_error() {
     let raw = vec!["--print-mode=invalid_mode".to_string()];
     let result = FormatArgs::parse(&raw);
     assert_eq!(
@@ -173,13 +173,13 @@ fn test_parse_fmt_print_mode_invalid_value_error() {
 }
 
 #[test]
-fn test_parse_fmt_reject_parse_errors_defaults_to_false() {
+fn parse_fmt_reject_parse_errors_defaults_to_false() {
     let args = FormatArgs::parse(&[]).unwrap();
     assert!(!args.reject_parse_errors);
 }
 
 #[test]
-fn test_parse_fmt_reject_parse_errors_flag() {
+fn parse_fmt_reject_parse_errors_flag() {
     let raw = vec!["--check".to_string(), "--reject-parse-errors".to_string()];
     let args = FormatArgs::parse(&raw).unwrap();
     assert!(args.check);

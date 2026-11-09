@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_overloaded_function_selects_matching_signature() {
+fn references_overloaded_function_selects_matching_signature() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/Math.kt").unwrap();
     let file_a_code = r#"
@@ -56,7 +56,7 @@ fun run() {
 }
 
 #[test]
-fn test_references_extension_function_call_across_files() {
+fn references_extension_function_call_across_files() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/StringExt.kt").unwrap();
     let file_a_code = r#"
@@ -88,7 +88,7 @@ fun run() {
 }
 
 #[test]
-fn test_references_variable_used_in_string_template() {
+fn references_variable_used_in_string_template() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/TemplateTest.kt").unwrap();
     let code = r#"
@@ -113,7 +113,7 @@ fun formatGreeting(name: String): String {
 }
 
 #[test]
-fn test_references_triggered_from_interpolated_identifier() {
+fn references_triggered_from_interpolated_identifier() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/TemplateTest.kt").unwrap();
     let code = r#"
@@ -138,7 +138,7 @@ fun formatGreeting(name: String): String {
 }
 
 #[test]
-fn test_references_preserves_lambda_call_with_coerced_unit_return_type() {
+fn references_preserves_lambda_call_with_coerced_unit_return_type() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Runner.kt").unwrap();
     let code = r#"
@@ -167,7 +167,7 @@ fun test() {
 }
 
 #[test]
-fn test_references_tied_overload_star_import_resolves_targeted_declaration() {
+fn references_tied_overload_star_import_resolves_targeted_declaration() {
     let mut index = WorkspaceIndex::new();
     let lib_url = Url::parse("file:///project/Lib.kt").unwrap();
     let lib_code = r#"
@@ -206,7 +206,7 @@ fun run(runner: TaskRunner) {
 }
 
 #[test]
-fn test_references_member_to_string_matches_only_target_class() {
+fn references_member_to_string_matches_only_target_class() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Models.kt").unwrap();
     let code = r#"
@@ -249,7 +249,7 @@ fun usage(paramUser: User, paramProduct: Product) {
 }
 
 #[test]
-fn test_references_companion_object_member_called_on_class_name() {
+fn references_companion_object_member_called_on_class_name() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Factory.kt").unwrap();
     let code = r#"
@@ -280,7 +280,7 @@ fun run() {
 }
 
 #[test]
-fn test_references_member_called_via_chained_call_without_naming_container() {
+fn references_member_called_via_chained_call_without_naming_container() {
     let mut index = WorkspaceIndex::new();
     let models_url = Url::parse("file:///project/Models.kt").unwrap();
     let models_code = r#"

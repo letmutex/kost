@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_private_detection_ignores_top_level_variable_sharing_container_name() {
+fn references_private_detection_ignores_top_level_variable_sharing_container_name() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/Outer.kt").unwrap();
     let file_a_code = r#"
@@ -41,7 +41,7 @@ fun run(cfg: Config) {
 }
 
 #[test]
-fn test_nested_class_member_visibility_ignores_top_level_private_name_collision() {
+fn nested_class_member_visibility_ignores_top_level_private_name_collision() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/Outer.kt").unwrap();
     let file_a_code = r#"
@@ -81,7 +81,7 @@ fun run(inner: Outer.Inner) {
 }
 
 #[test]
-fn test_references_excludes_sibling_file_same_name_toplevel_declaration() {
+fn references_excludes_sibling_file_same_name_toplevel_declaration() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/A.kt").unwrap();
     let file_a_code = r#"
@@ -122,7 +122,7 @@ fun testB() {
 }
 
 #[test]
-fn test_references_excludes_import_with_partial_package_name_prefix() {
+fn references_excludes_import_with_partial_package_name_prefix() {
     let mut index = WorkspaceIndex::new();
     let decl_url = Url::parse("file:///project/Decl.kt").unwrap();
     let decl_code = r#"
@@ -158,7 +158,7 @@ fun test() {
 }
 
 #[test]
-fn test_references_excludes_call_with_partial_package_name_prefix() {
+fn references_excludes_call_with_partial_package_name_prefix() {
     let mut index = WorkspaceIndex::new();
     let decl_url = Url::parse("file:///project/Decl.kt").unwrap();
     let decl_code = r#"
@@ -199,7 +199,7 @@ fun test(f: apple.Fruit) {
 }
 
 #[test]
-fn test_references_excludes_top_level_overload_with_different_custom_class_argument() {
+fn references_excludes_top_level_overload_with_different_custom_class_argument() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/TopLevelOverload.kt").unwrap();
     let source = r#"
@@ -231,7 +231,7 @@ fun test(order: Order, user: User) {
 }
 
 #[test]
-fn test_references_finds_top_level_symbol_in_default_root_package_across_files() {
+fn references_finds_top_level_symbol_in_default_root_package_across_files() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/A.kt").unwrap();
     let file_a_code = r#"
@@ -260,7 +260,7 @@ fun test() {
 }
 
 #[test]
-fn test_references_overload_resolution_considers_overload_sharing_range_in_different_file() {
+fn references_overload_resolution_considers_overload_sharing_range_in_different_file() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/A.kt").unwrap();
     let file_a_code = "package com.example\n\nclass Service {\n    fun compute(x: Int = 1, y: Int = 2) = x + y\n}\n";
@@ -281,7 +281,7 @@ fn test_references_overload_resolution_considers_overload_sharing_range_in_diffe
 }
 
 #[test]
-fn test_references_overload_resolution_ignores_unrelated_class_same_name_in_different_package() {
+fn references_overload_resolution_ignores_unrelated_class_same_name_in_different_package() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/A.kt").unwrap();
     let file_a_code = r#"

@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_import_aware_receiver_completion() {
+fn import_aware_receiver_completion() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/ModifierA.kt").unwrap();
     let file_a_code = r#"package example.base
@@ -74,7 +74,7 @@ example.other.Modifier2.
 }
 
 #[test]
-fn test_unrelated_class_supertypes_do_not_leak_to_imported_receiver() {
+fn unrelated_class_supertypes_do_not_leak_to_imported_receiver() {
     let mut index = WorkspaceIndex::new();
     let compose_modifier_url = Url::parse("file:///project/ComposeModifier.kt").unwrap();
     let compose_modifier_code = r#"package androidx.compose.ui
@@ -132,7 +132,7 @@ fun main() {
 }
 
 #[test]
-fn test_extension_function_from_other_package_completion() {
+fn extension_function_from_other_package_completion() {
     let mut index = WorkspaceIndex::new();
     let compose_modifier_url = Url::parse("file:///project/ComposeModifier.kt").unwrap();
     let compose_modifier_code = r#"package androidx.compose.ui

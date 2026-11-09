@@ -7,7 +7,7 @@ use lint::types::Scope;
 use lint::{Condition, RuleRegistryBuilder};
 
 #[test]
-fn test_opt_in_ruleset_starts_with_empty_registry() {
+fn opt_in_ruleset_starts_with_empty_registry() {
     let yaml = r#"
 lint:
   rules: []
@@ -20,7 +20,7 @@ lint:
 }
 
 #[test]
-fn test_importing_standard_loads_ast_rules() {
+fn importing_standard_loads_ast_rules() {
     let yaml = r#"
 lint:
   imports:
@@ -33,7 +33,7 @@ lint:
 }
 
 #[test]
-fn test_importing_statistics_loads_stat_rules() {
+fn importing_statistics_loads_stat_rules() {
     let yaml = r#"
 lint:
   imports:
@@ -55,7 +55,7 @@ lint:
 }
 
 #[test]
-fn test_virtual_ruleset_memoization_preserves_overrides() {
+fn virtual_ruleset_memoization_preserves_overrides() {
     let yaml = r#"
 lint:
   imports:
@@ -79,7 +79,7 @@ lint:
 }
 
 #[test]
-fn test_load_string_detects_basename_collision_with_imported_file() {
+fn load_string_detects_basename_collision_with_imported_file() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_collision_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -103,7 +103,7 @@ fn test_load_string_detects_basename_collision_with_imported_file() {
 }
 
 #[test]
-fn test_filesystem_dag_imports_and_circular_detection() {
+fn filesystem_dag_imports_and_circular_detection() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_dag_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -125,7 +125,7 @@ fn test_filesystem_dag_imports_and_circular_detection() {
 }
 
 #[test]
-fn test_rule_registry_builder_applies_report_id_override_to_stat_rules() {
+fn rule_registry_builder_applies_report_id_override_to_stat_rules() {
     let mut builder = RuleRegistryBuilder::new();
     let rule = StatRule::builder("my-rule", Scope::Function)
         .condition(Condition::All(Vec::new()))
@@ -138,7 +138,7 @@ fn test_rule_registry_builder_applies_report_id_override_to_stat_rules() {
 }
 
 #[test]
-fn test_missing_lint_section_in_empty_config_rejected() {
+fn missing_lint_section_in_empty_config_rejected() {
     let err = ConfigLoader::load_string("", "empty.yaml").unwrap_err();
     match err {
         ConfigError::MissingLintSection { file } => {
@@ -181,7 +181,7 @@ fn test_missing_lint_section_in_empty_config_rejected() {
 }
 
 #[test]
-fn test_unknown_top_level_field_rejected() {
+fn unknown_top_level_field_rejected() {
     let yaml_legacy_includes = r#"
 includes:
   - standard
@@ -216,7 +216,7 @@ rules:
 }
 
 #[test]
-fn test_unknown_field_under_lint_section_rejected() {
+fn unknown_field_under_lint_section_rejected() {
     let yaml = r#"
 lint:
   include:
@@ -253,7 +253,7 @@ lint:
 }
 
 #[test]
-fn test_unknown_field_in_rule_entry_rejected() {
+fn unknown_field_in_rule_entry_rejected() {
     let yaml = r#"
 lint:
   rules:

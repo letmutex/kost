@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_property_with_annotation_and_kdoc() {
+fn hover_property_with_annotation_and_kdoc() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///Properties.kt").unwrap();
     let source = r#"
@@ -46,7 +46,7 @@ class StateHolder {
 }
 
 #[test]
-fn test_hover_top_level_property_with_single_line_comment() {
+fn hover_top_level_property_with_single_line_comment() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///TopLevel.kt").unwrap();
     let source = r#"
@@ -77,7 +77,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_local_variable_with_type_and_initializer() {
+fn hover_local_variable_with_type_and_initializer() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///LocalVar.kt").unwrap();
     let source = r#"
@@ -123,7 +123,7 @@ fun run() {
 }
 
 #[test]
-fn test_hover_local_variable_in_documented_function() {
+fn hover_local_variable_in_documented_function() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///DocFuncLocal.kt").unwrap();
     let source = r#"
@@ -158,7 +158,7 @@ fun processEntity(id: String) {
 }
 
 #[test]
-fn test_destructuring_declaration_variables_scoping_and_hover() {
+fn destructuring_declaration_variables_scoping_and_hover() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Destructuring.kt").unwrap();
     let code = r#"
@@ -208,7 +208,7 @@ fun process() {
 }
 
 #[test]
-fn test_hover_catch_parameter_member_property() {
+fn hover_catch_parameter_member_property() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/CatchProperty.kt").unwrap();
     let code = r#"

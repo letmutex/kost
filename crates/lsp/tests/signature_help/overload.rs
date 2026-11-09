@@ -4,7 +4,7 @@ use smol_str::SmolStr;
 use tower_lsp::lsp_types::{ParameterLabel, Position, Range, SymbolKind, Url};
 
 #[test]
-fn test_overloaded_top_level_functions_signature_help() {
+fn overloaded_top_level_functions_signature_help() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/FormatOverload.kt").unwrap();
     let source = r#"
@@ -64,7 +64,7 @@ fun test() {
 }
 
 #[test]
-fn test_overloaded_member_functions_signature_help() {
+fn overloaded_member_functions_signature_help() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/MemberOverload.kt").unwrap();
     let source = r#"
@@ -104,7 +104,7 @@ fun test(l: Layout) {
 }
 
 #[test]
-fn test_overloaded_extension_functions_signature_help() {
+fn overloaded_extension_functions_signature_help() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/ExtOverload.kt").unwrap();
     let source = r#"
@@ -144,7 +144,7 @@ fun test() {
 }
 
 #[test]
-fn test_overloaded_partial_named_argument_signature_help() {
+fn overloaded_partial_named_argument_signature_help() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/AreaSigHelp.kt").unwrap();
     let source = r#"
@@ -167,7 +167,7 @@ fun test() {
 }
 
 #[test]
-fn test_signature_help_function_returning_function_type() {
+fn signature_help_function_returning_function_type() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/FuncReturn.kt").unwrap();
     let source = r#"
@@ -198,7 +198,7 @@ fun test() {
 }
 
 #[test]
-fn test_signature_help_bytecode_two_overloads_with_one_source_overload() {
+fn signature_help_bytecode_two_overloads_with_one_source_overload() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Format.class").unwrap();
     let src_url = Url::parse("jar:file:///caches/lib-sources.jar!/com/example/Format.kt").unwrap();
@@ -265,7 +265,7 @@ fn test_signature_help_bytecode_two_overloads_with_one_source_overload() {
 }
 
 #[test]
-fn test_signature_help_selects_vararg_overload_when_argument_count_exceeds_fixed_arity() {
+fn signature_help_selects_vararg_overload_when_argument_count_exceeds_fixed_arity() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/VarargOverload.kt").unwrap();
     let source = r#"
@@ -291,7 +291,7 @@ fun test() {
 }
 
 #[test]
-fn test_signature_help_selects_matching_named_argument_overload_with_defaults() {
+fn signature_help_selects_matching_named_argument_overload_with_defaults() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/AreaDefaultNamedSigHelp.kt").unwrap();
     let source = r#"

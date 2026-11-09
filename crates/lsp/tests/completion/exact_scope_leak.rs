@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_user_reported_unresolved_receiver_leakage() {
+fn user_reported_unresolved_receiver_leakage() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ExactLeakTest1.kt").unwrap();
     let code = r#"
@@ -36,7 +36,7 @@ fun main() {
 }
 
 #[test]
-fn test_user_reported_local_variable_resolution() {
+fn user_reported_local_variable_resolution() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ExactLeakTest2.kt").unwrap();
     let code = r#"
@@ -73,7 +73,7 @@ fun main() {
 }
 
 #[test]
-fn test_annotated_interface_members_do_not_leak_to_global_scope() {
+fn annotated_interface_members_do_not_leak_to_global_scope() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/AnnotatedInterfaceTest.kt").unwrap();
     let code = r#"
@@ -108,7 +108,7 @@ fun main() {
 }
 
 #[test]
-fn test_annotated_sealed_interface_members_do_not_leak() {
+fn annotated_sealed_interface_members_do_not_leak() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/SealedInterfaceTest.kt").unwrap();
     let code = r#"
@@ -143,7 +143,7 @@ fun main() {
 }
 
 #[test]
-fn test_annotated_modified_classes_do_not_leak() {
+fn annotated_modified_classes_do_not_leak() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ModifiedClassesTest.kt").unwrap();
     let code = r#"
@@ -185,7 +185,7 @@ fun main() {
 }
 
 #[test]
-fn test_extension_on_nullable_type_scoping_and_completion() {
+fn extension_on_nullable_type_scoping_and_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NullableExt.kt").unwrap();
     let code = r#"
@@ -231,7 +231,7 @@ fun test(s: String?) {
 }
 
 #[test]
-fn test_annotated_fun_interface_members_do_not_leak() {
+fn annotated_fun_interface_members_do_not_leak() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/FunInterfaceLeakTest.kt").unwrap();
     let code = r#"
@@ -268,7 +268,7 @@ fun main() {
 }
 
 #[test]
-fn test_unresolved_receiver_cat_run_does_not_leak() {
+fn unresolved_receiver_cat_run_does_not_leak() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/CatLeakTest.kt").unwrap();
     let code = r#"

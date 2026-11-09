@@ -10,7 +10,7 @@ fn extract_code_block(text: &str) -> String {
 }
 
 #[test]
-fn test_hover_top_level_function_package_header() {
+fn hover_top_level_function_package_header() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Utils.kt").unwrap();
     let source = r#"package com.example.utils
@@ -40,7 +40,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_class_package_header() {
+fn hover_class_package_header() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Models.kt").unwrap();
     let source = r#"package com.example.models
@@ -65,7 +65,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_member_function_package_header() {
+fn hover_member_function_package_header() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Services.kt").unwrap();
     let source = r#"package com.example.services
@@ -96,7 +96,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_member_property_package_header() {
+fn hover_member_property_package_header() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Config.kt").unwrap();
     let source = r#"package com.example.config
@@ -127,7 +127,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_nested_class_and_member_package_header() {
+fn hover_nested_class_and_member_package_header() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Outer.kt").unwrap();
     let source = r#"package com.example.nested
@@ -160,7 +160,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_extension_function_package_header() {
+fn hover_extension_function_package_header() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Extensions.kt").unwrap();
     let source = r#"package com.example.ext
@@ -193,7 +193,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_bytecode_function_strips_kt_facade() {
+fn hover_bytecode_function_strips_kt_facade() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///libs/utils.jar!/com/example/lib/TextKt.class").unwrap();
 
@@ -248,7 +248,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_local_variable_and_parameter_have_no_package_header() {
+fn hover_local_variable_and_parameter_have_no_package_header() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Local.kt").unwrap();
     let source = r#"package com.example.local
@@ -288,7 +288,7 @@ fun process(threshold: Int): Int {
 }
 
 #[test]
-fn test_hover_default_package_top_level_has_no_header() {
+fn hover_default_package_top_level_has_no_header() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Root.kt").unwrap();
     let source = r#"

@@ -11,7 +11,7 @@ use lsp::gradle::summary::IndexingSummary;
 use resolver::cache_resolver::ResolvedArtifact;
 
 #[test]
-fn test_default_server_config() {
+fn default_server_config() {
     let config = ServerConfig::default();
     assert_eq!(config.indexing_logging, IndexingLogLevel::Default);
     assert_eq!(config.interaction_logging, InteractionLogLevel::None);
@@ -29,7 +29,7 @@ fn test_default_server_config() {
 }
 
 #[test]
-fn test_server_config_from_json() {
+fn server_config_from_json() {
     let json_val = json!({
         "indexing_logging": "none",
         "interaction_logging": "default"
@@ -104,7 +104,7 @@ fn test_server_config_from_json() {
 }
 
 #[test]
-fn test_exact_string_parsing() {
+fn exact_string_parsing() {
     assert_eq!(
         IndexingLogLevel::parse_exact("none"),
         Some(IndexingLogLevel::None)
@@ -150,7 +150,7 @@ fn test_exact_string_parsing() {
 }
 
 #[test]
-fn test_indexing_summary_print_all_modes() {
+fn indexing_summary_print_all_modes() {
     let mut summary = IndexingSummary {
         unique_dependencies_indexed: 5,
         transitive_dependencies_resolved: 2,
@@ -174,7 +174,7 @@ fn test_indexing_summary_print_all_modes() {
 }
 
 #[test]
-fn test_indexing_summary_archive_breakdown_and_display_line() {
+fn indexing_summary_archive_breakdown_and_display_line() {
     let mut summary = IndexingSummary {
         unique_dependencies_indexed: 3,
         graph_dependencies_resolved: 10,
@@ -236,7 +236,7 @@ fn test_indexing_summary_archive_breakdown_and_display_line() {
 }
 
 #[test]
-fn test_server_config_serde_default_partial_json() {
+fn server_config_serde_default_partial_json() {
     let json_str = r#"{"auto_import": false}"#;
     let config: ServerConfig = serde_json::from_str(json_str).unwrap();
     assert!(!config.auto_import);
@@ -245,7 +245,7 @@ fn test_server_config_serde_default_partial_json() {
 }
 
 #[test]
-fn test_server_config_from_json_drops_int_options() {
+fn server_config_from_json_drops_int_options() {
     let json_int = json!({
         "auto_import": 0
     });
@@ -260,7 +260,7 @@ fn test_server_config_from_json_drops_int_options() {
 }
 
 #[test]
-fn test_server_config_interaction_logging_verbose() {
+fn server_config_interaction_logging_verbose() {
     let json_verbose_interaction = json!({
         "interaction_logging": "verbose"
     });

@@ -250,7 +250,7 @@ mod tests {
     use smol_str::SmolStr;
 
     #[test]
-    fn test_invalid_property_value_does_not_overwrite_inherited() {
+    fn invalid_property_value_does_not_overwrite_inherited() {
         let mut config = ResolvedEditorConfig::new();
         config.end_of_line = Some(EndOfLine::Crlf);
         config.insert_final_newline = Some(true);
@@ -271,7 +271,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_property_ij_formatter_enabled_parses_boolean() {
+    fn apply_property_ij_formatter_enabled_parses_boolean() {
         let mut config = ResolvedEditorConfig::new();
         assert!(config.is_formatting_enabled());
 
@@ -293,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn test_apply_property_ktfmt_parses_enabled_disabled() {
+    fn apply_property_ktfmt_parses_enabled_disabled() {
         let mut config = ResolvedEditorConfig::new();
         apply_single_property(
             &SmolStr::new("ktfmt"),
@@ -313,7 +313,7 @@ mod tests {
     }
 
     #[test]
-    fn test_formatting_enabled_prefers_ktfmt_over_ij_formatter() {
+    fn formatting_enabled_prefers_ktfmt_over_ij_formatter() {
         let mut config = ResolvedEditorConfig::new();
         config.ij_formatter_enabled = Some(false);
         config.ktfmt_enabled = Some(true);

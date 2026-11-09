@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_actual_primary_constructor_property_resolves_expect_doc() {
+fn hover_actual_primary_constructor_property_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/UserProfile.kt").unwrap();
     let common_source = r#"package com.example
@@ -63,7 +63,7 @@ fun testUsage(profile: UserProfile) {
 }
 
 #[test]
-fn test_hover_actual_constructor_resolves_expect_doc() {
+fn hover_actual_constructor_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/SecureChannel.kt").unwrap();
     let common_source = r#"package com.example

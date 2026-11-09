@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_actual_class_resolves_expect_doc() {
+fn hover_actual_class_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/Socket.kt").unwrap();
     let common_source = r#"package com.example
@@ -70,7 +70,7 @@ fun testUsage() {
 }
 
 #[test]
-fn test_hover_actual_member_function_resolves_expect_doc() {
+fn hover_actual_member_function_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/DataBuffer.kt").unwrap();
     let common_source = r#"package com.example
@@ -129,7 +129,7 @@ fun testUsage(buffer: DataBuffer) {
 }
 
 #[test]
-fn test_hover_actual_member_property_resolves_expect_doc() {
+fn hover_actual_member_property_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/SystemInfo.kt").unwrap();
     let common_source = r#"package com.example
@@ -198,7 +198,7 @@ fun testUsage(info: SystemInfo) {
 }
 
 #[test]
-fn test_hover_actual_member_var_property_resolves_expect_doc() {
+fn hover_actual_member_var_property_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/WorkerThread.kt").unwrap();
     let common_source = r#"package com.example

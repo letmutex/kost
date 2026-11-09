@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Documentation, ParameterLabel, Position, Url};
 
 #[test]
-fn test_simple_function_signature_help() {
+fn simple_function_signature_help() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Main.kt").unwrap();
     let source = r#"
@@ -48,7 +48,7 @@ fun main() {
 }
 
 #[test]
-fn test_extension_function_signature_help() {
+fn extension_function_signature_help() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Modifier.kt").unwrap();
     let source = r#"package example
@@ -97,7 +97,7 @@ fun test() {
 }
 
 #[test]
-fn test_nested_function_call_signature_help() {
+fn nested_function_call_signature_help() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Nested.kt").unwrap();
     let source = r#"
@@ -129,7 +129,7 @@ fun test() {
 }
 
 #[test]
-fn test_kdoc_param_documentation_in_signature_help() {
+fn kdoc_param_documentation_in_signature_help() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Doc.kt").unwrap();
     let source = r#"
@@ -169,7 +169,7 @@ fun test() {
 }
 
 #[test]
-fn test_class_constructor_signature_help() {
+fn class_constructor_signature_help() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Constructor.kt").unwrap();
     let source = r#"
@@ -194,7 +194,7 @@ fun test() {
 }
 
 #[test]
-fn test_commas_in_strings_do_not_skew_active_parameter() {
+fn commas_in_strings_do_not_skew_active_parameter() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/StringCommas.kt").unwrap();
     let source = r#"
@@ -215,7 +215,7 @@ fun test() {
 }
 
 #[test]
-fn test_source_function_prioritized_over_bytecode_class() {
+fn source_function_prioritized_over_bytecode_class() {
     let mut index = WorkspaceIndex::new();
     let class_bytes = include_bytes!("../gradle/resources/AndroidExternalSurfaceKt.class");
     let class_symbols = lsp::gradle::class_file::parse_class_file_symbols(class_bytes)
@@ -258,7 +258,7 @@ fun usage() {
 }
 
 #[test]
-fn test_signature_help_safe_call_and_instantiation() {
+fn signature_help_safe_call_and_instantiation() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Operation.kt").unwrap();
     let source = r#"class Operation(val type: String = "add") {

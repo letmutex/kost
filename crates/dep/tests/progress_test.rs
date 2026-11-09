@@ -5,7 +5,7 @@ use std::time::Duration;
 use tokio::sync::mpsc::unbounded_channel;
 
 #[tokio::test]
-async fn test_progress_tracker_and_events() {
+async fn progress_tracker_and_events() {
     let (tx, mut rx) = unbounded_channel();
     let handle = ProgressHandle::new(tx);
     let mut tracker = handle.create_task("test-artifact", Some(1000));
@@ -57,7 +57,7 @@ async fn test_progress_tracker_and_events() {
 }
 
 #[tokio::test]
-async fn test_progress_tracker_reset_on_retry() {
+async fn progress_tracker_reset_on_retry() {
     let (tx, mut rx) = unbounded_channel();
     let handle = ProgressHandle::new(tx);
     let mut tracker = handle.create_task("retry-artifact", None);
@@ -86,7 +86,7 @@ async fn test_progress_tracker_reset_on_retry() {
 }
 
 #[tokio::test]
-async fn test_task_tracker_drop_safety_emits_failed_event() {
+async fn task_tracker_drop_safety_emits_failed_event() {
     let (tx, mut rx) = unbounded_channel();
     let handle = ProgressHandle::new(tx);
     {
@@ -106,7 +106,7 @@ async fn test_task_tracker_drop_safety_emits_failed_event() {
 }
 
 #[tokio::test]
-async fn test_task_tracker_lazy_start_keeps_pending_hidden() {
+async fn task_tracker_lazy_start_keeps_pending_hidden() {
     let (tx, mut rx) = unbounded_channel();
     let handle = ProgressHandle::new(tx);
     let tracker = handle.create_task("pending-task", None);
@@ -116,7 +116,7 @@ async fn test_task_tracker_lazy_start_keeps_pending_hidden() {
 }
 
 #[test]
-fn test_coordinator_multi_task_progress() {
+fn coordinator_multi_task_progress() {
     let mut coord = ProgressCoordinator::new(3, false, false);
     coord.on_started(1, SmolStr::new("dep-a"), Some(2048));
     coord.on_started(2, SmolStr::new("dep-b"), Some(4096));
@@ -130,7 +130,7 @@ fn test_coordinator_multi_task_progress() {
 }
 
 #[test]
-fn test_coordinator_renders_active_and_overall_lines() {
+fn coordinator_renders_active_and_overall_lines() {
     let mut coord = ProgressCoordinator::new(10, true, false);
     coord.on_started(1, SmolStr::new("dep-a"), Some(1000));
     coord.on_started(2, SmolStr::new("dep-b"), None);
@@ -148,7 +148,7 @@ fn test_coordinator_renders_active_and_overall_lines() {
 }
 
 #[test]
-fn test_coordinator_caps_rendered_active_tasks_to_head() {
+fn coordinator_caps_rendered_active_tasks_to_head() {
     let mut coord = ProgressCoordinator::new(20, true, false);
     for id in 1..=12 {
         let name = common::concat_smol_str!("dep-", &id.to_string());
@@ -166,7 +166,7 @@ fn test_coordinator_caps_rendered_active_tasks_to_head() {
 }
 
 #[test]
-fn test_downloader_concurrency_clamping_and_fallback() {
+fn downloader_concurrency_clamping_and_fallback() {
     assert_eq!(Downloader::DEFAULT_CONCURRENCY, 32);
     assert_eq!(Downloader::MAX_CONCURRENCY, 256);
 
@@ -185,7 +185,7 @@ fn test_downloader_concurrency_clamping_and_fallback() {
 }
 
 #[tokio::test]
-async fn test_downloader_concurrency_limits_simultaneous_starts() {
+async fn downloader_concurrency_limits_simultaneous_starts() {
     let temp_dir = std::env::temp_dir().join("kost_test_downloader_concurrency_limits");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -235,7 +235,7 @@ async fn test_downloader_concurrency_limits_simultaneous_starts() {
 }
 
 #[tokio::test]
-async fn test_solve_with_progress_clears_on_completion() {
+async fn solve_with_progress_clears_on_completion() {
     let cache = GradleCache::new(None).unwrap();
     let downloader = Downloader::new(2);
     let registry = RepositoryRegistry::new();

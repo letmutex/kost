@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_remember_trailing_lambda_without_function_declaration_does_not_infer_type() {
+fn remember_trailing_lambda_without_function_declaration_does_not_infer_type() {
     let mut index = WorkspaceIndex::new();
     let main_url = Url::parse("file:///project/Main.kt").unwrap();
     let main_code = r#"
@@ -31,7 +31,7 @@ fun test() {
 }
 
 #[test]
-fn test_remember_with_args_and_trailing_lambda_without_function_declaration_does_not_infer_type() {
+fn remember_with_args_and_trailing_lambda_without_function_declaration_does_not_infer_type() {
     let mut index = WorkspaceIndex::new();
     let main_url = Url::parse("file:///project/Main.kt").unwrap();
     let main_code = r#"
@@ -59,7 +59,7 @@ fun test() {
 }
 
 #[test]
-fn test_remember_without_function_declaration_does_not_resolve_definition_or_hover() {
+fn remember_without_function_declaration_does_not_resolve_definition_or_hover() {
     let mut index = WorkspaceIndex::new();
     let main_url = Url::parse("file:///project/Main.kt").unwrap();
     let main_code = r#"
@@ -91,7 +91,7 @@ fun test() {
 }
 
 #[test]
-fn test_remember_trailing_lambda_with_function_declaration_infers_type() {
+fn remember_trailing_lambda_with_function_declaration_infers_type() {
     let mut index = WorkspaceIndex::new();
     let main_url = Url::parse("file:///project/Main.kt").unwrap();
     let main_code = r#"
@@ -127,7 +127,7 @@ fun test() {
 }
 
 #[test]
-fn test_remember_with_args_and_trailing_lambda_with_function_declaration_infers_type() {
+fn remember_with_args_and_trailing_lambda_with_function_declaration_infers_type() {
     let mut index = WorkspaceIndex::new();
     let main_url = Url::parse("file:///project/Main.kt").unwrap();
     let main_code = r#"
@@ -163,7 +163,7 @@ fun test() {
 }
 
 #[test]
-fn test_remember_with_function_declaration_resolves_definition_or_hover() {
+fn remember_with_function_declaration_resolves_definition_or_hover() {
     let mut index = WorkspaceIndex::new();
     let main_url = Url::parse("file:///project/Main.kt").unwrap();
     let main_code = r#"
@@ -203,7 +203,7 @@ fun test() {
 }
 
 #[test]
-fn test_arbitrary_function_with_trailing_lambda_infers_type() {
+fn arbitrary_function_with_trailing_lambda_infers_type() {
     let mut index = WorkspaceIndex::new();
     let main_url = Url::parse("file:///project/Main.kt").unwrap();
     let main_code = r#"
@@ -233,7 +233,7 @@ fun test() {
 }
 
 #[test]
-fn test_direct_constructor_and_function_call_still_infers_type() {
+fn direct_constructor_and_function_call_still_infers_type() {
     let mut index = WorkspaceIndex::new();
     let main_url = Url::parse("file:///project/Main.kt").unwrap();
     let main_code = r#"

@@ -22,7 +22,7 @@ fn make_fn(name: &str, container: Option<&str>) -> DeclarationItem {
 }
 
 #[test]
-fn test_definition_prefers_source_over_bytecode_toplevel() {
+fn definition_prefers_source_over_bytecode_toplevel() {
     let mut index = WorkspaceIndex::new();
     let class_url =
         Url::parse("jar:file:///caches/runtime.aar!/androidx/compose/runtime/Remember.class")
@@ -50,7 +50,7 @@ fn test_definition_prefers_source_over_bytecode_toplevel() {
 }
 
 #[test]
-fn test_definition_prefers_source_over_bytecode_member() {
+fn definition_prefers_source_over_bytecode_member() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Service.class").unwrap();
     let src_url = Url::parse("jar:file:///caches/lib-sources.jar!/com/example/Service.kt").unwrap();
@@ -84,7 +84,7 @@ fn test_definition_prefers_source_over_bytecode_member() {
 }
 
 #[test]
-fn test_definition_prefers_source_over_bytecode_explicit_import() {
+fn definition_prefers_source_over_bytecode_explicit_import() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Action.class").unwrap();
     let src_url = Url::parse("jar:file:///caches/lib-sources.jar!/com/example/Action.kt").unwrap();
@@ -107,7 +107,7 @@ fn test_definition_prefers_source_over_bytecode_explicit_import() {
 }
 
 #[test]
-fn test_definition_prefers_source_over_bytecode_package_call() {
+fn definition_prefers_source_over_bytecode_package_call() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Action.class").unwrap();
     let src_url = Url::parse("jar:file:///caches/lib-sources.jar!/com/example/Action.kt").unwrap();
@@ -130,7 +130,7 @@ fn test_definition_prefers_source_over_bytecode_package_call() {
 }
 
 #[test]
-fn test_definition_falls_back_to_bytecode_when_no_source() {
+fn definition_falls_back_to_bytecode_when_no_source() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Action.class").unwrap();
 

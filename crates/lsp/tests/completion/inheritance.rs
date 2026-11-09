@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_member_completion_inheritance_interface_and_base_class() {
+fn member_completion_inheritance_interface_and_base_class() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/InheritanceTest.kt").unwrap();
     let code = r#"
@@ -63,7 +63,7 @@ fun test(service: UserService) {
 }
 
 #[test]
-fn test_member_completion_abstract_class_inherited_members() {
+fn member_completion_abstract_class_inherited_members() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/AbstractInheritanceTest.kt").unwrap();
     let code = r#"
