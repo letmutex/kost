@@ -254,6 +254,15 @@ fn resolve_candidate_decl_return_type(
         && let Some(ret) = sig_info
             .and_then(|info| info.return_type.clone())
             .or_else(|| extract_return_type_from_signature(sig).and_then(|s| KotlinType::parse(&s)))
+            .or_else(|| {
+                super::lambda_call_candidate::infer_decl_single_expression_return_type(
+                    ctx.index,
+                    decl_url,
+                    decl,
+                    sig_info,
+                    ctx.depth + 1,
+                )
+            })
     {
         let index = ctx.index;
         let solved = solve_call_decl_info_return_type_traced(
@@ -281,7 +290,7 @@ fn resolve_candidate_decl_return_type(
         })
         .flatten();
     let single_expr = in_memory.or_else(|| {
-        (!decl_url.as_str().starts_with("jar:"))
+        crate::indexer::is_source_url(decl_url)
             .then(|| ctx.index.get_file_source(decl_url))
             .flatten()
             .and_then(|src| {

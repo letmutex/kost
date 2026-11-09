@@ -161,6 +161,29 @@ fn resolve_explicit_return_candidate(
     qualified
 }
 
+fn extract_or_infer_extension_return_type(
+    index: &WorkspaceIndex,
+    url: &Url,
+    decl: &crate::indexer::DeclarationItem,
+    sig: &str,
+    depth: usize,
+) -> Option<KotlinType> {
+    let sig_info = super::signature::SignatureInfo::from_decl(decl);
+    sig_info
+        .as_ref()
+        .and_then(|info| info.return_type.clone())
+        .or_else(|| extract_return_type_from_signature(sig).and_then(|s| KotlinType::parse(&s)))
+        .or_else(|| {
+            super::lambda_call_candidate::infer_decl_single_expression_return_type(
+                index,
+                url,
+                decl,
+                sig_info.as_ref(),
+                depth + 1,
+            )
+        })
+}
+
 fn try_resolve_extension_candidate(
     ctx: InferenceContext<'_, '_, '_>,
     container_type: &str,
@@ -182,11 +205,9 @@ fn try_resolve_extension_candidate(
         return None;
     }
     let origin = super::trace::format_origin(url);
-    let ret_opt = super::signature::SignatureInfo::from_decl(decl)
-        .and_then(|info| info.return_type)
-        .or_else(|| extract_return_type_from_signature(sig).and_then(|s| KotlinType::parse(&s)));
-    if let Some(ret) = ret_opt {
-        let qualified = resolve_explicit_return_candidate(
+    if let Some(ret) = extract_or_infer_extension_return_type(ctx.index, url, decl, sig, ctx.depth)
+    {
+        return Some(resolve_explicit_return_candidate(
             ctx,
             container_type,
             url,
@@ -194,11 +215,10 @@ fn try_resolve_extension_candidate(
             &ret,
             call_info,
             inferred_arg_types,
-        );
-        return Some(qualified);
+        ));
     }
 
-    if !url.as_str().starts_with("jar:")
+    if crate::indexer::is_source_url(url)
         && let Some(decl_source) = ctx.index.get_file_source(url)
         && let Some(inferred) = super::function::infer_single_expression_function_return_type(
             ctx.index,
