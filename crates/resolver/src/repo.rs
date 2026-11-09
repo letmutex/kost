@@ -235,7 +235,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_repository_url_construction() {
+    fn repository_url_construction() {
         let repo = Repository::maven_central();
         let coord =
             DependencyCoordinate::parse("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0")

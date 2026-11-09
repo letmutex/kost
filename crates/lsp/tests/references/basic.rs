@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_local_variable_usages_include_and_exclude_declaration() {
+fn references_local_variable_usages_include_and_exclude_declaration() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/LocalTest.kt").unwrap();
     let code = r#"
@@ -35,7 +35,7 @@ fun calculate(): Int {
 }
 
 #[test]
-fn test_references_local_variable_with_shadowing_excludes_inner_scope() {
+fn references_local_variable_with_shadowing_excludes_inner_scope() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/ShadowTest.kt").unwrap();
     let code = r#"
@@ -65,7 +65,7 @@ fun run() {
 }
 
 #[test]
-fn test_references_function_parameter_usages() {
+fn references_function_parameter_usages() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/ParamTest.kt").unwrap();
     let code = r#"
@@ -86,7 +86,7 @@ fun greet(message: String) {
 }
 
 #[test]
-fn test_references_top_level_function_across_files() {
+fn references_top_level_function_across_files() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/OrderService.kt").unwrap();
     let file_a_code = r#"
@@ -143,7 +143,7 @@ fun runBatch() {
 }
 
 #[test]
-fn test_references_class_name_usages() {
+fn references_class_name_usages() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_a_code = r#"
@@ -184,7 +184,7 @@ fun inspect(profile: UserProfile) {
 }
 
 #[test]
-fn test_references_class_member_distinguishes_different_classes() {
+fn references_class_member_distinguishes_different_classes() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/Types.kt").unwrap();
     let file_a_code = r#"
@@ -233,7 +233,7 @@ fun run(a: Alpha, b: Beta) {
 }
 
 #[test]
-fn test_references_invoked_from_call_site() {
+fn references_invoked_from_call_site() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/Math.kt").unwrap();
     let file_a_code = r#"
@@ -268,7 +268,7 @@ fun execute() {
 }
 
 #[test]
-fn test_references_private_function_restricted_to_declaring_file() {
+fn references_private_function_restricted_to_declaring_file() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/FileA.kt").unwrap();
     let file_a_code = r#"

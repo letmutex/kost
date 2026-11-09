@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_overload_resolution_rejects_unmatched_named_argument() {
+fn references_overload_resolution_rejects_unmatched_named_argument() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Renderer.kt").unwrap();
     let code = r#"
@@ -32,7 +32,7 @@ fun test(renderer: Renderer) {
 }
 
 #[test]
-fn test_references_subclass_overload_with_different_argument_type_not_matched_to_super() {
+fn references_subclass_overload_with_different_argument_type_not_matched_to_super() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/HierarchyOverload.kt").unwrap();
     let code = r#"
@@ -64,7 +64,7 @@ fun test(child: Child) {
 }
 
 #[test]
-fn test_references_trailing_lambda_call_with_multiple_default_parameters_resolves_reference() {
+fn references_trailing_lambda_call_with_multiple_default_parameters_resolves_reference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Builder.kt").unwrap();
     let code = r#"

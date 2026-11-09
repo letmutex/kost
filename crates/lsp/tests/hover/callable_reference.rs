@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_unbound_function_reference() {
+fn hover_unbound_function_reference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///UnboundRef.kt").unwrap();
     let source = r#"
@@ -34,7 +34,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_member_function_reference() {
+fn hover_member_function_reference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///MemberRef.kt").unwrap();
     let source = r#"
@@ -66,7 +66,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_extension_function_reference() {
+fn hover_extension_function_reference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///ExtensionRef.kt").unwrap();
     let source = r#"
@@ -98,7 +98,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_constructor_reference() {
+fn hover_constructor_reference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///ConstructorRef.kt").unwrap();
     let source = r#"
@@ -128,7 +128,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_property_reference() {
+fn hover_property_reference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///PropertyRef.kt").unwrap();
     let source = r#"
@@ -160,7 +160,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_function_reference_inside_call_arguments() {
+fn hover_function_reference_inside_call_arguments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///CallArgRef.kt").unwrap();
     let source = r#"
@@ -188,7 +188,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_bound_instance_callable_reference() {
+fn hover_bound_instance_callable_reference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///BoundInstanceRef.kt").unwrap();
     let source = r#"

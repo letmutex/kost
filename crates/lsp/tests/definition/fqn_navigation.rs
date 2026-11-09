@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_fqn_type_reference_definition() {
+fn fqn_type_reference_definition() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"
@@ -39,7 +39,7 @@ class Client(val otherId: String)
 }
 
 #[test]
-fn test_fqn_import_definition() {
+fn fqn_import_definition() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"
@@ -68,7 +68,7 @@ fun test(c: Client) {}
 }
 
 #[test]
-fn test_fqn_top_level_function_definition() {
+fn fqn_top_level_function_definition() {
     let mut index = WorkspaceIndex::new();
     let util_url = Url::parse("file:///project/Utils.kt").unwrap();
     let util_code = r#"
@@ -97,7 +97,7 @@ fun run() {
 }
 
 #[test]
-fn test_fqn_package_member_completion() {
+fn fqn_package_member_completion() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"

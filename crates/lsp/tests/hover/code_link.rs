@@ -4,7 +4,7 @@ use lsp::syntax::doc::clean_kdoc;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_clean_kdoc_renders_code_links_to_inline_code() {
+fn clean_kdoc_renders_code_links_to_inline_code() {
     let raw = r#"
 /**
  * Remembers the value produced by [calculation].
@@ -54,7 +54,7 @@ fn test_clean_kdoc_renders_code_links_to_inline_code() {
 }
 
 #[test]
-fn test_hover_renders_code_links_for_function_and_parameters() {
+fn hover_renders_code_links_for_function_and_parameters() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///State.kt").unwrap();
     let source = r#"
@@ -96,7 +96,7 @@ fun usage() {
 }
 
 #[test]
-fn test_hover_renders_code_links_for_line_comments() {
+fn hover_renders_code_links_for_line_comments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///Util.kt").unwrap();
     let source = r#"

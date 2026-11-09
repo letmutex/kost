@@ -8,7 +8,7 @@ use tokio::sync::RwLock;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_cross_file_source_link() {
+fn hover_cross_file_source_link() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/UserService.kt").unwrap();
     let file_a_code = r#"package com.example
@@ -65,7 +65,7 @@ fun main() {
 }
 
 #[tokio::test]
-async fn test_hover_jar_and_sdk_archive_links() {
+async fn hover_jar_and_sdk_archive_links() {
     let fixtures_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("tests")
         .join("gradle")

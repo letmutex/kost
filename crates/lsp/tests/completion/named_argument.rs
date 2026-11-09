@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_member_method_named_argument_definition_and_hover() {
+fn member_method_named_argument_definition_and_hover() {
     let mut index = WorkspaceIndex::new();
     let service_url = Url::parse("file:///project/Service.kt").unwrap();
     let service_code = r#"
@@ -55,7 +55,7 @@ fun test(net: NetworkService) {
 }
 
 #[test]
-fn test_member_method_call_argument_completion() {
+fn member_method_call_argument_completion() {
     let mut index = WorkspaceIndex::new();
     let service_url = Url::parse("file:///project/Service.kt").unwrap();
     let service_code = r#"
@@ -93,7 +93,7 @@ fun test(net: NetworkService) {
 }
 
 #[test]
-fn test_data_class_copy_named_argument_definition_and_hover() {
+fn data_class_copy_named_argument_definition_and_hover() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"
@@ -143,7 +143,7 @@ fun test(u: User) {
 }
 
 #[test]
-fn test_data_class_copy_argument_completion() {
+fn data_class_copy_argument_completion() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"
@@ -179,7 +179,7 @@ fun test(u: User) {
 }
 
 #[test]
-fn test_call_argument_completion_safe_call_and_instantiation() {
+fn call_argument_completion_safe_call_and_instantiation() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Operation.kt").unwrap();
     let source = r#"class Operation(val type: String = "add") {

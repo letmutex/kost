@@ -55,7 +55,7 @@ static KOTLINLANG_SKIPPED: &[SkippedInput] = &[SkippedInput::new(
 static NEW_CODESTYLE_SKIPPED: &[SkippedInput] = &[];
 
 #[test]
-fn test_format_annotation_cases() {
+fn format_annotation_cases() {
     assert_test_group(
         "format/annotation",
         &FormattingOptions::meta(),
@@ -64,87 +64,87 @@ fn test_format_annotation_cases() {
 }
 
 #[test]
-fn test_format_binary_cases() {
+fn format_binary_cases() {
     assert_test_group("format/binary", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_call_cases() {
+fn format_call_cases() {
     assert_test_group("format/call", &FormattingOptions::meta(), CALL_SKIPPED);
 }
 
 #[test]
-fn test_format_class_cases() {
+fn format_class_cases() {
     assert_test_group("format/class", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_comment_cases() {
+fn format_comment_cases() {
     assert_test_group("format/comment", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_enums_cases() {
+fn format_enums_cases() {
     assert_test_group("format/enums", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_function_cases() {
+fn format_function_cases() {
     assert_test_group("format/function", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_if_cases() {
+fn format_if_cases() {
     assert_test_group("format/if", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_import_cases() {
+fn format_import_cases() {
     assert_test_group("format/import", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_kdoc_cases() {
+fn format_kdoc_cases() {
     assert_test_group("format/kdoc", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_lambda_cases() {
+fn format_lambda_cases() {
     assert_test_group("format/lambda", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_misc_cases() {
+fn format_misc_cases() {
     assert_test_group("format/misc", &FormattingOptions::meta(), MISC_SKIPPED);
 }
 
 #[test]
-fn test_format_property_cases() {
+fn format_property_cases() {
     assert_test_group("format/property", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_string_cases() {
+fn format_string_cases() {
     assert_test_group("format/string", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_format_type_cases() {
+fn format_type_cases() {
     assert_test_group("format/type", &FormattingOptions::meta(), TYPE_SKIPPED);
 }
 
 #[test]
-fn test_format_when_cases() {
+fn format_when_cases() {
     assert_test_group("format/when", &FormattingOptions::meta(), &[]);
 }
 
 #[test]
-fn test_google_format_cases() {
+fn google_format_cases() {
     assert_test_group("google", &FormattingOptions::google(), GOOGLE_SKIPPED);
 }
 
 #[test]
-fn test_kotlinlang_format_cases() {
+fn kotlinlang_format_cases() {
     assert_test_group(
         "kotlinlang",
         &FormattingOptions::kotlinlang(),
@@ -153,7 +153,7 @@ fn test_kotlinlang_format_cases() {
 }
 
 #[test]
-fn test_new_codestyle_format_cases() {
+fn new_codestyle_format_cases() {
     assert_test_group(
         "new_codestyle",
         &FormattingOptions::meta(),

@@ -39,7 +39,7 @@ class Component {
 }
 
 #[test]
-fn test_inferred_variable_completion_uses_imported_package_members() {
+fn inferred_variable_completion_uses_imported_package_members() {
     let mut index = setup_multi_package_workspace();
     let app_url = Url::parse("file:///project/App.kt").unwrap();
     let app_code = r#"
@@ -85,7 +85,7 @@ fun test() {
 }
 
 #[test]
-fn test_companion_object_completion_uses_imported_package_members() {
+fn companion_object_completion_uses_imported_package_members() {
     let mut index = setup_multi_package_workspace();
     let app_url = Url::parse("file:///project/App.kt").unwrap();
     let app_code = r#"
@@ -121,7 +121,7 @@ fun test() {
 }
 
 #[test]
-fn test_alternate_package_import_completion_suggests_respective_members() {
+fn alternate_package_import_completion_suggests_respective_members() {
     let mut index = setup_multi_package_workspace();
     let app_url = Url::parse("file:///project/ReflectApp.kt").unwrap();
     let app_code = r#"
@@ -156,7 +156,7 @@ fun test() {
 }
 
 #[test]
-fn test_single_expression_function_without_explicit_return_type_infers_correctly() {
+fn single_expression_function_without_explicit_return_type_infers_correctly() {
     let mut index = setup_multi_package_workspace();
     let custom_url = Url::parse("file:///project/CustomComponent.kt").unwrap();
     let custom_code = r#"

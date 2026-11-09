@@ -3,7 +3,7 @@
 use lint::config::ConfigLoader;
 
 #[test]
-fn test_inline_partial_include_from_standard_ast() {
+fn inline_partial_include_from_standard_ast() {
     let yaml = r#"
 lint:
   imports:
@@ -17,7 +17,7 @@ lint:
 }
 
 #[test]
-fn test_inline_partial_include_from_statistics() {
+fn inline_partial_include_from_statistics() {
     let yaml = r#"
 lint:
   imports:
@@ -35,7 +35,7 @@ lint:
 }
 
 #[test]
-fn test_structured_partial_include_from_standard_and_statistics() {
+fn structured_partial_include_from_standard_and_statistics() {
     let yaml = r#"
 lint:
   imports:
@@ -59,7 +59,7 @@ lint:
 }
 
 #[test]
-fn test_partial_include_from_external_file() {
+fn partial_include_from_external_file() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_partial_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -116,7 +116,7 @@ lint:
 }
 
 #[test]
-fn test_inline_partial_include_from_external_file() {
+fn inline_partial_include_from_external_file() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_inline_file_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -160,7 +160,7 @@ lint:
 }
 
 #[test]
-fn test_excluding_rule_via_severity_none_override() {
+fn excluding_rule_via_severity_none_override() {
     let yaml = r#"
 lint:
   imports:
@@ -179,7 +179,7 @@ lint:
 }
 
 #[test]
-fn test_standard_ast_rule_constructibility_bijection() {
+fn standard_ast_rule_constructibility_bijection() {
     let ids = lint::rules::standard::standard_ast_rule_ids();
     assert!(!ids.is_empty());
     for id in ids {
@@ -190,7 +190,7 @@ fn test_standard_ast_rule_constructibility_bijection() {
 }
 
 #[test]
-fn test_excluding_stat_rule_via_severity_none_override() {
+fn excluding_stat_rule_via_severity_none_override() {
     let yaml = r#"
 lint:
   imports:

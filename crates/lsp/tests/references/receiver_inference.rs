@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_inferred_variable_receiver_resolves_member_reference() {
+fn inferred_variable_receiver_resolves_member_reference() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/InferredReceiver.kt").unwrap();
     let code = r#"
@@ -38,7 +38,7 @@ fun test(context: CoroutineContext, condition: Boolean) {
 }
 
 #[test]
-fn test_literal_receiver_does_not_match_unrelated_class_member_reference() {
+fn literal_receiver_does_not_match_unrelated_class_member_reference() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/Connection.kt").unwrap();
     let code = r#"
@@ -68,7 +68,7 @@ fun test(conn: Connection) {
 }
 
 #[test]
-fn test_implicit_call_in_outer_class_does_not_match_nested_class_member() {
+fn implicit_call_in_outer_class_does_not_match_nested_class_member() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/NestedMember.kt").unwrap();
     let code = r#"
@@ -98,7 +98,7 @@ class Outer {
 }
 
 #[test]
-fn test_implicit_call_in_nested_class_resolves_nested_class_member_reference() {
+fn implicit_call_in_nested_class_resolves_nested_class_member_reference() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/NestedClass.kt").unwrap();
     let code = r#"
@@ -128,7 +128,7 @@ class Outer {
 }
 
 #[test]
-fn test_implicit_call_in_nested_subclass_resolves_inherited_member_reference() {
+fn implicit_call_in_nested_subclass_resolves_inherited_member_reference() {
     let mut index = WorkspaceIndex::new();
     let file_url = Url::parse("file:///project/NestedSubclass.kt").unwrap();
     let code = r#"
@@ -161,7 +161,7 @@ class Outer {
 }
 
 #[test]
-fn test_conforms_to_companion_rejects_container_with_unrelated_prefix_substring() {
+fn conforms_to_companion_rejects_container_with_unrelated_prefix_substring() {
     let mut index = WorkspaceIndex::new();
     let url_other = Url::parse("file:///project/OtherService.kt").unwrap();
     let code_other = r#"
@@ -187,7 +187,7 @@ class OtherService {
 }
 
 #[test]
-fn test_references_overload_disambiguates_lambda_returning_custom_type_ending_in_unit() {
+fn references_overload_disambiguates_lambda_returning_custom_type_ending_in_unit() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Dispatcher.kt").unwrap();
     let source = r#"
@@ -219,7 +219,7 @@ fun runner(d: Dispatcher) {
 }
 
 #[test]
-fn test_references_excludes_instance_member_call_colliding_with_single_segment_package_name() {
+fn references_excludes_instance_member_call_colliding_with_single_segment_package_name() {
     let mut index = WorkspaceIndex::new();
     let log_url = Url::parse("file:///project/Log.kt").unwrap();
     let log_code = "package log\n\nfun info(msg: String) {}\n";
@@ -240,7 +240,7 @@ fn test_references_excludes_instance_member_call_colliding_with_single_segment_p
 }
 
 #[test]
-fn test_conforms_to_companion_rejects_object_in_unrelated_package_same_class_name() {
+fn conforms_to_companion_rejects_object_in_unrelated_package_same_class_name() {
     let mut index = WorkspaceIndex::new();
     let beta_url = Url::parse("file:///project/Beta.kt").unwrap();
     let beta_code = "package com.beta\n\nclass Container {\n    companion object Factory {\n        fun create(): Unit {}\n    }\n}\n";
@@ -261,7 +261,7 @@ fn test_conforms_to_companion_rejects_object_in_unrelated_package_same_class_nam
 }
 
 #[test]
-fn test_references_resolves_qualified_callable_reference_on_nested_class() {
+fn references_resolves_qualified_callable_reference_on_nested_class() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NestedRef.kt").unwrap();
     let code = r#"
@@ -290,7 +290,7 @@ val ref = Outer.Inner::action
 }
 
 #[test]
-fn test_references_excludes_outer_class_instance_call_for_normal_nested_object_member() {
+fn references_excludes_outer_class_instance_call_for_normal_nested_object_member() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NestedObject.kt").unwrap();
     let code = r#"

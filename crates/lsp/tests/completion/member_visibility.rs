@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_filter_private_members_from_outside() {
+fn filter_private_members_from_outside() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Account.kt").unwrap();
     let model_code = r#"
@@ -46,7 +46,7 @@ fun test(acc: Account) {
 }
 
 #[test]
-fn test_allow_private_members_with_this() {
+fn allow_private_members_with_this() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Account.kt").unwrap();
     let model_code = r#"
@@ -81,7 +81,7 @@ class Account(
 }
 
 #[test]
-fn test_named_companion_object_members_accessible_on_class_name() {
+fn named_companion_object_members_accessible_on_class_name() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NamedCompanion.kt").unwrap();
     let code = r#"
@@ -130,7 +130,7 @@ fun test() {
 }
 
 #[test]
-fn test_single_expression_function_return_type_member_completion() {
+fn single_expression_function_return_type_member_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/SingleExpr.kt").unwrap();
     let code = r#"
@@ -176,7 +176,7 @@ fun test(service: UserService) {
 }
 
 #[test]
-fn test_member_completion_on_function_returning_spaced_generic() {
+fn member_completion_on_function_returning_spaced_generic() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/SpacedGenericReturnTest.kt").unwrap();
     let code = r#"

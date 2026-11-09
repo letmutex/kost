@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_cross_file_class_with_private_constructor_fields_completion_and_hover() {
+fn cross_file_class_with_private_constructor_fields_completion_and_hover() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -46,7 +46,7 @@ fun test() {
 }
 
 #[test]
-fn test_cross_file_private_constructor_field_named_argument_definition_and_hover() {
+fn cross_file_private_constructor_field_named_argument_definition_and_hover() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -102,7 +102,7 @@ fun test() {
 }
 
 #[test]
-fn test_cross_file_private_constructor_field_argument_completion() {
+fn cross_file_private_constructor_field_argument_completion() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -137,7 +137,7 @@ fun test() {
 }
 
 #[test]
-fn test_cross_file_instance_member_completion_excludes_private_constructor_fields() {
+fn cross_file_instance_member_completion_excludes_private_constructor_fields() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -172,7 +172,7 @@ fun test(c: SecureClient) {
 }
 
 #[test]
-fn test_cross_file_class_with_only_private_constructor_fields() {
+fn cross_file_class_with_only_private_constructor_fields() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Worker.kt").unwrap();
     let file_b_code = r#"

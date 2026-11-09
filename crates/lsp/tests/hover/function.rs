@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_multiline_function_with_annotations_and_kdoc() {
+fn hover_multiline_function_with_annotations_and_kdoc() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///OrderService.kt").unwrap();
     let source = r#"
@@ -61,7 +61,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_extension_function() {
+fn hover_extension_function() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///Extensions.kt").unwrap();
     let source = r#"
@@ -101,7 +101,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_member_function_indentation_normalized() {
+fn hover_member_function_indentation_normalized() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///UserService.kt").unwrap();
     let source = r#"
@@ -142,7 +142,7 @@ fun main() {
 }
 
 #[test]
-fn test_function_hover_excludes_parameter_comments() {
+fn function_hover_excludes_parameter_comments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///PaymentService.kt").unwrap();
     let source = r#"
@@ -184,7 +184,7 @@ fun test() {
 }
 
 #[test]
-fn test_parameter_hover_excludes_function_comments() {
+fn parameter_hover_excludes_function_comments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///PaymentService2.kt").unwrap();
     let source = r#"
@@ -243,7 +243,7 @@ fun pay(
 }
 
 #[test]
-fn test_local_function_resolution_and_scoping() {
+fn local_function_resolution_and_scoping() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/LocalFunction.kt").unwrap();
     let code = r#"

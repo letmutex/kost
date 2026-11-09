@@ -1,7 +1,7 @@
 use resolver::{BuildScriptInfo, DependencyCoordinate, GradleCache, PomModel, ScriptDialect};
 
 #[test]
-fn test_groovy_double_quoted_command_chains_and_split_closure_expressions() {
+fn groovy_double_quoted_command_chains_and_split_closure_expressions() {
     let groovy_script = r#"
 roomVersion = "2.6.1"
 mySdk = 34
@@ -65,7 +65,7 @@ dependencies {
 }
 
 #[test]
-fn test_pom_child_property_override_applies_to_parent_dependency_management() {
+fn pom_child_property_override_applies_to_parent_dependency_management() {
     let nanos = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
@@ -129,7 +129,7 @@ fn test_pom_child_property_override_applies_to_parent_dependency_management() {
 }
 
 #[test]
-fn test_m2_cached_versions_path_traversal_rejection() {
+fn m2_cached_versions_path_traversal_rejection() {
     let temp_dir = std::env::temp_dir().join(common::concat_str!(
         "kost_test_m2_traversal_",
         &std::process::id().to_string()

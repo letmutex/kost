@@ -21,7 +21,7 @@ fn set_diagnostic_range(diag: &mut Diagnostic, range: TextRange) {
 }
 
 #[test]
-fn test_full_mode_snippet_caret_alignment() {
+fn full_mode_snippet_caret_alignment() {
     let source = "val xVar = 10\n val yVar = \"10\"\n";
     let mut diag = make_diagnostic(
         "standard:property-naming",
@@ -47,7 +47,7 @@ fn test_full_mode_snippet_caret_alignment() {
 }
 
 #[test]
-fn test_full_mode_snippet_trim_leading_consecutive_empty_lines() {
+fn full_mode_snippet_trim_leading_consecutive_empty_lines() {
     let source = "package com.example\n\n\n\nval y = 10\nval x = y\n";
     let mut diag = make_diagnostic(
         "standard:property-naming",
@@ -72,7 +72,7 @@ fn test_full_mode_snippet_trim_leading_consecutive_empty_lines() {
 }
 
 #[test]
-fn test_full_mode_snippet_preserve_interleaved_empty_lines() {
+fn full_mode_snippet_preserve_interleaved_empty_lines() {
     let source = "package com.example\nimport a.b.c\nclass Service {\n    val y = 10\n    val z = 20\n    val x = y\n\n    fun run() {}\n}\n";
     let mut diag = make_diagnostic(
         "standard:function-naming",
@@ -98,7 +98,7 @@ fn test_full_mode_snippet_preserve_interleaved_empty_lines() {
 }
 
 #[test]
-fn test_full_mode_snippet_multiline_blank_line_separation() {
+fn full_mode_snippet_multiline_blank_line_separation() {
     let source = "val x = 1\nval y = 2\n\n\n\nval name = \"test\"\n";
     let mut diag1 = make_diagnostic("standard:property-naming", Severity::Warning, 1, "Naming 1");
     set_diagnostic_range(&mut diag1, TextRange::new(1, 1, 1, 4));
@@ -117,7 +117,7 @@ fn test_full_mode_snippet_multiline_blank_line_separation() {
 }
 
 #[test]
-fn test_full_mode_snippet_tab_indentation_caret_alignment() {
+fn full_mode_snippet_tab_indentation_caret_alignment() {
     let source = "\tval foo = 1;\n";
     let mut diag = make_diagnostic("standard:no-semi", Severity::Warning, 1, "Unnecessary ;");
     set_diagnostic_range(&mut diag, TextRange::new(1, 13, 1, 14));
@@ -136,7 +136,7 @@ fn test_full_mode_snippet_tab_indentation_caret_alignment() {
 }
 
 #[test]
-fn test_linter_report_renders_full_snippet_end_to_end() {
+fn linter_report_renders_full_snippet_end_to_end() {
     let linter = lint::Linter::standard();
     let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
     let report = linter.lint_str_with_path(code, "src/Main.kt");
@@ -152,7 +152,7 @@ fn test_linter_report_renders_full_snippet_end_to_end() {
 }
 
 #[test]
-fn test_full_reports_mixed_snippet_and_compact_separation() {
+fn full_reports_mixed_snippet_and_compact_separation() {
     let source = "val a = 1;\n";
     let snippet_report = LintReport::new(
         vec![make_diagnostic(
@@ -190,7 +190,7 @@ fn test_full_reports_mixed_snippet_and_compact_separation() {
 }
 
 #[test]
-fn test_full_mode_snippet_multi_target_separator() {
+fn full_mode_snippet_multi_target_separator() {
     let source = "fun compute() {\n    val a = 1\n    val b = 2\n}\n";
     let range1 = TextRange::new(1, 5, 1, 12);
     let range2 = TextRange::new(4, 1, 4, 2);

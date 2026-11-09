@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_and_definition_do_not_leak_unrelated_class_members_without_receiver() {
+fn hover_and_definition_do_not_leak_unrelated_class_members_without_receiver() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/UserScopeHoverTest.kt").unwrap();
     let code = r#"
@@ -35,7 +35,7 @@ fun outsideFunction() {
 }
 
 #[test]
-fn test_hover_and_definition_resolve_class_members_inside_class() {
+fn hover_and_definition_resolve_class_members_inside_class() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/UserScopeInsideTest.kt").unwrap();
     let code = r#"
@@ -75,7 +75,7 @@ class User(val id: String, val name: String) {
 }
 
 #[test]
-fn test_hover_and_definition_resolve_with_receiver() {
+fn hover_and_definition_resolve_with_receiver() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/UserReceiverHoverTest.kt").unwrap();
     let code = r#"
@@ -107,7 +107,7 @@ fun outsideFunction() {
 }
 
 #[test]
-fn test_hover_and_definition_nested_and_companion_scoping() {
+fn hover_and_definition_nested_and_companion_scoping() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NestedCompanionHoverTest.kt").unwrap();
     let code = r#"
@@ -143,7 +143,7 @@ fun outside() {
 }
 
 #[test]
-fn test_private_top_level_declarations_do_not_leak_to_other_files_in_same_package() {
+fn private_top_level_declarations_do_not_leak_to_other_files_in_same_package() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/FileA.kt").unwrap();
     let file_a_code = r#"

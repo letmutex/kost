@@ -2,7 +2,7 @@ use lsp::syntax::parser::{extract_identifier_text, find_node_at_position, parse_
 use tower_lsp::lsp_types::Position;
 
 #[test]
-fn test_find_node_at_trailing_identifier_boundary_preceding_parameter_list() {
+fn find_node_at_trailing_identifier_boundary_preceding_parameter_list() {
     let code = "fun DeviceInfoSection(modifier: Modifier = Modifier) {}";
     // "fun DeviceInfoSection" ends at character index 21.
     let tree = parse_source(code).expect("source should parse");
@@ -17,7 +17,7 @@ fn test_find_node_at_trailing_identifier_boundary_preceding_parameter_list() {
 }
 
 #[test]
-fn test_extract_identifier_text_rejects_function_value_parameters_container() {
+fn extract_identifier_text_rejects_function_value_parameters_container() {
     let code = "fun DeviceInfoSection(modifier: Modifier = Modifier) {}";
     let tree = parse_source(code).expect("source should parse");
     let mut cursor = tree.root_node().walk();
@@ -41,7 +41,7 @@ fn test_extract_identifier_text_rejects_function_value_parameters_container() {
 }
 
 #[test]
-fn test_find_node_at_trailing_call_identifier_boundary_preceding_argument_list() {
+fn find_node_at_trailing_call_identifier_boundary_preceding_argument_list() {
     let code = "fun test() { DeviceInfoSection(modifier = Modifier) }";
     // "DeviceInfoSection" starts at 13, length 17 -> ends at 30.
     let tree = parse_source(code).expect("source should parse");

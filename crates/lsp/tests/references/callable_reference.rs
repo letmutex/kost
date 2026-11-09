@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_includes_unbound_callable_reference_usages() {
+fn references_includes_unbound_callable_reference_usages() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/UnboundRefs.kt").unwrap();
     let source = r#"
@@ -32,7 +32,7 @@ fun runner() {
 }
 
 #[test]
-fn test_references_includes_member_callable_reference_usages() {
+fn references_includes_member_callable_reference_usages() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/MemberRefs.kt").unwrap();
     let source = r#"
@@ -62,7 +62,7 @@ fun runner(svc: Service) {
 }
 
 #[test]
-fn test_references_invoked_from_unbound_callable_reference_site() {
+fn references_invoked_from_unbound_callable_reference_site() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/InvokeUnboundRef.kt").unwrap();
     let source = r#"
@@ -89,7 +89,7 @@ fun main() {
 }
 
 #[test]
-fn test_references_invoked_from_member_callable_reference_site() {
+fn references_invoked_from_member_callable_reference_site() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/InvokeMemberRef.kt").unwrap();
     let source = r#"
@@ -118,7 +118,7 @@ fun main(w: Worker) {
 }
 
 #[test]
-fn test_references_constructor_reference_usages() {
+fn references_constructor_reference_usages() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ConstructorUsages.kt").unwrap();
     let source = r#"
@@ -145,7 +145,7 @@ fun main() {
 }
 
 #[test]
-fn test_references_callable_reference_not_shadowed_by_local_variable() {
+fn references_callable_reference_not_shadowed_by_local_variable() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ShadowedRefUsages.kt").unwrap();
     let source = r#"
@@ -172,7 +172,7 @@ fun main() {
 }
 
 #[test]
-fn test_references_local_variable_excludes_callable_reference_to_function() {
+fn references_local_variable_excludes_callable_reference_to_function() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/LocalVarRefExclusion.kt").unwrap();
     let source = r#"
@@ -201,7 +201,7 @@ fun main() {
 }
 
 #[test]
-fn test_references_from_callable_reference_resolves_function_not_shadowing_variable() {
+fn references_from_callable_reference_resolves_function_not_shadowing_variable() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/RefFromCallableRef.kt").unwrap();
     let source = r#"
@@ -234,7 +234,7 @@ fun main() {
 }
 
 #[test]
-fn test_references_includes_callable_reference_to_overloaded_function() {
+fn references_includes_callable_reference_to_overloaded_function() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/OverloadedCallableRef.kt").unwrap();
     let source = r#"
@@ -264,7 +264,7 @@ fun runner() {
 }
 
 #[test]
-fn test_references_includes_callable_reference_to_property() {
+fn references_includes_callable_reference_to_property() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/PropertyCallableRef.kt").unwrap();
     let source = r#"
@@ -293,7 +293,7 @@ fun runner(u: User) {
 }
 
 #[test]
-fn test_references_includes_unbound_callable_reference_to_top_level_property() {
+fn references_includes_unbound_callable_reference_to_top_level_property() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/TopLevelPropertyCallableRef.kt").unwrap();
     let source = r#"

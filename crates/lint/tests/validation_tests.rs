@@ -4,7 +4,7 @@ use lint::config::ConfigLoader;
 use lint::config::error::ConfigError;
 
 #[test]
-fn test_where_clause_rejects_multiple_top_level_conditions() {
+fn where_clause_rejects_multiple_top_level_conditions() {
     let yaml = r#"
 lint:
   rules:
@@ -35,7 +35,7 @@ lint:
 }
 
 #[test]
-fn test_property_and_operator_type_compatibility() {
+fn property_and_operator_type_compatibility() {
     let yaml = r#"
 lint:
   rules:
@@ -63,7 +63,7 @@ lint:
 }
 
 #[test]
-fn test_invalid_severity_string_fails_fast() {
+fn invalid_severity_string_fails_fast() {
     let yaml = r#"
 lint:
   rules:
@@ -85,7 +85,7 @@ lint:
 }
 
 #[test]
-fn test_unclosed_placeholder_in_message_template_is_rejected() {
+fn unclosed_placeholder_in_message_template_is_rejected() {
     let yaml = r#"
 lint:
   rules:
@@ -108,7 +108,7 @@ lint:
 }
 
 #[test]
-fn test_eq_operator_rejects_type_mismatched_operand() {
+fn eq_operator_rejects_type_mismatched_operand() {
     let yaml = r#"
 lint:
   rules:
@@ -138,7 +138,7 @@ lint:
 }
 
 #[test]
-fn test_option_rejects_nested_mapping_or_unsupported_structure() {
+fn option_rejects_nested_mapping_or_unsupported_structure() {
     let yaml = r#"
 lint:
   rules:
@@ -171,7 +171,7 @@ lint:
 }
 
 #[test]
-fn test_where_clause_rejects_empty_combinator_sequence() {
+fn where_clause_rejects_empty_combinator_sequence() {
     let yaml = r#"
 lint:
   rules:
@@ -202,7 +202,7 @@ lint:
 }
 
 #[test]
-fn test_option_override_rejects_invalid_regex_pattern() {
+fn option_override_rejects_invalid_regex_pattern() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_regex_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();

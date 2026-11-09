@@ -9,7 +9,7 @@ use serde_json::json;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_auto_import_candidate_carries_import_data() {
+fn auto_import_candidate_carries_import_data() {
     let mut index = WorkspaceIndex::new();
     let service_url = Url::parse("file:///project/OrderService.kt").unwrap();
     let service_code = r#"
@@ -49,7 +49,7 @@ fun run() {
 }
 
 #[test]
-fn test_auto_import_resolve_adds_additional_text_edits() {
+fn auto_import_resolve_adds_additional_text_edits() {
     let client_url = Url::parse("file:///project/Client.kt").unwrap();
     let client_code = r#"package com.example.client
 
@@ -87,7 +87,7 @@ fun run() {
 }
 
 #[test]
-fn test_auto_import_suppressed_for_same_package() {
+fn auto_import_suppressed_for_same_package() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/A.kt").unwrap();
     let file_a_code = r#"
@@ -135,7 +135,7 @@ fun test() {
 }
 
 #[test]
-fn test_auto_import_suppressed_for_kotlin_stdlib_defaults() {
+fn auto_import_suppressed_for_kotlin_stdlib_defaults() {
     assert!(is_kotlin_default_import("kotlin"));
     assert!(is_kotlin_default_import("kotlin.collections"));
     assert!(is_kotlin_default_import("kotlin.ranges"));
@@ -159,7 +159,7 @@ fun run() {}
 }
 
 #[test]
-fn test_auto_import_suppressed_when_already_imported() {
+fn auto_import_suppressed_when_already_imported() {
     let client_url = Url::parse("file:///project/Client.kt").unwrap();
     let client_code = r#"package com.example.client
 
@@ -182,7 +182,7 @@ fun run() {}
 }
 
 #[test]
-fn test_auto_import_suppressed_when_wildcard_imported() {
+fn auto_import_suppressed_when_wildcard_imported() {
     let client_url = Url::parse("file:///project/Client.kt").unwrap();
     let client_code = r#"package com.example.client
 
@@ -205,7 +205,7 @@ fun run() {}
 }
 
 #[test]
-fn test_auto_import_not_suppressed_for_aliased_import() {
+fn auto_import_not_suppressed_for_aliased_import() {
     let client_url = Url::parse("file:///project/Client.kt").unwrap();
     let client_code = r#"package com.example.client
 
@@ -228,7 +228,7 @@ fun run() {}
 }
 
 #[test]
-fn test_auto_import_suppressed_for_multiline_package_header() {
+fn auto_import_suppressed_for_multiline_package_header() {
     let client_url = Url::parse("file:///project/Client.kt").unwrap();
     let client_code = "package\n    com.example.service\n\nfun run() {}\n";
     let data = AutoImportData::new(
@@ -246,7 +246,7 @@ fn test_auto_import_suppressed_for_multiline_package_header() {
 }
 
 #[test]
-fn test_auto_import_disambiguation_for_same_named_classes_in_different_packages() {
+fn auto_import_disambiguation_for_same_named_classes_in_different_packages() {
     let mut index = WorkspaceIndex::new();
     let pkg_a_url = Url::parse("file:///project/UiComponent.kt").unwrap();
     let pkg_a_code = "package com.example.ui\n\nclass Component\n";
@@ -275,7 +275,7 @@ fn test_auto_import_disambiguation_for_same_named_classes_in_different_packages(
 }
 
 #[test]
-fn test_auto_import_disabled_via_config_option() {
+fn auto_import_disabled_via_config_option() {
     let config_default = ServerConfig::default();
     assert!(config_default.auto_import);
 

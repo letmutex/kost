@@ -3,7 +3,7 @@ use format::options::{FormattingOptions, StylePreset};
 use format::{Formatter, format_file};
 
 #[test]
-fn test_format_respects_editorconfig_indent_size() {
+fn format_respects_editorconfig_indent_size() {
     let mut config = ResolvedEditorConfig::new();
     config.indent_size = Some(2);
     config.ij_continuation_indent_size = Some(2);
@@ -19,7 +19,7 @@ fn test_format_respects_editorconfig_indent_size() {
 }
 
 #[test]
-fn test_format_respects_editorconfig_max_line_length() {
+fn format_respects_editorconfig_max_line_length() {
     let mut config = ResolvedEditorConfig::new();
     config.max_line_length = Some(LineLengthSetting::Value(50));
 
@@ -28,7 +28,7 @@ fn test_format_respects_editorconfig_max_line_length() {
 }
 
 #[test]
-fn test_format_respects_editorconfig_insert_final_newline_disabled() {
+fn format_respects_editorconfig_insert_final_newline_disabled() {
     let mut config = ResolvedEditorConfig::new();
     config.insert_final_newline = Some(false);
 
@@ -40,7 +40,7 @@ fn test_format_respects_editorconfig_insert_final_newline_disabled() {
 }
 
 #[test]
-fn test_format_respects_editorconfig_end_of_line_crlf() {
+fn format_respects_editorconfig_end_of_line_crlf() {
     let mut config = ResolvedEditorConfig::new();
     config.end_of_line = Some(EndOfLine::Crlf);
 
@@ -51,7 +51,7 @@ fn test_format_respects_editorconfig_end_of_line_crlf() {
 }
 
 #[test]
-fn test_format_respects_editorconfig_section_matching() {
+fn format_respects_editorconfig_section_matching() {
     let ini = r#"
 root = true
 [*.kt]
@@ -79,7 +79,7 @@ insert_final_newline = false
 }
 
 #[test]
-fn test_format_respects_editorconfig_end_of_line_cr() {
+fn format_respects_editorconfig_end_of_line_cr() {
     let mut config = ResolvedEditorConfig::new();
     config.end_of_line = Some(EndOfLine::Cr);
 
@@ -92,7 +92,7 @@ fn test_format_respects_editorconfig_end_of_line_cr() {
 }
 
 #[test]
-fn test_format_trailing_comma_strategy_inherits_declaration_site_flag() {
+fn format_trailing_comma_strategy_inherits_declaration_site_flag() {
     let mut config = ResolvedEditorConfig::new();
     config.ij_allow_trailing_comma = Some(false);
 

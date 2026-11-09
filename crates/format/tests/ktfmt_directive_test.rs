@@ -4,7 +4,7 @@ use format::{FileType, FormattingOptions, TrailingCommaStrategy};
 use ktfmt::case_config::CaseConfig;
 
 #[test]
-fn test_directive_shebang_on_first_line_sets_script_type() {
+fn directive_shebang_on_first_line_sets_script_type() {
     let source = "#!/usr/bin/env kscript\nprintln(1)\n";
     let base_options = FormattingOptions::default();
     let config = CaseConfig::parse(source, &base_options).unwrap();
@@ -13,7 +13,7 @@ fn test_directive_shebang_on_first_line_sets_script_type() {
 }
 
 #[test]
-fn test_directive_shebang_on_later_line_is_not_script_type() {
+fn directive_shebang_on_later_line_is_not_script_type() {
     let source = "// some comment\n#!/usr/bin/env kscript\nprintln(1)\n";
     let base_options = FormattingOptions::default();
     let config = CaseConfig::parse(source, &base_options).unwrap();
@@ -22,7 +22,7 @@ fn test_directive_shebang_on_later_line_is_not_script_type() {
 }
 
 #[test]
-fn test_directive_file_type_override() {
+fn directive_file_type_override() {
     let script_source = "// FILE_TYPE SCRIPT\nval x = 1\n";
     let regular_source = "// FILE_TYPE REGULAR\nval x = 1\n";
     let base_options = FormattingOptions::default();
@@ -35,7 +35,7 @@ fn test_directive_file_type_override() {
 }
 
 #[test]
-fn test_directive_max_width_parsed_correctly() {
+fn directive_max_width_parsed_correctly() {
     let source = "// MAX_WIDTH 50\nval x = 1\n";
     let base_options = FormattingOptions::default();
     let config = CaseConfig::parse(source, &base_options).unwrap();
@@ -44,7 +44,7 @@ fn test_directive_max_width_parsed_correctly() {
 }
 
 #[test]
-fn test_directive_block_and_continuation_indent_parsed_correctly() {
+fn directive_block_and_continuation_indent_parsed_correctly() {
     let source = "// BLOCK_INDENT 4\n// CONTINUATION_INDENT 8\nval x = 1\n";
     let base_options = FormattingOptions::default();
     let config = CaseConfig::parse(source, &base_options).unwrap();
@@ -54,7 +54,7 @@ fn test_directive_block_and_continuation_indent_parsed_correctly() {
 }
 
 #[test]
-fn test_directive_trailing_comma_strategy_parsed_correctly() {
+fn directive_trailing_comma_strategy_parsed_correctly() {
     let base_options = FormattingOptions::default();
 
     let none_cfg = CaseConfig::parse(
@@ -88,7 +88,7 @@ fn test_directive_trailing_comma_strategy_parsed_correctly() {
 }
 
 #[test]
-fn test_directive_unused_imports_and_lambda_breaks_flags() {
+fn directive_unused_imports_and_lambda_breaks_flags() {
     let source = "// REMOVE_UNUSED_IMPORTS false\n// PRESERVE_LAMBDA_BREAKS false\nval x = 1\n";
     let base_options = FormattingOptions::default();
     let config = CaseConfig::parse(source, &base_options).unwrap();
@@ -98,7 +98,7 @@ fn test_directive_unused_imports_and_lambda_breaks_flags() {
 }
 
 #[test]
-fn test_directive_check_idempotency_disabled() {
+fn directive_check_idempotency_disabled() {
     let source = "// CHECK_IDEMPOTENCY false\nval x = 1\n";
     let base_options = FormattingOptions::default();
     let config = CaseConfig::parse(source, &base_options).unwrap();
@@ -107,7 +107,7 @@ fn test_directive_check_idempotency_disabled() {
 }
 
 #[test]
-fn test_directive_misordered_fails_fast() {
+fn directive_misordered_fails_fast() {
     let source = "val x = 1\n// MAX_WIDTH 50\n";
     let base_options = FormattingOptions::default();
     let result = CaseConfig::parse(source, &base_options);
@@ -119,7 +119,7 @@ fn test_directive_misordered_fails_fast() {
 }
 
 #[test]
-fn test_directive_unknown_name_fails_fast() {
+fn directive_unknown_name_fails_fast() {
     let source = "// UNRECOGNIZED_OPTION 42\nval x = 1\n";
     let base_options = FormattingOptions::default();
     let result = CaseConfig::parse(source, &base_options);
@@ -130,7 +130,7 @@ fn test_directive_unknown_name_fails_fast() {
 }
 
 #[test]
-fn test_directive_invalid_integer_fails_fast() {
+fn directive_invalid_integer_fails_fast() {
     let source = "// MAX_WIDTH not_a_number\nval x = 1\n";
     let base_options = FormattingOptions::default();
     let result = CaseConfig::parse(source, &base_options);
@@ -141,7 +141,7 @@ fn test_directive_invalid_integer_fails_fast() {
 }
 
 #[test]
-fn test_directive_print_opts_ignored_cleanly() {
+fn directive_print_opts_ignored_cleanly() {
     let source = "// PRINT_OPTS_AFTER_FORMATTING\nval x = 1\n";
     let base_options = FormattingOptions::default();
     let result = CaseConfig::parse(source, &base_options);

@@ -4,7 +4,7 @@ use lint::config::ConfigLoader;
 use lint::config::error::ConfigError;
 
 #[test]
-fn test_overriding_nonexistent_rule_fails() {
+fn overriding_nonexistent_rule_fails() {
     let yaml = r#"
 lint:
   imports:
@@ -24,7 +24,7 @@ lint:
 }
 
 #[test]
-fn test_ast_rule_override_rejects_where_clause() {
+fn ast_rule_override_rejects_where_clause() {
     let yaml = r#"
 lint:
   imports:
@@ -45,7 +45,7 @@ lint:
 }
 
 #[test]
-fn test_ast_rule_override_rejects_options() {
+fn ast_rule_override_rejects_options() {
     let yaml = r#"
 lint:
   imports:
@@ -66,7 +66,7 @@ lint:
 }
 
 #[test]
-fn test_stat_rule_override_allows_where_when_permitted() {
+fn stat_rule_override_allows_where_when_permitted() {
     let yaml = r#"
 lint:
   imports:
@@ -95,7 +95,7 @@ lint:
 }
 
 #[test]
-fn test_stat_rule_override_rejects_undeclared_option() {
+fn stat_rule_override_rejects_undeclared_option() {
     let yaml = r#"
 lint:
   imports:
@@ -120,7 +120,7 @@ lint:
 }
 
 #[test]
-fn test_stat_rule_override_rejects_type_mismatched_option() {
+fn stat_rule_override_rejects_type_mismatched_option() {
     let yaml = r#"
 lint:
   imports:
@@ -149,7 +149,7 @@ lint:
 }
 
 #[test]
-fn test_override_rejects_allow_where_override() {
+fn override_rejects_allow_where_override() {
     let yaml = r#"
 lint:
   imports:
@@ -170,7 +170,7 @@ lint:
 }
 
 #[test]
-fn test_report_at_on_ast_rule_override_rejected() {
+fn report_at_on_ast_rule_override_rejected() {
     let yaml = r#"
 lint:
   imports:

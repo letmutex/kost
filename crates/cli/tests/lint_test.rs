@@ -1,13 +1,13 @@
 use cli::{CliError, LintArgs, PrintMode};
 
 #[test]
-fn test_parse_lint_print_mode_default_auto() {
+fn parse_lint_print_mode_default_auto() {
     let args = LintArgs::parse(&[]).unwrap();
     assert_eq!(args.print_mode, PrintMode::Auto);
 }
 
 #[test]
-fn test_parse_lint_print_mode_space_separated() {
+fn parse_lint_print_mode_space_separated() {
     let raw = vec![
         "--print-mode".to_string(),
         "full".to_string(),
@@ -19,21 +19,21 @@ fn test_parse_lint_print_mode_space_separated() {
 }
 
 #[test]
-fn test_parse_lint_print_mode_equals_syntax() {
+fn parse_lint_print_mode_equals_syntax() {
     let raw = vec!["--print-mode=truncated".to_string()];
     let args = LintArgs::parse(&raw).unwrap();
     assert_eq!(args.print_mode, PrintMode::Truncated);
 }
 
 #[test]
-fn test_parse_lint_print_mode_collapsed() {
+fn parse_lint_print_mode_collapsed() {
     let raw = vec!["--print-mode".to_string(), "collapsed".to_string()];
     let args = LintArgs::parse(&raw).unwrap();
     assert_eq!(args.print_mode, PrintMode::Collapsed);
 }
 
 #[test]
-fn test_parse_lint_print_mode_invalid_value() {
+fn parse_lint_print_mode_invalid_value() {
     let raw = vec!["--print-mode=invalid_mode".to_string()];
     let err = LintArgs::parse(&raw).unwrap_err();
     assert_eq!(
@@ -46,7 +46,7 @@ fn test_parse_lint_print_mode_invalid_value() {
 }
 
 #[test]
-fn test_parse_lint_print_mode_missing_value() {
+fn parse_lint_print_mode_missing_value() {
     let raw = vec!["--print-mode".to_string()];
     let err = LintArgs::parse(&raw).unwrap_err();
     assert_eq!(
@@ -56,7 +56,7 @@ fn test_parse_lint_print_mode_missing_value() {
 }
 
 #[test]
-fn test_parse_lint_deny_warnings_variants() {
+fn parse_lint_deny_warnings_variants() {
     let variants = [
         vec!["--deny".to_string(), "warnings".to_string()],
         vec!["--deny=warnings".to_string()],
@@ -72,7 +72,7 @@ fn test_parse_lint_deny_warnings_variants() {
 }
 
 #[test]
-fn test_parse_lint_deny_invalid_value() {
+fn parse_lint_deny_invalid_value() {
     let raw = vec!["--deny".to_string(), "invalid".to_string()];
     let err = LintArgs::parse(&raw).unwrap_err();
     assert_eq!(
@@ -95,7 +95,7 @@ fn test_parse_lint_deny_invalid_value() {
 }
 
 #[test]
-fn test_parse_lint_deny_missing_value() {
+fn parse_lint_deny_missing_value() {
     let raw = vec!["--deny".to_string()];
     let err = LintArgs::parse(&raw).unwrap_err();
     assert_eq!(err, CliError::MissingOptionValue("--deny".to_string()));

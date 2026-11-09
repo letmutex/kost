@@ -5,7 +5,7 @@ use format::smart_diff::{
 use std::fmt::Write as _;
 
 #[test]
-fn test_resolve_display_tier_auto_thresholds() {
+fn resolve_display_tier_auto_thresholds() {
     assert_eq!(resolve_display_tier(PrintMode::Auto, 0), DisplayTier::Full);
     assert_eq!(resolve_display_tier(PrintMode::Auto, 5), DisplayTier::Full);
     assert_eq!(resolve_display_tier(PrintMode::Auto, 10), DisplayTier::Full);
@@ -28,7 +28,7 @@ fn test_resolve_display_tier_auto_thresholds() {
 }
 
 #[test]
-fn test_resolve_display_tier_explicit_override_modes() {
+fn resolve_display_tier_explicit_override_modes() {
     assert_eq!(resolve_display_tier(PrintMode::Full, 50), DisplayTier::Full);
     assert_eq!(
         resolve_display_tier(PrintMode::Truncated, 1),
@@ -45,14 +45,14 @@ fn test_resolve_display_tier_explicit_override_modes() {
 }
 
 #[test]
-fn test_truncate_diff_to_lines_preserves_under_limit() {
+fn truncate_diff_to_lines_preserves_under_limit() {
     let diff = "line1\nline2\nline3\n";
     assert_eq!(truncate_diff_to_lines(diff, 5), None);
     assert_eq!(truncate_diff_to_lines(diff, 3), None);
 }
 
 #[test]
-fn test_truncate_diff_to_lines_cuts_at_limit() {
+fn truncate_diff_to_lines_cuts_at_limit() {
     let mut diff = String::new();
     for i in 1..=25 {
         let _ = writeln!(diff, "line{i}");
@@ -64,7 +64,7 @@ fn test_truncate_diff_to_lines_cuts_at_limit() {
 }
 
 #[test]
-fn test_truncate_diff_to_lines_preserves_crlf() {
+fn truncate_diff_to_lines_preserves_crlf() {
     let mut diff = String::new();
     for i in 1..=25 {
         let _ = write!(diff, "line{i}\r\n");
@@ -75,7 +75,7 @@ fn test_truncate_diff_to_lines_preserves_crlf() {
 }
 
 #[test]
-fn test_render_smart_diffs_truncated_omits_leading_dots() {
+fn render_smart_diffs_truncated_omits_leading_dots() {
     let mut diff = String::new();
     for i in 1..=25 {
         let _ = writeln!(diff, "line{i}");
@@ -92,7 +92,7 @@ fn test_render_smart_diffs_truncated_omits_leading_dots() {
 }
 
 #[test]
-fn test_render_smart_diffs_collapsed_header_and_overall_footer() {
+fn render_smart_diffs_collapsed_header_and_overall_footer() {
     let diff1 = "File1.kt (-1 +1)\n@@ -1 +1 @@\n-a\n+b\n";
     let diff2 = "File2.kt (-1 +1)\n@@ -1 +1 @@\n-c\n+d\n";
     let files = [("File1.kt", Some(diff1)), ("File2.kt", Some(diff2))];
@@ -110,7 +110,7 @@ fn test_render_smart_diffs_collapsed_header_and_overall_footer() {
 }
 
 #[test]
-fn test_truncate_diff_to_lines_zero_max_lines() {
+fn truncate_diff_to_lines_zero_max_lines() {
     let diff = "line1\nline2\n";
     let (truncated, remaining) = truncate_diff_to_lines(diff, 0).unwrap();
     assert_eq!(truncated, "");
@@ -121,7 +121,7 @@ fn test_truncate_diff_to_lines_zero_max_lines() {
 }
 
 #[test]
-fn test_render_smart_diffs_fallback_for_none_diff() {
+fn render_smart_diffs_fallback_for_none_diff() {
     let files = [("MissingDiff.kt", None)];
     let mut output = Vec::new();
     render_smart_diffs(&mut output, DisplayTier::Collapsed, &files, false).unwrap();

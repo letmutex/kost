@@ -6,7 +6,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_auto_import_suppressed_for_container_wildcard_import() {
+fn auto_import_suppressed_for_container_wildcard_import() {
     let client_url = Url::parse("file:///project/Client.kt").unwrap();
     let client_code = r#"package com.example.client
 
@@ -24,7 +24,7 @@ fun run() {}
 }
 
 #[test]
-fn test_auto_import_not_suppressed_for_package_wildcard_when_symbol_is_nested() {
+fn auto_import_not_suppressed_for_package_wildcard_when_symbol_is_nested() {
     let client_url = Url::parse("file:///project/Client.kt").unwrap();
     let client_code = r#"package com.example.client
 
@@ -42,7 +42,7 @@ fun run() {}
 }
 
 #[test]
-fn test_auto_import_disabled_via_config_suppresses_import_data_in_completion() {
+fn auto_import_disabled_via_config_suppresses_import_data_in_completion() {
     let mut index = WorkspaceIndex::new();
     let service_url = Url::parse("file:///project/OrderService.kt").unwrap();
     let service_code = r#"
@@ -90,7 +90,7 @@ fun run() {
 }
 
 #[test]
-fn test_auto_import_candidate_label_details_includes_package_and_signature() {
+fn auto_import_candidate_label_details_includes_package_and_signature() {
     let mut index = WorkspaceIndex::new();
     let service_url = Url::parse("file:///project/OrderService.kt").unwrap();
     let service_code = r#"
@@ -137,7 +137,7 @@ fun run() {
 }
 
 #[test]
-fn test_auto_import_resolve_idempotent() {
+fn auto_import_resolve_idempotent() {
     let client_url = Url::parse("file:///project/Client.kt").unwrap();
     let client_code = "package com.example.client\n\nfun run() {}\n";
     let data = AutoImportData::new(
@@ -168,7 +168,7 @@ fn test_auto_import_resolve_idempotent() {
 }
 
 #[test]
-fn test_auto_import_multiline_package_header_indexed_properly() {
+fn auto_import_multiline_package_header_indexed_properly() {
     let mut index = WorkspaceIndex::new();
     let service_url = Url::parse("file:///project/OrderService.kt").unwrap();
     let service_code = "package\n    com.example.service\n\nclass OrderProcessor\n";

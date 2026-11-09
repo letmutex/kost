@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_member_completion_on_variable_inferred_from_function_call() {
+fn member_completion_on_variable_inferred_from_function_call() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"
@@ -47,7 +47,7 @@ fun test() {
 }
 
 #[test]
-fn test_member_definition_and_hover_on_variable_inferred_from_function_call() {
+fn member_definition_and_hover_on_variable_inferred_from_function_call() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"
@@ -87,7 +87,7 @@ fun test() {
 }
 
 #[test]
-fn test_member_completion_on_variable_inferred_from_method_call() {
+fn member_completion_on_variable_inferred_from_method_call() {
     let mut index = WorkspaceIndex::new();
     let service_url = Url::parse("file:///project/Service.kt").unwrap();
     let service_code = r#"
@@ -126,7 +126,7 @@ fun test(service: AccountService) {
 }
 
 #[test]
-fn test_member_completion_and_definition_on_cast_variable() {
+fn member_completion_and_definition_on_cast_variable() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"
@@ -167,7 +167,7 @@ fun test(v: Vehicle) {
 }
 
 #[test]
-fn test_member_completion_and_definition_on_safe_cast_variable() {
+fn member_completion_and_definition_on_safe_cast_variable() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"
@@ -208,7 +208,7 @@ fun test(w: Worker) {
 }
 
 #[test]
-fn test_member_completion_on_local_variable_alias() {
+fn member_completion_on_local_variable_alias() {
     let mut index = WorkspaceIndex::new();
     let service_url = Url::parse("file:///project/Service.kt").unwrap();
     let service_code = r#"
@@ -245,7 +245,7 @@ fun test() {
 }
 
 #[test]
-fn test_member_completion_on_variable_with_same_name_as_class() {
+fn member_completion_on_variable_with_same_name_as_class() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/A.kt").unwrap();
     let file_a_code = r#"
@@ -280,7 +280,7 @@ fun test() {
 }
 
 #[test]
-fn test_member_completion_private_constructor_parameters_do_not_leak_as_supertypes() {
+fn member_completion_private_constructor_parameters_do_not_leak_as_supertypes() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ServiceTest.kt").unwrap();
     let code = r#"

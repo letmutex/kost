@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_actual_enum_class_resolves_expect_doc() {
+fn hover_actual_enum_class_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/Architecture.kt").unwrap();
     let common_source = r#"package com.example
@@ -68,7 +68,7 @@ fun testUsage() {
 }
 
 #[test]
-fn test_hover_actual_enum_entry_resolves_expect_doc() {
+fn hover_actual_enum_entry_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/LogSeverity.kt").unwrap();
     let common_source = r#"package com.example
@@ -131,7 +131,7 @@ fun testUsage() {
 }
 
 #[test]
-fn test_hover_actual_annotation_class_resolves_expect_doc() {
+fn hover_actual_annotation_class_resolves_expect_doc() {
     let mut index = WorkspaceIndex::new();
     let common_url = Url::parse("file:///project/commonMain/MainThread.kt").unwrap();
     let common_source = r#"package com.example

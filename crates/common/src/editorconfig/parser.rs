@@ -107,7 +107,7 @@ mod tests {
     use smol_str::SmolStr;
 
     #[test]
-    fn test_editorconfig_parse_sections_and_properties() {
+    fn editorconfig_parse_sections_and_properties() {
         let content = r#"
 # Top level comment
 root = true
@@ -146,7 +146,7 @@ ktlint_standard_no-semi = disabled
     }
 
     #[test]
-    fn test_parse_key_value_inline_comments_and_separators() {
+    fn parse_key_value_inline_comments_and_separators() {
         let kv1 = parse_key_value("indent_size = 4 # standard indent").unwrap();
         assert_eq!(kv1.0.as_str(), "indent_size");
         assert_eq!(kv1.1.as_str(), "4");

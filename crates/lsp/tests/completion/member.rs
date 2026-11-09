@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_member_completion_on_variable() {
+fn member_completion_on_variable() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/User.kt").unwrap();
     let model_code = r#"
@@ -45,7 +45,7 @@ fun test() {
 }
 
 #[test]
-fn test_member_completion_inferred_constructor() {
+fn member_completion_inferred_constructor() {
     let mut index = WorkspaceIndex::new();
     let service_url = Url::parse("file:///project/Service.kt").unwrap();
     let service_code = r#"
@@ -78,7 +78,7 @@ fun test() {
 }
 
 #[test]
-fn test_member_completion_extension_functions() {
+fn member_completion_extension_functions() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/User.kt").unwrap();
     let model_code = r#"
@@ -109,7 +109,7 @@ fun test(user: User) {
 }
 
 #[test]
-fn test_member_completion_chained_calls() {
+fn member_completion_chained_calls() {
     let mut index = WorkspaceIndex::new();
     let model_url = Url::parse("file:///project/Model.kt").unwrap();
     let model_code = r#"
@@ -142,7 +142,7 @@ fun test(service: UserService) {
 }
 
 #[test]
-fn test_member_completion_enum_and_companion() {
+fn member_completion_enum_and_companion() {
     let mut index = WorkspaceIndex::new();
     let types_url = Url::parse("file:///project/Types.kt").unwrap();
     let types_code = r#"

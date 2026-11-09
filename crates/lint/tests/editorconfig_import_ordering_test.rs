@@ -2,7 +2,7 @@ use common::editorconfig::ResolvedEditorConfig;
 use lint::Linter;
 
 #[test]
-fn test_import_ordering_respects_star_layout() {
+fn import_ordering_respects_star_layout() {
     let linter = Linter::standard();
     let code = "import android.os.Build\nimport assertk.assertThat\nimport java.net.InetAddress\nimport mockwebserver3.MockResponse\n\nfun main() {\n}\n";
 
@@ -23,7 +23,7 @@ fn test_import_ordering_respects_star_layout() {
 }
 
 #[test]
-fn test_import_ordering_respects_custom_multi_pattern_layout() {
+fn import_ordering_respects_custom_multi_pattern_layout() {
     let linter = Linter::standard();
     let valid_code = "import java.util.List\nimport android.os.Build\nimport com.example.Foo\nimport com.example.Bar as BarAlias\n\nfun main() {}\n";
 
@@ -56,7 +56,7 @@ fn test_import_ordering_respects_custom_multi_pattern_layout() {
 }
 
 #[test]
-fn test_import_ordering_distinguishes_direct_and_recursive_wildcards() {
+fn import_ordering_distinguishes_direct_and_recursive_wildcards() {
     let linter = Linter::standard();
     // Layout: android.* (direct only), android.sub.** (recursive), * (all other)
     // android.R belongs to android.* (group 0)
@@ -82,7 +82,7 @@ fn test_import_ordering_distinguishes_direct_and_recursive_wildcards() {
 }
 
 #[test]
-fn test_import_ordering_fallback_without_star_sorts_at_end() {
+fn import_ordering_fallback_without_star_sorts_at_end() {
     let linter = Linter::standard();
     // Layout: java.**, android.** (no * pattern)
     // Unmatched imports (e.g. zed.Foo) should be placed at the end (group 2).

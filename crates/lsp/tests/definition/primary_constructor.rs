@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_cross_file_class_with_primary_constructor_completion() {
+fn cross_file_class_with_primary_constructor_completion() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -37,7 +37,7 @@ fun run() {
 }
 
 #[test]
-fn test_cross_file_class_with_primary_constructor_call_hover() {
+fn cross_file_class_with_primary_constructor_call_hover() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -84,7 +84,7 @@ fun run() {
 }
 
 #[test]
-fn test_cross_file_class_type_reference_hover() {
+fn cross_file_class_type_reference_hover() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -126,7 +126,7 @@ fun handle(profile: UserProfile) {
 }
 
 #[test]
-fn test_cross_file_primary_constructor_member_completion() {
+fn cross_file_primary_constructor_member_completion() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -161,7 +161,7 @@ fun test(u: UserProfile) {
 }
 
 #[test]
-fn test_cross_file_primary_constructor_member_hover() {
+fn cross_file_primary_constructor_member_hover() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -209,7 +209,7 @@ fun test(u: UserProfile) {
 }
 
 #[test]
-fn test_cross_file_primary_constructor_named_argument_definition_and_hover() {
+fn cross_file_primary_constructor_named_argument_definition_and_hover() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -251,7 +251,7 @@ fun test() {
 }
 
 #[test]
-fn test_cross_file_primary_constructor_argument_completion() {
+fn cross_file_primary_constructor_argument_completion() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Model.kt").unwrap();
     let file_b_code = r#"
@@ -286,7 +286,7 @@ fun test() {
 }
 
 #[test]
-fn test_cross_file_primary_constructor_non_val_parameters_definition_and_hover() {
+fn cross_file_primary_constructor_non_val_parameters_definition_and_hover() {
     let mut index = WorkspaceIndex::new();
     let file_b_url = Url::parse("file:///project/Conn.kt").unwrap();
     let file_b_code = r#"

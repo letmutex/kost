@@ -163,7 +163,7 @@ mod tests {
     use smol_str::SmolStr;
 
     #[test]
-    fn test_concat_str_with_various_string_types() {
+    fn concat_str_with_various_string_types() {
         let prefix: &str = "com";
         let dot = String::from(".");
         let name: SmolStr = SmolStr::new("example");
@@ -172,7 +172,7 @@ mod tests {
     }
 
     #[test]
-    fn test_concat_str_empty_and_single_part() {
+    fn concat_str_empty_and_single_part() {
         let empty = concat_str!();
         assert_eq!(empty, "");
 
@@ -184,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn test_concat_smol_str_inline_capacity_boundary() {
+    fn concat_smol_str_inline_capacity_boundary() {
         // Exactly 22 bytes (max inline storage on 64-bit systems)
         let part1 = "12345678901";
         let part2 = "12345678901";
@@ -200,7 +200,7 @@ mod tests {
     }
 
     #[test]
-    fn test_concat_smol_str_heap_fallback_long_string() {
+    fn concat_smol_str_heap_fallback_long_string() {
         let long_pkg = "androidx.compose.foundation.layout";
         let sep = ".";
         let class_name = "BoxScopeInstance";
@@ -213,7 +213,7 @@ mod tests {
     }
 
     #[test]
-    fn test_concat_smol_str_with_mixed_string_types() {
+    fn concat_smol_str_with_mixed_string_types() {
         let pkg: &str = "kotlin";
         let mid = String::from(".collections.");
         let cls: SmolStr = SmolStr::new("List");
@@ -222,7 +222,7 @@ mod tests {
     }
 
     #[test]
-    fn test_is_valid_kebab_case() {
+    fn is_valid_kebab_case() {
         use super::is_valid_kebab_case;
 
         assert!(is_valid_kebab_case("no-semi"));

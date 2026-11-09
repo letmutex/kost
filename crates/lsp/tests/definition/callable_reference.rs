@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_definition_class_literal_receiver_resolves_to_class() {
+fn definition_class_literal_receiver_resolves_to_class() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ClassLiteralDef.kt").unwrap();
     let source = r#"
@@ -27,7 +27,7 @@ fun main() {
 }
 
 #[test]
-fn test_definition_callable_reference_prioritizes_function_over_local_variable() {
+fn definition_callable_reference_prioritizes_function_over_local_variable() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/LocalShadowingDef.kt").unwrap();
     let source = r#"
@@ -55,7 +55,7 @@ fun main() {
 }
 
 #[test]
-fn test_definition_callable_reference_resolves_outer_local_function_shadowed_by_inner_variable() {
+fn definition_callable_reference_resolves_outer_local_function_shadowed_by_inner_variable() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NestedLocalShadowingDef.kt").unwrap();
     let source = r#"
@@ -84,7 +84,7 @@ fun main() {
 }
 
 #[test]
-fn test_definition_member_callable_reference_resolves_to_member_function() {
+fn definition_member_callable_reference_resolves_to_member_function() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/MemberDef.kt").unwrap();
     let source = r#"
@@ -110,7 +110,7 @@ fun main() {
 }
 
 #[test]
-fn test_definition_constructor_callable_reference_resolves_to_class() {
+fn definition_constructor_callable_reference_resolves_to_class() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ConstructorDef.kt").unwrap();
     let source = r#"
@@ -134,7 +134,7 @@ fun main() {
 }
 
 #[test]
-fn test_definition_extension_callable_reference_resolves_to_extension_function() {
+fn definition_extension_callable_reference_resolves_to_extension_function() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ExtensionDef.kt").unwrap();
     let source = r#"

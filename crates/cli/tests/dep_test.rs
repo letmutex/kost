@@ -1,7 +1,7 @@
 use cli::{CliError, DepArgs, DepSubcommand};
 
 #[test]
-fn test_dep_fetch_parsing_with_sources_and_rejected_removed_options() {
+fn dep_fetch_parsing_with_sources_and_rejected_removed_options() {
     let args = vec![
         "fetch".to_string(),
         "androidx.compose.ui:ui:1.6.0".to_string(),
@@ -49,7 +49,7 @@ fn test_dep_fetch_parsing_with_sources_and_rejected_removed_options() {
 }
 
 #[test]
-fn test_dep_list_and_tree_maven_repo_and_offline_parsing() {
+fn dep_list_and_tree_maven_repo_and_offline_parsing() {
     let list_args = vec![
         "list".to_string(),
         "--direct".to_string(),
@@ -110,7 +110,7 @@ fn test_dep_list_and_tree_maven_repo_and_offline_parsing() {
 }
 
 #[test]
-fn test_dep_root_rejects_bare_options_and_unknown_commands() {
+fn dep_root_rejects_bare_options_and_unknown_commands() {
     assert!(matches!(
         DepArgs::parse(&["--offline".to_string()]),
         Err(CliError::UnknownOption(opt)) if opt == "--offline"
@@ -142,7 +142,7 @@ fn test_dep_root_rejects_bare_options_and_unknown_commands() {
 }
 
 #[test]
-fn test_dep_tree_invalid_depth_returns_error() {
+fn dep_tree_invalid_depth_returns_error() {
     let invalid_depth = vec![
         "tree".to_string(),
         "--depth".to_string(),
@@ -158,7 +158,7 @@ fn test_dep_tree_invalid_depth_returns_error() {
 }
 
 #[test]
-fn test_dep_double_dash_treats_remaining_args_as_coordinates() {
+fn dep_double_dash_treats_remaining_args_as_coordinates() {
     let args = vec![
         "fetch".to_string(),
         "--sources".to_string(),

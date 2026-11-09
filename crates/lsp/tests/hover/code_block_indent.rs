@@ -4,7 +4,7 @@ use lsp::syntax::doc::clean_kdoc;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_function_kdoc_code_block_preserves_indentation() {
+fn hover_function_kdoc_code_block_preserves_indentation() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///ConfigService.kt").unwrap();
     let source = r#"
@@ -57,7 +57,7 @@ fun main() {
 }
 
 #[test]
-fn test_hover_class_kdoc_code_block_preserves_indentation() {
+fn hover_class_kdoc_code_block_preserves_indentation() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///HttpClient.kt").unwrap();
     let source = r#"
@@ -101,7 +101,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_property_line_comment_code_block_indentation() {
+fn hover_property_line_comment_code_block_indentation() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///Settings.kt").unwrap();
     let source = r#"
@@ -138,7 +138,7 @@ fun check() {
 }
 
 #[test]
-fn test_hover_param_kdoc_code_block_indentation() {
+fn hover_param_kdoc_code_block_indentation() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///Api.kt").unwrap();
     let source = r#"
@@ -179,7 +179,7 @@ fun call() {
 }
 
 #[test]
-fn test_clean_kdoc_preserves_code_block_indentation_direct() {
+fn clean_kdoc_preserves_code_block_indentation_direct() {
     let raw_kdoc = r#"
 /**
  * Processes items with custom strategy.
@@ -220,7 +220,7 @@ fn test_clean_kdoc_preserves_code_block_indentation_direct() {
 }
 
 #[test]
-fn test_clean_kdoc_tag_inside_code_block_not_converted() {
+fn clean_kdoc_tag_inside_code_block_not_converted() {
     let raw = r#"
 /**
  * Example demonstrating annotation usage:

@@ -3,7 +3,7 @@ use dep::{
 };
 
 #[tokio::test]
-async fn test_offline_graph_solution_and_tree_rendering() {
+async fn offline_graph_solution_and_tree_rendering() {
     let temp_dir = std::env::temp_dir().join("kost_test_offline_graph");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -50,7 +50,7 @@ async fn test_offline_graph_solution_and_tree_rendering() {
 }
 
 #[tokio::test]
-async fn test_direct_dependency_conflict_resolution() {
+async fn direct_dependency_conflict_resolution() {
     let temp_dir = std::env::temp_dir().join("kost_test_direct_conflict");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -73,7 +73,7 @@ async fn test_direct_dependency_conflict_resolution() {
 }
 
 #[tokio::test]
-async fn test_path_traversal_rejection() {
+async fn path_traversal_rejection() {
     let temp_dir = std::env::temp_dir().join("kost_test_path_traversal");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -91,7 +91,7 @@ async fn test_path_traversal_rejection() {
 }
 
 #[tokio::test]
-async fn test_kmp_candidate_probing_order() {
+async fn kmp_candidate_probing_order() {
     let generic_coord =
         DependencyCoordinate::parse("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0").unwrap();
     let candidates = generic_coord.kmp_probe_candidates();
@@ -107,7 +107,7 @@ async fn test_kmp_candidate_probing_order() {
 }
 
 #[tokio::test]
-async fn test_pom_dependency_management_version_inheritance() {
+async fn pom_dependency_management_version_inheritance() {
     let xml = r#"<project>
         <groupId>org.example</groupId>
         <artifactId>parent-bom</artifactId>
@@ -138,7 +138,7 @@ async fn test_pom_dependency_management_version_inheritance() {
 }
 
 #[tokio::test]
-async fn test_tree_filter_matches_transitive_dependency() {
+async fn tree_filter_matches_transitive_dependency() {
     let temp_dir = std::env::temp_dir().join("kost_test_filter_transitive");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -183,7 +183,7 @@ async fn test_tree_filter_matches_transitive_dependency() {
 }
 
 #[tokio::test]
-async fn test_cached_kmp_variant_lookup() {
+async fn cached_kmp_variant_lookup() {
     let temp_dir = std::env::temp_dir().join("kost_test_kmp_cache_lookup");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -213,7 +213,7 @@ async fn test_cached_kmp_variant_lookup() {
 }
 
 #[tokio::test]
-async fn test_fetch_fails_fast_if_gradle_home_does_not_exist() {
+async fn fetch_fails_fast_if_gradle_home_does_not_exist() {
     let non_existent_home = std::env::temp_dir().join("kost_test_nonexistent_gradle_home_xyz123");
     let _ = std::fs::remove_dir_all(&non_existent_home);
 
@@ -232,7 +232,7 @@ async fn test_fetch_fails_fast_if_gradle_home_does_not_exist() {
 }
 
 #[tokio::test]
-async fn test_dep_fails_when_no_repositories_configured() {
+async fn dep_fails_when_no_repositories_configured() {
     let temp_dir = std::env::temp_dir().join("kost_test_no_repos_configured");
     let _ = std::fs::remove_dir_all(&temp_dir);
     std::fs::create_dir_all(&temp_dir).unwrap();

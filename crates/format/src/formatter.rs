@@ -90,14 +90,14 @@ mod tests {
     use crate::options::FileType;
 
     #[test]
-    fn test_formatter_default_uses_kotlinlang_indent() {
+    fn formatter_default_uses_kotlinlang_indent() {
         let formatter = Formatter::new();
         assert_eq!(formatter.options().block_indent, 4);
         assert_eq!(formatter.options().continuation_indent, 4);
     }
 
     #[test]
-    fn test_formatter_format_clean_code() {
+    fn formatter_format_clean_code() {
         let formatter = Formatter::new();
         let source = "fun main() {\n    println(\"hello\")\n}\n";
         let formatted = formatter.format(source).unwrap();
@@ -105,7 +105,7 @@ mod tests {
     }
 
     #[test]
-    fn test_formatter_check_detects_unformatted_code_with_diff() {
+    fn formatter_check_detects_unformatted_code_with_diff() {
         let formatter = Formatter::new();
         let unformatted = "fun main() {\n  println(\"hello\")\n}\n";
         let result = formatter
@@ -120,7 +120,7 @@ mod tests {
     }
 
     #[test]
-    fn test_formatter_check_clean_code_has_no_diff() {
+    fn formatter_check_clean_code_has_no_diff() {
         let formatter = Formatter::new();
         let clean = "fun main() {\n    println(\"hello\")\n}\n";
         let result = formatter
@@ -132,7 +132,7 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_companion_object_parse() {
+    fn empty_companion_object_parse() {
         let mut kp = crate::engine::KotlinParser::new();
         let source = "class Foo {\n  val a: String\n\n  companion object;\n\n  init {\n    a = \"Hello\"\n  }\n}\n";
         let tree = kp.parse(source).unwrap();
@@ -157,7 +157,7 @@ mod tests {
     }
 
     #[test]
-    fn test_anonymous_function_in_argument_formatting() {
+    fn anonymous_function_in_argument_formatting() {
         let source = "// TRAILING_COMMA_STRATEGY NONE\n\nfun f() {\n  setListener(\n      fun(number: Int) {\n        println(number)\n      })\n}\n";
         let mut opts = crate::options::FormattingOptions::meta();
         opts.trailing_comma_strategy = crate::options::TrailingCommaStrategy::None;

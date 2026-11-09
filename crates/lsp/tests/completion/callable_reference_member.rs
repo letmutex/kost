@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_completion_member_reference_suggests_functions_and_properties() {
+fn completion_member_reference_suggests_functions_and_properties() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/MemberCompletion.kt").unwrap();
     let source = r#"
@@ -49,7 +49,7 @@ fun main() {
 }
 
 #[test]
-fn test_completion_member_reference_suggests_class_literal() {
+fn completion_member_reference_suggests_class_literal() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ClassLiteralCompletion.kt").unwrap();
     let source = r#"
@@ -76,7 +76,7 @@ fun main() {
 }
 
 #[test]
-fn test_completion_extension_function_reference() {
+fn completion_extension_function_reference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ExtensionCompletion.kt").unwrap();
     let source = r#"
@@ -110,7 +110,7 @@ fun main() {
 }
 
 #[test]
-fn test_multiline_callable_reference_completion_with_trailing_colons() {
+fn multiline_callable_reference_completion_with_trailing_colons() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/MultilineCallableCompletion.kt").unwrap();
     let source = r#"
@@ -139,7 +139,7 @@ fun main() {
 }
 
 #[test]
-fn test_completion_numeric_receiver_callable_reference() {
+fn completion_numeric_receiver_callable_reference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NumericCallableCompletion.kt").unwrap();
     let source = r#"
@@ -165,7 +165,7 @@ fun main() {
 }
 
 #[test]
-fn test_completion_private_member_reference_inside_packaged_class() {
+fn completion_private_member_reference_inside_packaged_class() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/PrivateMemberCompletion.kt").unwrap();
     let source = r#"

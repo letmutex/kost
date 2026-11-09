@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_overload_resolution_does_not_disqualify_target_when_exact_arity_overload_has_incompatible_argument_type()
+fn references_overload_resolution_does_not_disqualify_target_when_exact_arity_overload_has_incompatible_argument_type()
  {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Logger.kt").unwrap();
@@ -34,7 +34,7 @@ fun runner(logger: Logger) {
 }
 
 #[test]
-fn test_references_resolves_trailing_lambda_call_when_preceding_parameter_has_default_value() {
+fn references_resolves_trailing_lambda_call_when_preceding_parameter_has_default_value() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/TaskRunner.kt").unwrap();
     let source = r#"
@@ -66,7 +66,7 @@ fun runner(tr: TaskRunner) {
 }
 
 #[test]
-fn test_references_excludes_function_call_when_target_is_non_functional_property() {
+fn references_excludes_function_call_when_target_is_non_functional_property() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Service.kt").unwrap();
     let source = r#"
@@ -97,7 +97,7 @@ fun runner(s: Service) {
 }
 
 #[test]
-fn test_references_excludes_implicit_receiver_call_in_nested_class_with_same_simple_name_in_different_package()
+fn references_excludes_implicit_receiver_call_in_nested_class_with_same_simple_name_in_different_package()
  {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/A.kt").unwrap();
@@ -137,7 +137,7 @@ class Container {
 }
 
 #[test]
-fn test_references_overload_resolution_disambiguates_null_literal_between_nullable_and_non_nullable_parameter()
+fn references_overload_resolution_disambiguates_null_literal_between_nullable_and_non_nullable_parameter()
  {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Handler.kt").unwrap();
@@ -167,7 +167,7 @@ fun runner(h: Handler) {
 }
 
 #[test]
-fn test_references_includes_function_call_when_target_is_functional_property() {
+fn references_includes_function_call_when_target_is_functional_property() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/CallbackService.kt").unwrap();
     let source = r#"
@@ -196,7 +196,7 @@ fun runner(s: CallbackService) {
 }
 
 #[test]
-fn test_references_excludes_implicit_receiver_call_in_same_named_class_in_different_package() {
+fn references_excludes_implicit_receiver_call_in_same_named_class_in_different_package() {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/A.kt").unwrap();
     let file_a_code = r#"
@@ -231,7 +231,7 @@ class Service {
 }
 
 #[test]
-fn test_references_overload_resolution_disambiguates_lambda_parameter_types_with_unit_return() {
+fn references_overload_resolution_disambiguates_lambda_parameter_types_with_unit_return() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/Processor.kt").unwrap();
     let source = r#"
@@ -260,7 +260,7 @@ fun runner(p: Processor) {
 }
 
 #[test]
-fn test_references_resolves_inherited_member_when_subclass_file_has_star_import_and_super_in_sibling_file()
+fn references_resolves_inherited_member_when_subclass_file_has_star_import_and_super_in_sibling_file()
  {
     let mut index = WorkspaceIndex::new();
     let file_a_url = Url::parse("file:///project/A.kt").unwrap();
@@ -299,7 +299,7 @@ fun runner(app: AppService) {
 }
 
 #[test]
-fn test_references_overload_resolution_disambiguates_lambda_parameter_nullability() {
+fn references_overload_resolution_disambiguates_lambda_parameter_nullability() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NullabilityOverload.kt").unwrap();
     let code = r#"

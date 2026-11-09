@@ -19,7 +19,7 @@ fn make_diagnostic(rule_id: &str, severity: Severity, line: u32, message: &str) 
 }
 
 #[test]
-fn test_display_tier_resolution_auto_thresholds() {
+fn display_tier_resolution_auto_thresholds() {
     assert_eq!(resolve_display_tier(PrintMode::Auto, 0), DisplayTier::Full);
     assert_eq!(resolve_display_tier(PrintMode::Auto, 5), DisplayTier::Full);
     assert_eq!(resolve_display_tier(PrintMode::Auto, 10), DisplayTier::Full);
@@ -42,7 +42,7 @@ fn test_display_tier_resolution_auto_thresholds() {
 }
 
 #[test]
-fn test_display_tier_resolution_explicit_overrides() {
+fn display_tier_resolution_explicit_overrides() {
     assert_eq!(resolve_display_tier(PrintMode::Full, 50), DisplayTier::Full);
     assert_eq!(
         resolve_display_tier(PrintMode::Truncated, 3),
@@ -55,7 +55,7 @@ fn test_display_tier_resolution_explicit_overrides() {
 }
 
 #[test]
-fn test_smart_lint_full_tier_renders_all_diagnostics() {
+fn smart_lint_full_tier_renders_all_diagnostics() {
     let diagnostics = vec![
         make_diagnostic("standard:no-semi", Severity::Warning, 1, "Unnecessary ;"),
         make_diagnostic(
@@ -78,7 +78,7 @@ fn test_smart_lint_full_tier_renders_all_diagnostics() {
 }
 
 #[test]
-fn test_smart_lint_truncated_tier_limits_to_twenty_and_appends_footer() {
+fn smart_lint_truncated_tier_limits_to_twenty_and_appends_footer() {
     let mut diagnostics = Vec::new();
     for i in 1..=25 {
         diagnostics.push(make_diagnostic(
@@ -106,7 +106,7 @@ fn test_smart_lint_truncated_tier_limits_to_twenty_and_appends_footer() {
 }
 
 #[test]
-fn test_smart_lint_truncated_tier_under_limit_omits_footer() {
+fn smart_lint_truncated_tier_under_limit_omits_footer() {
     let diagnostics = vec![make_diagnostic(
         "standard:no-semi",
         Severity::Warning,
@@ -124,7 +124,7 @@ fn test_smart_lint_truncated_tier_under_limit_omits_footer() {
 }
 
 #[test]
-fn test_smart_lint_collapsed_tier_renders_counts_and_footer() {
+fn smart_lint_collapsed_tier_renders_counts_and_footer() {
     let report1 = LintReport::new(
         vec![
             make_diagnostic("rule:one", Severity::Error, 1, "Err 1"),
@@ -163,14 +163,14 @@ fn test_smart_lint_collapsed_tier_renders_counts_and_footer() {
 }
 
 #[test]
-fn test_smart_lint_collapsed_tier_empty_reports_emits_nothing() {
+fn smart_lint_collapsed_tier_empty_reports_emits_nothing() {
     let mut output = Vec::new();
     render_smart_lint_reports(&mut output, DisplayTier::Collapsed, &[], false).unwrap();
     assert!(output.is_empty());
 }
 
 #[test]
-fn test_smart_lint_collapsed_tier_zero_violations_emits_zero_issues() {
+fn smart_lint_collapsed_tier_zero_violations_emits_zero_issues() {
     let report = LintReport::new(Vec::new(), Some("src/Clean.kt".to_string()));
     let mut output = Vec::new();
     render_smart_lint_reports(&mut output, DisplayTier::Collapsed, &[report], false).unwrap();
@@ -185,7 +185,7 @@ fn test_smart_lint_collapsed_tier_zero_violations_emits_zero_issues() {
 }
 
 #[test]
-fn test_smart_lint_collapsed_tier_plural_errors_and_singular_file() {
+fn smart_lint_collapsed_tier_plural_errors_and_singular_file() {
     let report = LintReport::new(
         vec![
             make_diagnostic("rule:err1", Severity::Error, 1, "E1"),
@@ -206,7 +206,7 @@ fn test_smart_lint_collapsed_tier_plural_errors_and_singular_file() {
 }
 
 #[test]
-fn test_diagnostic_formatting_without_color() {
+fn diagnostic_formatting_without_color() {
     let diag = make_diagnostic("standard:no-semi", Severity::Warning, 10, "Semi");
     let mut output = Vec::new();
     render_diagnostic(&mut output, &diag, Some("src/Foo.kt"), false).unwrap();

@@ -4,8 +4,10 @@ mod completion {
     mod auto_import_suppression;
     mod callable_reference;
     mod callable_reference_member;
+    mod chained_trailing_lambda;
     mod context;
     mod exact_scope_leak;
+    mod extension_member_completion;
     mod generic;
     mod import_aware;
     mod import_disambiguation;
@@ -18,14 +20,12 @@ mod completion {
     mod named_argument;
     mod prefix;
     mod receiver;
+    mod scope_completion_leak;
+    mod scope_completion_leak_members;
     mod scope_function;
     mod source_first;
     mod source_first_overloads;
     mod synthetic;
-    mod test_chained_trailing_lambda;
-    mod test_extension_member_completion;
-    mod test_scope_completion_leak;
-    mod test_scope_completion_leak_members;
     mod trailing_lambda;
     mod typealias;
 }

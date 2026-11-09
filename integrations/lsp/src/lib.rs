@@ -18,7 +18,7 @@ mod tests {
 
     #[test]
     #[ignore]
-    fn test_lsp_environment_fixtures() {
+    fn lsp_environment_fixtures() {
         let options = RunnerOptions::default();
         let results = run_all_projects(&options).expect("Failed to execute fixture tests");
         assert!(!results.is_empty(), "No fixture tests were executed");

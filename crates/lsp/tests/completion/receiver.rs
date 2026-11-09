@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_chained_safe_call_member_completion_and_resolution() {
+fn chained_safe_call_member_completion_and_resolution() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/SafeCallTest.kt").unwrap();
     let code = r#"
@@ -52,7 +52,7 @@ fun test(user: User?) {
 }
 
 #[test]
-fn test_enum_entry_member_completion_and_resolution() {
+fn enum_entry_member_completion_and_resolution() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/EnumMemberTest.kt").unwrap();
     let code = r#"
@@ -104,7 +104,7 @@ fun test() {
 }
 
 #[test]
-fn test_labeled_this_completion_inside_inner_class() {
+fn labeled_this_completion_inside_inner_class() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/LabeledThisTest.kt").unwrap();
     let code = r#"
@@ -147,7 +147,7 @@ class Window {
 }
 
 #[test]
-fn test_multiline_chained_call_member_completion() {
+fn multiline_chained_call_member_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/MultilineChainTest.kt").unwrap();
     let code = r#"
@@ -183,7 +183,7 @@ fun test(builder: QueryBuilder) {
 }
 
 #[test]
-fn test_extension_function_this_receiver_completion() {
+fn extension_function_this_receiver_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/ExtensionThisTest.kt").unwrap();
     let code = r#"
@@ -219,7 +219,7 @@ fun Session.validate() {
 }
 
 #[test]
-fn test_subclass_super_receiver_completion() {
+fn subclass_super_receiver_completion() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/SuperReceiverTest.kt").unwrap();
     let code = r#"

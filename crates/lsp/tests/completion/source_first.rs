@@ -22,7 +22,7 @@ fn make_fn_decl(name: &str, sig: Option<&str>, doc: Option<&str>) -> Declaration
 }
 
 #[test]
-fn test_scope_completion_prefers_source_over_bytecode() {
+fn scope_completion_prefers_source_over_bytecode() {
     let mut index = WorkspaceIndex::new();
     let class_url =
         Url::parse("jar:file:///caches/runtime.aar!/androidx/compose/runtime/Remember.class")
@@ -70,7 +70,7 @@ fn test_scope_completion_prefers_source_over_bytecode() {
 }
 
 #[test]
-fn test_member_completion_prefers_source_over_bytecode() {
+fn member_completion_prefers_source_over_bytecode() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Service.class").unwrap();
     let src_url = Url::parse("jar:file:///caches/lib-sources.jar!/com/example/Service.kt").unwrap();
@@ -115,7 +115,7 @@ fn test_member_completion_prefers_source_over_bytecode() {
 }
 
 #[test]
-fn test_package_completion_prefers_source_over_bytecode() {
+fn package_completion_prefers_source_over_bytecode() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/pkg/Util.class").unwrap();
     let src_url =
@@ -150,7 +150,7 @@ fn test_package_completion_prefers_source_over_bytecode() {
 }
 
 #[test]
-fn test_completion_retains_source_when_indexed_first() {
+fn completion_retains_source_when_indexed_first() {
     let mut index = WorkspaceIndex::new();
     let src_url = Url::parse(
         "jar:file:///caches/runtime-desktop-sources.jar!/androidx/compose/runtime/Remember.kt",

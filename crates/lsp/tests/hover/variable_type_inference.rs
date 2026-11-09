@@ -43,7 +43,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_variable_type_inference_auto_default() {
+fn hover_variable_type_inference_auto_default() {
     let (index, main_url, main_code) = create_test_index();
 
     let pos = Position::new(11, 13); // on `user` in `val u1 = user`
@@ -67,7 +67,7 @@ fn test_hover_variable_type_inference_auto_default() {
 }
 
 #[test]
-fn test_hover_variable_type_inference_always_inferred_class() {
+fn hover_variable_type_inference_always_inferred_class() {
     let (index, main_url, main_code) = create_test_index();
 
     let pos_user = Position::new(11, 13);
@@ -90,7 +90,7 @@ fn test_hover_variable_type_inference_always_inferred_class() {
 }
 
 #[test]
-fn test_hover_variable_type_inference_always_primitive_and_unresolved() {
+fn hover_variable_type_inference_always_primitive_and_unresolved() {
     let (index, main_url, main_code) = create_test_index();
 
     let pos_count = Position::new(13, 13);
@@ -131,7 +131,7 @@ fn test_hover_variable_type_inference_always_primitive_and_unresolved() {
 }
 
 #[test]
-fn test_hover_variable_type_inference_always_full_name_inferred_class() {
+fn hover_variable_type_inference_always_full_name_inferred_class() {
     let (index, main_url, main_code) = create_test_index();
 
     let pos_user = Position::new(11, 13);
@@ -154,7 +154,7 @@ fn test_hover_variable_type_inference_always_full_name_inferred_class() {
 }
 
 #[test]
-fn test_hover_variable_type_inference_always_full_name_explicit_and_primitive() {
+fn hover_variable_type_inference_always_full_name_explicit_and_primitive() {
     let (index, main_url, main_code) = create_test_index();
 
     let pos_typed = Position::new(12, 13);
@@ -195,7 +195,7 @@ fn test_hover_variable_type_inference_always_full_name_explicit_and_primitive() 
 }
 
 #[test]
-fn test_hover_variable_type_inference_always_full_name_unresolved() {
+fn hover_variable_type_inference_always_full_name_unresolved() {
     let (index, main_url, main_code) = create_test_index();
 
     let pos_unk = Position::new(14, 13);
@@ -218,7 +218,7 @@ fn test_hover_variable_type_inference_always_full_name_unresolved() {
 }
 
 #[test]
-fn test_hover_delegated_var_with_always_inference() {
+fn hover_delegated_var_with_always_inference() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///StateHolder.kt").unwrap();
     let source = r#"package com.example
@@ -285,7 +285,7 @@ fun test() {
 }
 
 #[test]
-fn test_hover_variable_type_inference_always_inferred_generic_type_arguments() {
+fn hover_variable_type_inference_always_inferred_generic_type_arguments() {
     let (index, main_url, main_code) = create_compose_test_index();
     let pos = Position::new(7, 8); // on `state`
     let hover = find_hover_with_config(
@@ -307,7 +307,7 @@ fn test_hover_variable_type_inference_always_inferred_generic_type_arguments() {
 }
 
 #[test]
-fn test_hover_variable_type_inference_always_with_trace_inferred_generic_type_arguments() {
+fn hover_variable_type_inference_always_with_trace_inferred_generic_type_arguments() {
     let (index, main_url, main_code) = create_compose_test_index();
     let pos = Position::new(7, 8); // on `state`
     let hover = find_hover_with_config(

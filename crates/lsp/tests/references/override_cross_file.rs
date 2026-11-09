@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_references_cross_file_override_hierarchy() {
+fn references_cross_file_override_hierarchy() {
     let mut index = WorkspaceIndex::new();
     let base_url = Url::parse("file:///project/Worker.kt").unwrap();
     let base_code = r#"

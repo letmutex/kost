@@ -11,6 +11,10 @@ mod hover {
     mod expect_actual_type;
     mod expect_actual_variable;
     mod function;
+    mod implicit_it;
+    mod implicit_it_advanced;
+    mod implicit_it_negative;
+    mod infix;
     mod large_doc;
     mod overload;
     mod package_header;
@@ -19,12 +23,8 @@ mod hover {
     mod scope_leak;
     mod source_first;
     mod source_link;
-    mod test_implicit_it;
-    mod test_implicit_it_advanced;
-    mod test_implicit_it_negative;
-    mod test_infix;
-    mod test_variable_type_trace;
-    mod test_variable_type_trace_advanced;
     mod type_test;
     mod variable_type_inference;
+    mod variable_type_trace;
+    mod variable_type_trace_advanced;
 }

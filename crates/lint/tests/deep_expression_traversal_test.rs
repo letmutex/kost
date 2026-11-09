@@ -1,7 +1,7 @@
 use lint::Linter;
 
 #[test]
-fn test_deep_binary_expression_stack_safety() {
+fn deep_binary_expression_stack_safety() {
     let mut code = String::from("fun test() {\n    val a = \"a0\"");
     for i in 1..2500 {
         use std::fmt::Write;

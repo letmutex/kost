@@ -22,7 +22,7 @@ fn make_fn_decl(name: &str, sig: Option<&str>, doc: Option<&str>) -> Declaration
 }
 
 #[test]
-fn test_hover_prefers_source_over_bytecode_doc_and_signature() {
+fn hover_prefers_source_over_bytecode_doc_and_signature() {
     let mut index = WorkspaceIndex::new();
     let class_url =
         Url::parse("jar:file:///caches/runtime.aar!/androidx/compose/runtime/Remember.class")
@@ -77,7 +77,7 @@ fn test_hover_prefers_source_over_bytecode_doc_and_signature() {
 }
 
 #[test]
-fn test_hover_member_prefers_source_over_bytecode() {
+fn hover_member_prefers_source_over_bytecode() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Service.class").unwrap();
     let src_url = Url::parse("jar:file:///caches/lib-sources.jar!/com/example/Service.kt").unwrap();
@@ -129,7 +129,7 @@ fn test_hover_member_prefers_source_over_bytecode() {
 }
 
 #[test]
-fn test_hover_falls_back_to_bytecode_when_no_source() {
+fn hover_falls_back_to_bytecode_when_no_source() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Util.class").unwrap();
     let class_decl = make_fn_decl("helper", Some("fun helper(): Unit"), None);

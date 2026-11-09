@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{HoverContents, MarkedString, Position, Url};
 
 #[test]
-fn test_hover_class_parameter_field() {
+fn hover_class_parameter_field() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///ConstructorField.kt").unwrap();
     let source = r#"
@@ -42,7 +42,7 @@ class Repository(
 }
 
 #[test]
-fn test_hover_function_parameter() {
+fn hover_function_parameter() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///Param.kt").unwrap();
     let source = r#"
@@ -72,7 +72,7 @@ fun setup(preferences: UserPreferences) {
 }
 
 #[test]
-fn test_hover_parameter_with_default_and_kdoc() {
+fn hover_parameter_with_default_and_kdoc() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///DefaultParam.kt").unwrap();
     let source = r#"
@@ -114,7 +114,7 @@ fun setupRepository(
 }
 
 #[test]
-fn test_class_hover_excludes_constructor_param_comments() {
+fn class_hover_excludes_constructor_param_comments() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///AccountService.kt").unwrap();
     let source = r#"
@@ -156,7 +156,7 @@ fun main() {
 }
 
 #[test]
-fn test_constructor_param_hover_scoping() {
+fn constructor_param_hover_scoping() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///AccountService2.kt").unwrap();
     let source = r#"
@@ -218,7 +218,7 @@ class AccountService(
 }
 
 #[test]
-fn test_catch_block_parameter_resolution_and_hover() {
+fn catch_block_parameter_resolution_and_hover() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/CatchBlockTest.kt").unwrap();
     let code = r#"
@@ -247,7 +247,7 @@ fun test() {
 }
 
 #[test]
-fn test_named_argument_call_site_definition_and_hover() {
+fn named_argument_call_site_definition_and_hover() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/NamedArgTest.kt").unwrap();
     let code = r#"

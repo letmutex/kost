@@ -248,13 +248,13 @@ mod tests {
     use super::{Linter, Path, resolve_active_targets, resolve_linter, run};
 
     #[test]
-    fn test_resolve_linter_default_standard() {
+    fn resolve_linter_default_standard() {
         let linter = resolve_linter(None).unwrap();
         assert!(linter.registry().ast_dispatch.contains_key(";"));
     }
 
     #[test]
-    fn test_resolve_linter_explicit_rulesets() {
+    fn resolve_linter_explicit_rulesets() {
         let linter = resolve_linter(Some("standard,statistics")).unwrap();
         assert!(linter.registry().ast_dispatch.contains_key(";"));
         assert!(
@@ -266,19 +266,19 @@ mod tests {
     }
 
     #[test]
-    fn test_cli_run_help_flag() {
+    fn cli_run_help_flag() {
         let result = run(&["--help".to_string()]);
         assert!(result.is_ok());
     }
 
     #[test]
-    fn test_cli_run_unknown_option_fails() {
+    fn cli_run_unknown_option_fails() {
         let result = run(&["--unknown-flag".to_string()]);
         assert!(result.is_err());
     }
 
     #[test]
-    fn test_cli_run_file_with_violations_returns_error() {
+    fn cli_run_file_with_violations_returns_error() {
         let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/cases/no_semi/duplicateSemicolonsSameLine.kt");
         let result = run(&[
@@ -291,7 +291,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cli_run_file_with_warnings_only_succeeds_without_deny_flag() {
+    fn cli_run_file_with_warnings_only_succeeds_without_deny_flag() {
         let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/cases/no_semi/duplicateSemicolonsSameLine.kt");
         let result = run(&[fixture_path.to_string_lossy().to_string()]);
@@ -299,7 +299,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cli_run_explicit_target_missing_kotlin_files_fails() {
+    fn cli_run_explicit_target_missing_kotlin_files_fails() {
         let non_kotlin_file = Path::new(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
         let result = run(&[non_kotlin_file.to_string_lossy().to_string()]);
         let err = result.expect_err("Should fail when explicit target has no Kotlin files");
@@ -307,7 +307,7 @@ mod tests {
     }
 
     #[test]
-    fn test_cli_ignores_files_matching_config_ignore() {
+    fn cli_ignores_files_matching_config_ignore() {
         let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/cases/no_semi/duplicateSemicolonsSameLine.kt");
         let yaml = r#"
@@ -323,7 +323,7 @@ lint:
     }
 
     #[test]
-    fn test_resolve_active_targets_succeeds_when_all_targets_are_ignored() {
+    fn resolve_active_targets_succeeds_when_all_targets_are_ignored() {
         let fixture_path = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("tests/cases/no_semi/duplicateSemicolonsSameLine.kt");
         let yaml = r#"

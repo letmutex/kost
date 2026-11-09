@@ -22,7 +22,7 @@ fn make_fn_decl(name: &str, sig: Option<&str>, doc: Option<&str>) -> Declaration
 }
 
 #[test]
-fn test_completion_replaces_all_overloaded_bytecode_functions_with_source() {
+fn completion_replaces_all_overloaded_bytecode_functions_with_source() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Surface.class").unwrap();
     let src_url = Url::parse("jar:file:///caches/lib-sources.jar!/com/example/Surface.kt").unwrap();
@@ -86,7 +86,7 @@ fn test_completion_replaces_all_overloaded_bytecode_functions_with_source() {
 }
 
 #[test]
-fn test_completion_bytecode_fewer_source_overloads_retains_unmatched_bytecode() {
+fn completion_bytecode_fewer_source_overloads_retains_unmatched_bytecode() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Format.class").unwrap();
     let src_url = Url::parse("jar:file:///caches/lib-sources.jar!/com/example/Format.kt").unwrap();
@@ -124,7 +124,7 @@ fn test_completion_bytecode_fewer_source_overloads_retains_unmatched_bytecode() 
 }
 
 #[test]
-fn test_completion_bytecode_different_arity_not_replaced_by_single_source_overload() {
+fn completion_bytecode_different_arity_not_replaced_by_single_source_overload() {
     let mut index = WorkspaceIndex::new();
     let class_url = Url::parse("jar:file:///caches/lib.jar!/com/example/Format.class").unwrap();
     let src_url = Url::parse("jar:file:///caches/lib-sources.jar!/com/example/Format.kt").unwrap();
@@ -160,7 +160,7 @@ fn test_completion_bytecode_different_arity_not_replaced_by_single_source_overlo
 }
 
 #[test]
-fn test_completion_source_indexed_first_suppresses_bytecode_callable_with_compatible_arity() {
+fn completion_source_indexed_first_suppresses_bytecode_callable_with_compatible_arity() {
     let mut index = WorkspaceIndex::new();
     let src_url = Url::parse(
         "jar:file:///caches/runtime-desktop-sources.jar!/androidx/compose/runtime/Remember.kt",
@@ -212,7 +212,7 @@ fn test_completion_source_indexed_first_suppresses_bytecode_callable_with_compat
 }
 
 #[test]
-fn test_completion_subsequent_duplicate_bytecode_suppressed_after_source_replacement() {
+fn completion_subsequent_duplicate_bytecode_suppressed_after_source_replacement() {
     let mut index = WorkspaceIndex::new();
     let class_url1 =
         Url::parse("jar:file:///caches/runtime-1.aar!/androidx/compose/runtime/Remember.class")
@@ -272,7 +272,7 @@ fn test_completion_subsequent_duplicate_bytecode_suppressed_after_source_replace
 }
 
 #[test]
-fn test_completion_multi_overload_unique_arity_replaces_bytecode() {
+fn completion_multi_overload_unique_arity_replaces_bytecode() {
     let mut index = WorkspaceIndex::new();
     let class_url =
         Url::parse("jar:file:///caches/runtime.aar!/androidx/compose/runtime/Remember.class")

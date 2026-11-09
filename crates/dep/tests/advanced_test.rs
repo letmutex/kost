@@ -4,7 +4,7 @@ use dep::{
 };
 
 #[test]
-fn test_pom_parent_coordinate_and_property_interpolation() {
+fn pom_parent_coordinate_and_property_interpolation() {
     let xml = r#"<project>
         <parent>
             <groupId>org.example.parent</groupId>
@@ -35,7 +35,7 @@ fn test_pom_parent_coordinate_and_property_interpolation() {
 }
 
 #[tokio::test]
-async fn test_unversioned_direct_dependency_promoted_by_transitive() {
+async fn unversioned_direct_dependency_promoted_by_transitive() {
     let temp_dir = std::env::temp_dir().join("kost_test_unversioned_promotion");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -87,7 +87,7 @@ async fn test_unversioned_direct_dependency_promoted_by_transitive() {
 }
 
 #[tokio::test]
-async fn test_tree_filter_case_insensitive_and_version_match() {
+async fn tree_filter_case_insensitive_and_version_match() {
     let temp_dir = std::env::temp_dir().join("kost_test_filter_case_version");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -111,7 +111,7 @@ async fn test_tree_filter_case_insensitive_and_version_match() {
 }
 
 #[test]
-fn test_path_sanitization_rejects_colon_and_dot() {
+fn path_sanitization_rejects_colon_and_dot() {
     let temp_dir = std::env::temp_dir().join("kost_test_path_sanitization");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -142,7 +142,7 @@ fn test_path_sanitization_rejects_colon_and_dot() {
 }
 
 #[test]
-fn test_pom_parent_property_variables_interpolation() {
+fn pom_parent_property_variables_interpolation() {
     let xml = r#"<project>
         <parent>
             <groupId>org.example.bom</groupId>
@@ -175,7 +175,7 @@ fn test_pom_parent_property_variables_interpolation() {
 }
 
 #[test]
-fn test_script_dependencies_with_classifier() {
+fn script_dependencies_with_classifier() {
     let temp_dir = std::env::temp_dir().join("kost_test_script_classifier");
     let _ = std::fs::create_dir_all(&temp_dir);
     let script_file = temp_dir.join("build.gradle.kts");
@@ -199,7 +199,7 @@ fn test_script_dependencies_with_classifier() {
 }
 
 #[test]
-fn test_repo_kotlin_dsl_shorthand_parsing() {
+fn repo_kotlin_dsl_shorthand_parsing() {
     let mut registry = RepositoryRegistry::new();
     let kts_content = r#"
         repositories {
@@ -224,7 +224,7 @@ fn test_repo_kotlin_dsl_shorthand_parsing() {
 }
 
 #[test]
-fn test_pom_cdata_section_parsing() {
+fn pom_cdata_section_parsing() {
     let xml = r#"<project>
         <groupId>org.example</groupId>
         <artifactId>cdata-lib</artifactId>
@@ -247,7 +247,7 @@ fn test_pom_cdata_section_parsing() {
 }
 
 #[test]
-fn test_tree_renderer_diamond_and_cycle_handling() {
+fn tree_renderer_diamond_and_cycle_handling() {
     // Construct graph with a cycle: node 0 -> node 1 -> node 0
     let node0 = dep::GraphNode {
         coordinate: DependencyCoordinate::parse("org.example:a:1.0").unwrap(),

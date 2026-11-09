@@ -3,7 +3,7 @@ use lsp::indexer::WorkspaceIndex;
 use tower_lsp::lsp_types::{Position, Url};
 
 #[test]
-fn test_generic_type_annotated_variable_member_completion_and_resolution() {
+fn generic_type_annotated_variable_member_completion_and_resolution() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/GenericBoxTest.kt").unwrap();
     let code = r#"
@@ -53,7 +53,7 @@ fun test(box: Box<String>) {
 }
 
 #[test]
-fn test_generic_extension_function_completion_and_resolution() {
+fn generic_extension_function_completion_and_resolution() {
     let mut index = WorkspaceIndex::new();
     let url = Url::parse("file:///project/GenericExtensionTest.kt").unwrap();
     let code = r#"

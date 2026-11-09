@@ -2,7 +2,7 @@ use common::editorconfig::ResolvedEditorConfig;
 use lint::Linter;
 
 #[test]
-fn test_lint_respects_editorconfig_function_naming_ignore_when_annotated_with() {
+fn lint_respects_editorconfig_function_naming_ignore_when_annotated_with() {
     let linter = Linter::standard();
     let code = "@Test\nfun Result_catches_errors() {}\n";
 
@@ -20,7 +20,7 @@ fn test_lint_respects_editorconfig_function_naming_ignore_when_annotated_with() 
 }
 
 #[test]
-fn test_lint_respects_editorconfig_standard_namespaced_function_naming_ignore() {
+fn lint_respects_editorconfig_standard_namespaced_function_naming_ignore() {
     let linter = Linter::standard();
     let code = "@Test\nfun Result_catches_errors() {}\n";
 

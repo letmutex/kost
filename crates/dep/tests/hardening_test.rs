@@ -2,7 +2,7 @@ use dep::pom::PomModel;
 use dep::{DependencyCoordinate, Downloader, GradleCache};
 
 #[test]
-fn test_zero_byte_cache_detection_and_corrupt_file_replacement() {
+fn zero_byte_cache_detection_and_corrupt_file_replacement() {
     let temp_dir = std::env::temp_dir().join("kost_test_zero_byte_cache");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -34,7 +34,7 @@ fn test_zero_byte_cache_detection_and_corrupt_file_replacement() {
 }
 
 #[test]
-fn test_aar_fallback_resolution_in_cache() {
+fn aar_fallback_resolution_in_cache() {
     let temp_dir = std::env::temp_dir().join("kost_test_aar_fallback");
     let _ = std::fs::remove_dir_all(&temp_dir);
 
@@ -55,7 +55,7 @@ fn test_aar_fallback_resolution_in_cache() {
 }
 
 #[tokio::test]
-async fn test_downloader_utf8_lossy_fallback() {
+async fn downloader_utf8_lossy_fallback() {
     let temp_file = std::env::temp_dir().join("kost_test_legacy_iso88591.pom");
     let mut bytes = Vec::new();
     bytes.extend_from_slice(b"<project><description>Cr\xe9dit Agricole</description></project>");
@@ -76,7 +76,7 @@ async fn test_downloader_utf8_lossy_fallback() {
 }
 
 #[test]
-fn test_pom_unprefixed_version_and_group_interpolation() {
+fn pom_unprefixed_version_and_group_interpolation() {
     let xml = r#"<project>
         <groupId>com.legacy.example</groupId>
         <artifactId>parent-pkg</artifactId>
@@ -100,7 +100,7 @@ fn test_pom_unprefixed_version_and_group_interpolation() {
 }
 
 #[tokio::test]
-async fn test_kmp_variant_coordination_in_solved_graph() {
+async fn kmp_variant_coordination_in_solved_graph() {
     let temp_dir = std::env::temp_dir().join("kost_test_kmp_graph_coord");
     let _ = std::fs::remove_dir_all(&temp_dir);
     let cache = GradleCache::new(Some(&temp_dir)).expect("cache");
@@ -133,7 +133,7 @@ async fn test_kmp_variant_coordination_in_solved_graph() {
 }
 
 #[test]
-fn test_pom_xml_parsing_and_interpolation() {
+fn pom_xml_parsing_and_interpolation() {
     let xml = r#"<project>
         <groupId>org.example</groupId>
         <artifactId>sample-lib</artifactId>
@@ -169,7 +169,7 @@ fn test_pom_xml_parsing_and_interpolation() {
 }
 
 #[test]
-fn test_pom_parent_dependency_management_inheritance() {
+fn pom_parent_dependency_management_inheritance() {
     let parent_xml = r#"<project>
         <groupId>org.example</groupId>
         <artifactId>parent-bom</artifactId>
@@ -212,7 +212,7 @@ fn test_pom_parent_dependency_management_inheritance() {
 }
 
 #[test]
-fn test_pom_ignores_plugin_and_profile_dependencies() {
+fn pom_ignores_plugin_and_profile_dependencies() {
     let xml = r#"<project>
         <groupId>org.example</groupId>
         <artifactId>plugin-heavy-pom</artifactId>
@@ -261,7 +261,7 @@ fn test_pom_ignores_plugin_and_profile_dependencies() {
 }
 
 #[test]
-fn test_module_metadata_available_at_redirect_resolution() {
+fn module_metadata_available_at_redirect_resolution() {
     let json = r#"{
         "formatVersion": "1.1",
         "component": {
@@ -291,7 +291,7 @@ fn test_module_metadata_available_at_redirect_resolution() {
 }
 
 #[test]
-fn test_repo_script_parsing_ignores_commented_repositories() {
+fn repo_script_parsing_ignores_commented_repositories() {
     let mut registry = dep::RepositoryRegistry::new();
     let script = r#"
         repositories {

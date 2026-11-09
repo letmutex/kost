@@ -5,7 +5,7 @@ use lint::config::error::ConfigError;
 use lint::config::parse_qualified_import;
 
 #[test]
-fn test_fail_fast_on_unknown_rule_in_structured_import() {
+fn fail_fast_on_unknown_rule_in_structured_import() {
     let yaml = r#"
 lint:
   imports:
@@ -25,7 +25,7 @@ lint:
 }
 
 #[test]
-fn test_fail_fast_on_unknown_rule_in_inline_import() {
+fn fail_fast_on_unknown_rule_in_inline_import() {
     let yaml = r#"
 lint:
   imports:
@@ -43,7 +43,7 @@ lint:
 }
 
 #[test]
-fn test_fail_fast_on_empty_rules_list() {
+fn fail_fast_on_empty_rules_list() {
     let yaml = r#"
 lint:
   imports:
@@ -61,7 +61,7 @@ lint:
 }
 
 #[test]
-fn test_inline_import_non_kebab_case_fails_with_unknown_rule() {
+fn inline_import_non_kebab_case_fails_with_unknown_rule() {
     let yaml = r#"
 lint:
   imports:
@@ -79,7 +79,7 @@ lint:
 }
 
 #[test]
-fn test_ambiguous_unqualified_rule_import_fails() {
+fn ambiguous_unqualified_rule_import_fails() {
     let pid = std::process::id().to_string();
     let temp_dir = std::env::temp_dir().join(common::concat_str!("kost_test_ambig_", &pid));
     std::fs::create_dir_all(&temp_dir).unwrap();
@@ -135,7 +135,7 @@ lint:
 }
 
 #[test]
-fn test_qualified_import_parser_distinguishes_windows_paths_and_rules() {
+fn qualified_import_parser_distinguishes_windows_paths_and_rules() {
     assert_eq!(parse_qualified_import(r"C:\rules\shared.yaml"), None);
     assert_eq!(parse_qualified_import("C:/rules/shared.yaml"), None);
     assert_eq!(

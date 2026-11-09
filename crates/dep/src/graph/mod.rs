@@ -117,7 +117,7 @@ mod tests {
     use super::*;
 
     #[tokio::test]
-    async fn test_graph_deduplication_and_conflict_promotion() {
+    async fn graph_deduplication_and_conflict_promotion() {
         let cache = GradleCache::new(None).unwrap();
         let downloader = Downloader::new(2);
         let registry = RepositoryRegistry::new();

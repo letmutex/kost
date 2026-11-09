@@ -3,7 +3,7 @@ use lint::Linter;
 use smol_str::SmolStr;
 
 #[test]
-fn test_lint_respects_editorconfig_max_line_length_override() {
+fn lint_respects_editorconfig_max_line_length_override() {
     let linter = Linter::standard();
     // 70 characters line
     let code = "val myLongVariableIdentifierName = \"Some text here that makes it long\"\n";
@@ -25,7 +25,7 @@ fn test_lint_respects_editorconfig_max_line_length_override() {
 }
 
 #[test]
-fn test_lint_respects_editorconfig_max_line_length_disabled() {
+fn lint_respects_editorconfig_max_line_length_disabled() {
     let linter = Linter::standard();
     let long_line = "val x = \"".to_string() + &"a".repeat(160) + "\"\n";
 
@@ -52,7 +52,7 @@ fn test_lint_respects_editorconfig_max_line_length_disabled() {
 }
 
 #[test]
-fn test_lint_disables_ast_rule_via_editorconfig_toggle() {
+fn lint_disables_ast_rule_via_editorconfig_toggle() {
     let linter = Linter::standard();
     let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
 
@@ -81,7 +81,7 @@ fn test_lint_disables_ast_rule_via_editorconfig_toggle() {
 }
 
 #[test]
-fn test_lint_disables_entire_standard_ruleset_via_editorconfig() {
+fn lint_disables_entire_standard_ruleset_via_editorconfig() {
     let linter = Linter::standard();
     let code = "fun main() {\n    val a = 1; ; val b = 2\n}";
 
@@ -93,7 +93,7 @@ fn test_lint_disables_entire_standard_ruleset_via_editorconfig() {
 }
 
 #[test]
-fn test_lint_re_enables_specific_rule_when_ruleset_disabled() {
+fn lint_re_enables_specific_rule_when_ruleset_disabled() {
     let linter = Linter::standard();
     let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
 
@@ -109,7 +109,7 @@ fn test_lint_re_enables_specific_rule_when_ruleset_disabled() {
 }
 
 #[test]
-fn test_lint_respects_editorconfig_final_newline_disabled() {
+fn lint_respects_editorconfig_final_newline_disabled() {
     let linter = Linter::standard();
     let code = "val x = 1";
 
@@ -134,7 +134,7 @@ fn test_lint_respects_editorconfig_final_newline_disabled() {
 }
 
 #[test]
-fn test_lint_respects_editorconfig_trailing_comma_call_site_flag() {
+fn lint_respects_editorconfig_trailing_comma_call_site_flag() {
     let linter = Linter::standard();
     let multiline_call_without_comma = "fun test() {\n    foo(\n        1,\n        2\n    )\n}\n";
 
@@ -165,7 +165,7 @@ fn test_lint_respects_editorconfig_trailing_comma_call_site_flag() {
 }
 
 #[test]
-fn test_lint_call_site_inherits_declaration_site_trailing_comma_flag() {
+fn lint_call_site_inherits_declaration_site_trailing_comma_flag() {
     let linter = Linter::standard();
     let multiline_call = "fun test() {\n    foo(\n        1,\n        2\n    )\n}\n";
 
@@ -183,7 +183,7 @@ fn test_lint_call_site_inherits_declaration_site_trailing_comma_flag() {
 }
 
 #[test]
-fn test_lint_disables_ast_rule_via_underscore_rule_toggle() {
+fn lint_disables_ast_rule_via_underscore_rule_toggle() {
     let linter = Linter::standard();
     let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
 
@@ -210,7 +210,7 @@ fn test_lint_disables_ast_rule_via_underscore_rule_toggle() {
 }
 
 #[test]
-fn test_lint_respects_editorconfig_trailing_comma_declaration_site_disabled() {
+fn lint_respects_editorconfig_trailing_comma_declaration_site_disabled() {
     let linter = Linter::standard();
     let multiline_param_with_comma = "fun foo(\n    a: Int,\n    b: Int,\n) {}\n";
     let multiline_param_without_comma = "fun foo(\n    a: Int,\n    b: Int\n) {}\n";
@@ -241,7 +241,7 @@ fn test_lint_respects_editorconfig_trailing_comma_declaration_site_disabled() {
 }
 
 #[test]
-fn test_lint_respects_editorconfig_trim_trailing_whitespace_disabled() {
+fn lint_respects_editorconfig_trim_trailing_whitespace_disabled() {
     let linter = Linter::standard();
     let code_with_trailing = "fun main() {   \n}\n";
 
@@ -267,7 +267,7 @@ fn test_lint_respects_editorconfig_trim_trailing_whitespace_disabled() {
 }
 
 #[test]
-fn test_lint_respects_editorconfig_indent_style_tab() {
+fn lint_respects_editorconfig_indent_style_tab() {
     let linter = Linter::standard();
     let tab_indented_code = "fun main() {\n\tprintln(\"hello\")\n}\n";
 
@@ -292,7 +292,7 @@ fn test_lint_respects_editorconfig_indent_style_tab() {
 }
 
 #[test]
-fn test_lint_disables_all_rules_via_global_ktlint_toggle() {
+fn lint_disables_all_rules_via_global_ktlint_toggle() {
     let linter = Linter::standard();
     let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
 
@@ -306,7 +306,7 @@ fn test_lint_disables_all_rules_via_global_ktlint_toggle() {
 }
 
 #[test]
-fn test_lint_global_ktlint_disabled_overridden_by_ruleset_toggle() {
+fn lint_global_ktlint_disabled_overridden_by_ruleset_toggle() {
     let linter = Linter::standard();
     let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
 
@@ -325,7 +325,7 @@ fn test_lint_global_ktlint_disabled_overridden_by_ruleset_toggle() {
 }
 
 #[test]
-fn test_lint_global_ktlint_disabled_overridden_by_specific_rule_toggle() {
+fn lint_global_ktlint_disabled_overridden_by_specific_rule_toggle() {
     let linter = Linter::standard();
     let code = "fun main() {\n    val a = 1; ; val b = 2\n}\n";
 

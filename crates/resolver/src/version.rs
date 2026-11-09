@@ -220,7 +220,7 @@ mod tests {
     use super::{ArtifactVersion, select_best_version};
 
     #[test]
-    fn test_version_ordering_precedence() {
+    fn version_ordering_precedence() {
         let v1 = ArtifactVersion::parse("1.12.0");
         let v2 = ArtifactVersion::parse("1.15.0");
         assert!(v2 > v1);
@@ -242,14 +242,14 @@ mod tests {
     }
 
     #[test]
-    fn test_large_digit_version_parsing_without_overflow() {
+    fn large_digit_version_parsing_without_overflow() {
         let v1 = ArtifactVersion::parse("1.0.0-20241030123456789012345");
         let v2 = ArtifactVersion::parse("1.0.0-20241030123456789012346");
         assert!(v2 > v1);
     }
 
     #[test]
-    fn test_version_stability_classification() {
+    fn version_stability_classification() {
         assert!(ArtifactVersion::parse("1.15.0").is_stable());
         assert!(ArtifactVersion::parse("1.15.0-final").is_stable());
         assert!(ArtifactVersion::parse("1.15.0-release").is_stable());
@@ -269,7 +269,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_best_version_prefers_stable() {
+    fn select_best_version_prefers_stable() {
         let versions = vec![
             ArtifactVersion::parse("1.2.0"),
             ArtifactVersion::parse("1.3.0-rc01"),
@@ -280,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    fn test_select_best_version_prerelease_fallback() {
+    fn select_best_version_prerelease_fallback() {
         let versions = vec![
             ArtifactVersion::parse("0.1.0-alpha01"),
             ArtifactVersion::parse("0.2.0-beta02"),
