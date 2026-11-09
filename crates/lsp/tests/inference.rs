@@ -28,6 +28,7 @@ mod inference {
     mod test_lambda_return;
     mod test_local_function;
     mod test_model;
+    mod test_nested_return_lambda;
     mod test_nothing_type;
     mod test_overload;
     mod test_overload_advanced;

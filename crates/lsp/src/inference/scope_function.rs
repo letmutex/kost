@@ -45,24 +45,6 @@ pub fn resolve_scope_keyword_receiver(
     None
 }
 
-fn infer_lambda_param_from_decl(
-    index: &WorkspaceIndex,
-    current_url: &Url,
-    decl_node: Node,
-    source: &str,
-) -> Option<KotlinType> {
-    let type_str = crate::parser::extract_type_annotation(&decl_node, source)?;
-    let raw_type = super::typealias::resolve_type_alias_or_import(index, current_url, type_str);
-    let full = resolve_full_type_name(index, current_url, &raw_type);
-    let parsed = super::types::parse_type_signature(&full)?;
-    if let KotlinType::Function { params, .. } = parsed.unwrap_nullable_ref()
-        && params.len() == 1
-    {
-        return Some(params[0].clone());
-    }
-    None
-}
-
 enum LambdaCallItResult {
     Resolved(KotlinType),
     ReceiverOnly,
@@ -179,14 +161,27 @@ pub fn resolve_it_keyword_after_byte_traced(
             }
         }
 
-        if let Some(decl_node) =
-            super::lambda_ast::find_enclosing_typed_decl_for_lambda(lambda_node)
-            && let Some(t_inferred) =
-                infer_lambda_param_from_decl(index, current_url, decl_node, source)
+        if let Some(expected_ty) = super::lambda::resolve_expected_type_for_expr(
+            index,
+            current_url,
+            lambda_node,
+            pos,
+            source,
+            root,
+            depth + 1,
+        ) && let KotlinType::Function { params, .. } = expected_ty.unwrap_nullable_ref()
         {
-            tracer.record_step(|| "Resolved from enclosing typed declaration".to_string());
-            tracer.exit_scope_type(Some(&t_inferred));
-            return Some(t_inferred);
+            if params.len() == 1 {
+                let res = params[0].clone();
+                tracer.record_step(|| "Resolved from expected functional type".to_string());
+                tracer.exit_scope_type(Some(&res));
+                return Some(res);
+            } else if params.is_empty() {
+                continue;
+            } else {
+                tracer.exit_scope(None);
+                return None;
+            }
         }
     }
 

@@ -23,6 +23,7 @@ pub(crate) struct LambdaSolveCtx<'a> {
     pub(crate) current_url: &'a Url,
     pub(crate) receiver_type: Option<&'a KotlinType>,
     pub(crate) explicit_type_args: &'a [KotlinType],
+    pub(crate) expected_return_type: Option<KotlinType>,
     pub(crate) parsed_args: Vec<ParsedCallArg>,
     pub(crate) inferred_arg_types: Vec<Option<KotlinType>>,
     pub(crate) arg_idx: usize,
@@ -73,6 +74,7 @@ impl<'a> LambdaSolveCtx<'a> {
             current_url,
             receiver_type,
             explicit_type_args,
+            expected_return_type: None,
             parsed_args,
             inferred_arg_types,
             arg_idx,
@@ -87,6 +89,7 @@ impl<'a> LambdaSolveCtx<'a> {
     pub(crate) fn with_receiver(&self, receiver_type: &'a KotlinType) -> Self {
         Self {
             receiver_type: Some(receiver_type),
+            expected_return_type: self.expected_return_type.clone(),
             parsed_args: self.parsed_args.clone(),
             inferred_arg_types: self.inferred_arg_types.clone(),
             ..*self
@@ -156,6 +159,18 @@ impl<'a> LambdaSolveCtx<'a> {
             {
                 return false;
             }
+        }
+        if let Some(ref exp_ret) = self.expected_return_type
+            && !exp_ret.is_any()
+            && let Some(decl_ret) =
+                sig_info
+                    .and_then(|info| info.return_type.clone())
+                    .or_else(|| {
+                        crate::syntax::signature::extract_return_type_from_signature(sig)
+                            .and_then(|r_str| system.parse_with_params(&r_str))
+                    })
+        {
+            system.add_subtype_constraint(exp_ret, &decl_ret);
         }
         true
     }

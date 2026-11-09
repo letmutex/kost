@@ -1,24 +1,29 @@
 use tree_sitter::Node;
 
-/// Find enclosing call expression and lambda literal node from a parameter node
-pub fn find_enclosing_call_and_lambda(start_node: Node) -> Option<(Node, Node)> {
+/// Find the innermost enclosing lambda literal node from a node
+pub fn find_innermost_enclosing_lambda(start_node: Node) -> Option<Node> {
     let mut current = Some(start_node);
-    let mut lambda_node = None;
-
     while let Some(node) = current {
         let k = node.kind();
-        if k == "lambda_literal" && lambda_node.is_none() {
-            lambda_node = Some(node);
-        } else if k == "call_expression" {
-            if let Some(l) = lambda_node {
-                return Some((node, l));
-            }
-        } else if matches!(k, "function_declaration" | "class_declaration") {
+        if k == "lambda_literal" {
+            return Some(node);
+        }
+        if matches!(
+            k,
+            "function_declaration" | "class_declaration" | "source_file"
+        ) {
             break;
         }
         current = node.parent();
     }
     None
+}
+
+/// Find enclosing call expression and lambda literal node from a parameter node
+pub fn find_enclosing_call_and_lambda(start_node: Node) -> Option<(Node, Node)> {
+    let lambda_node = find_innermost_enclosing_lambda(start_node)?;
+    let call_node = find_call_for_lambda(lambda_node)?;
+    Some((call_node, lambda_node))
 }
 
 /// Collect enclosing lambda literals from a node walking outwards
@@ -54,7 +59,9 @@ pub fn find_call_for_lambda(lambda_node: Node) -> Option<Node> {
         }
         if matches!(
             k,
-            "function_declaration"
+            "lambda_literal"
+                | "statements"
+                | "function_declaration"
                 | "class_declaration"
                 | "source_file"
                 | "property_declaration"
