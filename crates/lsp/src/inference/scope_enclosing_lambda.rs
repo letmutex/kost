@@ -234,7 +234,7 @@ pub fn resolve_lambda_type_for_call_and_lambda(
         })
     });
     let call_pos = crate::position::point_to_position(call_node.start_position());
-    let ctx = LambdaSolveCtx::new(
+    let mut ctx = LambdaSolveCtx::new(
         index,
         current_url,
         None,
@@ -246,6 +246,15 @@ pub fn resolve_lambda_type_for_call_and_lambda(
         source,
         root,
         depth,
+    );
+    ctx.expected_return_type = super::lambda::resolve_expected_type_for_expr(
+        index,
+        current_url,
+        call_node,
+        call_pos,
+        source,
+        root,
+        depth + 1,
     );
 
     dispatch_enclosing_lambda_callee(ctx, callee_node, callee_clean)
@@ -260,15 +269,34 @@ pub fn resolve_enclosing_lambda_type(
     root: Option<Node>,
     depth: usize,
 ) -> Option<(KotlinType, Option<SmolStr>)> {
-    let (call_node, l_node) = super::lambda_ast::find_enclosing_call_and_lambda(lambda_node)?;
-    resolve_lambda_type_for_call_and_lambda(
+    if depth > super::MAX_INFERENCE_DEPTH {
+        return None;
+    }
+    let l_node = if lambda_node.kind() == "lambda_literal" {
+        lambda_node
+    } else {
+        super::lambda_ast::find_innermost_enclosing_lambda(lambda_node)?
+    };
+    if let Some(call_node) = super::lambda_ast::find_call_for_lambda(l_node) {
+        return resolve_lambda_type_for_call_and_lambda(
+            index,
+            current_url,
+            call_node,
+            l_node,
+            pos,
+            source,
+            root,
+            depth,
+        );
+    }
+    super::lambda::resolve_expected_type_for_expr(
         index,
         current_url,
-        call_node,
         l_node,
         pos,
         source,
         root,
         depth,
     )
+    .map(|ty| (ty, None))
 }
