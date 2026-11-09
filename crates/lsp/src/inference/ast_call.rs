@@ -193,6 +193,46 @@ fn infer_view_arg_types(ctx: &mut AstEvalContext, view: &AstCallView) -> Vec<Opt
         .collect()
 }
 
+fn infer_unqualified_call_node(
+    ctx: &mut AstEvalContext,
+    node: Node,
+    call_view: Option<&AstCallView>,
+) -> Option<KotlinType> {
+    let call_text = ctx.node_text(node)?;
+    let call_pos = find_call_pos(call_view, node);
+    let direct = if super::lambda_call::is_call_with_lambda(call_text) {
+        super::lambda_call::resolve_higher_order_call(
+            ctx.ctx.reborrow().at_pos(call_pos),
+            None,
+            call_text,
+        )
+    } else {
+        super::function::find_function_return_type_depth(
+            ctx.index,
+            ctx.current_url,
+            call_text,
+            call_pos,
+            ctx.source,
+            ctx.root,
+            ctx.depth,
+        )
+    };
+    if direct.is_some() {
+        return direct;
+    }
+    for i in (0..ctx.scope_stack.len()).rev() {
+        let rec = ctx.scope_stack[i].clone();
+        if let Some(member_ty) = super::member::resolve_member_type_kt_depth_traced(
+            ctx.sub_with_pos(call_pos),
+            &rec,
+            call_text,
+        ) {
+            return Some(member_ty);
+        }
+    }
+    None
+}
+
 /// Infer call expression (e.g. `foo()`, `obj.method()`, or call with lambda)
 pub fn infer_call_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinType> {
     let call_view = AstCallView::from_node(node);
@@ -243,24 +283,6 @@ pub fn infer_call_node(ctx: &mut AstEvalContext, node: Node) -> Option<KotlinTyp
         }
         Some(kt_res)
     } else {
-        let call_text = ctx.node_text(node)?;
-        let call_pos = find_call_pos(call_view.as_ref(), node);
-        if super::lambda_call::is_call_with_lambda(call_text) {
-            super::lambda_call::resolve_higher_order_call(
-                ctx.ctx.reborrow().at_pos(call_pos),
-                None,
-                call_text,
-            )
-        } else {
-            super::function::find_function_return_type_depth(
-                ctx.index,
-                ctx.current_url,
-                call_text,
-                call_pos,
-                ctx.source,
-                ctx.root,
-                ctx.depth,
-            )
-        }
+        infer_unqualified_call_node(ctx, node, call_view.as_ref())
     }
 }

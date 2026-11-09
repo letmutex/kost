@@ -29,6 +29,7 @@ pub struct DeclarationItem {
     pub selection_range: Range,
     pub doc_comment: Option<SmolStr>,
     pub signature: Option<SmolStr>,
+    pub expr_body: Option<SmolStr>,
     pub container_name: Option<SmolStr>,
     pub is_private: bool,
     pub is_override: bool,
@@ -40,6 +41,7 @@ pub struct DeclarationItem {
 pub struct DeclarationMetadata {
     pub doc_comment: Option<SmolStr>,
     pub signature: Option<SmolStr>,
+    pub expr_body: Option<SmolStr>,
     pub container_name: Option<SmolStr>,
     pub is_private: bool,
     pub is_override: bool,
@@ -57,6 +59,7 @@ impl DeclarationMetadata {
         Self {
             doc_comment,
             signature,
+            expr_body: None,
             container_name,
             is_private,
             is_override: false,
@@ -76,6 +79,7 @@ impl DeclarationMetadata {
         Self {
             doc_comment,
             signature,
+            expr_body: None,
             container_name,
             is_private,
             is_override,
@@ -107,6 +111,7 @@ impl DeclarationItem {
             selection_range,
             doc_comment: metadata.doc_comment,
             signature: metadata.signature,
+            expr_body: metadata.expr_body,
             container_name: metadata.container_name,
             is_private: metadata.is_private,
             is_override: metadata.is_override,
@@ -308,6 +313,12 @@ pub fn create_declaration_item(
         modifiers,
     );
     metadata.is_expect = has_expect_modifier(&decl_node, source);
+    if matches!(actual_kind, SymbolKind::FUNCTION | SymbolKind::PROPERTY)
+        && crate::parser::extract_type_annotation(&decl_node, source).is_none()
+    {
+        metadata.expr_body =
+            super::ast_extra::extract_single_expression_body(&decl_node, source).map(SmolStr::new);
+    }
 
     DeclarationItem::new(
         name,

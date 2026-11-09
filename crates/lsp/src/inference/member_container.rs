@@ -143,9 +143,20 @@ fn resolve_decl_by_signature(
             inferred_arg_types,
         );
     }
-    let target_ret = super::signature::SignatureInfo::from_decl(decl)
-        .and_then(|info| info.return_type)
-        .or_else(|| extract_return_type_from_signature(sig).and_then(|s| KotlinType::parse(&s)))?;
+    let sig_info = super::signature::SignatureInfo::from_decl(decl);
+    let target_ret = sig_info
+        .as_ref()
+        .and_then(|info| info.return_type.clone())
+        .or_else(|| extract_return_type_from_signature(sig).and_then(|s| KotlinType::parse(&s)))
+        .or_else(|| {
+            super::lambda_call_candidate::infer_decl_single_expression_return_type(
+                ctx.index,
+                url,
+                decl,
+                sig_info.as_ref(),
+                ctx.depth + 1,
+            )
+        })?;
     let index = ctx.index;
     let solved = solve_call_decl_return_type_traced(
         ctx,
@@ -163,6 +174,15 @@ fn resolve_container_decl_from_source(
     url: &Url,
     decl: &crate::indexer::DeclarationItem,
 ) -> Option<KotlinType> {
+    if let Some(inferred) = super::lambda_call_candidate::infer_decl_single_expression_return_type(
+        ctx.index,
+        url,
+        decl,
+        None,
+        ctx.depth + 1,
+    ) {
+        return Some(inferred);
+    }
     if url == ctx.current_url
         && let Some(inferred) = super::function::infer_single_expression_function_return_type(
             ctx.index,
@@ -179,7 +199,7 @@ fn resolve_container_decl_from_source(
     {
         return Some(inferred);
     }
-    if url.as_str().starts_with("jar:") {
+    if !crate::indexer::is_source_url(url) {
         return None;
     }
     let decl_source = ctx.index.get_file_source(url)?;

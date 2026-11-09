@@ -218,3 +218,108 @@ fun run() {
         Some(KotlinType::STRING)
     );
 }
+
+fn setup_compose_source_jar_index() -> WorkspaceIndex {
+    let mut index = WorkspaceIndex::new();
+    let modifier_jar_url =
+        Url::parse("jar:file:///caches/ui-sources.jar!/androidx/compose/ui/Modifier.kt").unwrap();
+    let modifier_jar_source = r#"
+package androidx.compose.ui
+
+interface Modifier {
+    infix fun then(other: Modifier): Modifier =
+        if (other === Modifier) this else CombinedModifier(this, other)
+
+    companion object : Modifier {
+        override infix fun then(other: Modifier): Modifier = other
+    }
+}
+
+class CombinedModifier(val outer: Modifier, val inner: Modifier) : Modifier
+"#;
+    index.index_source(modifier_jar_url.clone(), modifier_jar_source);
+    index.sources.remove(&modifier_jar_url);
+
+    let size_jar_url = Url::parse(
+        "jar:file:///caches/foundation-layout-sources.jar!/androidx/compose/foundation/layout/Size.kt",
+    )
+    .unwrap();
+    let size_jar_source = r#"
+package androidx.compose.foundation.layout
+
+import androidx.compose.ui.Modifier
+
+class Density
+private class SizeModifier : Modifier
+
+fun Modifier.width(width: Density.() -> Int) =
+    this.then(
+        SizeModifier(
+            minWidth = width,
+            maxWidth = width,
+            enforceIncoming = true,
+            inspectorInfo =
+                debugInspectorInfo {
+                    name = "width"
+                    value = width
+                }
+        )
+    )
+
+fun Modifier.fillMaxWidth(fraction: Float = 1f) =
+    this.then(SizeModifier())
+
+fun defaultModifier(base: Modifier) =
+    base.fillMaxWidth()
+"#;
+    index.index_source(size_jar_url.clone(), size_jar_source);
+    index.sources.remove(&size_jar_url);
+    index
+}
+
+#[test]
+fn test_source_jar_multiline_single_expression_extension_and_member_return_type() {
+    let mut index = setup_compose_source_jar_index();
+    let app_url = Url::parse("file:///project/Screen.kt").unwrap();
+    let app_code = r#"
+package com.example.app
+
+import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.defaultModifier
+
+fun Screen(mod: Modifier) {
+    val sizedWithLambda = mod.width { 100 }
+    val filled = mod.fillMaxWidth()
+    val chained = mod.width { 100 }.fillMaxWidth()
+    val fromTopLevel = defaultModifier(mod)
+    val x = 1
+}
+"#;
+    index.index_source(app_url.clone(), app_code);
+
+    let expected_modifier = Some(KotlinType::simple_class("androidx.compose.ui.Modifier"));
+    let pos = Position::new(13, 4);
+
+    assert_eq!(
+        infer_variable_type(&index, &app_url, "sizedWithLambda", pos, app_code, None),
+        expected_modifier,
+        "Higher-order multiline single-expression extension in -sources.jar should infer Modifier"
+    );
+    assert_eq!(
+        infer_variable_type(&index, &app_url, "filled", pos, app_code, None),
+        expected_modifier,
+        "Regular multiline single-expression extension in -sources.jar should infer Modifier"
+    );
+    assert_eq!(
+        infer_variable_type(&index, &app_url, "chained", pos, app_code, None),
+        expected_modifier,
+        "Chained calls on multiline single-expression extensions in -sources.jar should infer Modifier"
+    );
+    assert_eq!(
+        infer_variable_type(&index, &app_url, "fromTopLevel", pos, app_code, None),
+        expected_modifier,
+        "Top-level multiline single-expression function in -sources.jar should infer Modifier"
+    );
+}
