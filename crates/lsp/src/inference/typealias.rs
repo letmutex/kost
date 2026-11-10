@@ -84,7 +84,7 @@ fn resolve_file_alias_or_import(
     }
     for import in &file.imports {
         if import.alias.as_deref() == Some(base) {
-            let imported = import.path.rsplit('.').next().unwrap_or(base);
+            let imported = import.path.as_str();
             return Some(if args.is_empty() {
                 imported.to_string()
             } else {
@@ -101,22 +101,36 @@ fn resolve_cross_file_alias<'a>(
     base: &str,
     args: &[String],
 ) -> Option<(&'a Url, String)> {
-    let decls = index.name_to_decls.get(base)?;
+    let (pkg_filter, simple_name) = match base.rsplit_once('.') {
+        Some((pkg, name)) => (Some(pkg), name),
+        None => (None, base),
+    };
+    let decls = index.name_to_decls.get(simple_name)?;
     for (decl_url, decl) in decls {
-        if decl.kind == SymbolKind::TYPE_PARAMETER
-            && !decl.is_private
-            && crate::inference::qualification::is_declaration_visible(
+        let is_visible = match pkg_filter {
+            Some(pkg) => {
+                index
+                    .files
+                    .get(decl_url.as_ref())
+                    .and_then(|f| f.package_name.as_deref())
+                    == Some(pkg)
+            }
+            None => crate::inference::qualification::is_declaration_visible(
                 index,
                 active_url,
                 decl_url.as_ref(),
                 decl,
-            )
+            ),
+        };
+        if decl.kind == SymbolKind::TYPE_PARAMETER
+            && !decl.is_private
+            && is_visible
             && let Some(target) = index
                 .files
                 .get(decl_url.as_ref())
-                .and_then(|f| f.type_aliases.get(base))
+                .and_then(|f| f.type_aliases.get(simple_name))
         {
-            let expanded = expand_alias_target(index, decl_url.as_ref(), base, target, args);
+            let expanded = expand_alias_target(index, decl_url.as_ref(), simple_name, target, args);
             return Some((decl_url.as_ref(), expanded));
         }
     }

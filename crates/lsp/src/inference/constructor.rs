@@ -70,9 +70,12 @@ fn is_matching_decl(
     decl: &DeclarationItem,
     full: &str,
     is_qualified_call: bool,
+    is_resolved_alias: bool,
 ) -> bool {
     let visible = if is_qualified_call {
         is_nested_declaration_visible_via_container(index, current_url, url, decl)
+    } else if is_resolved_alias && full.contains('.') {
+        !decl.is_private || url == current_url
     } else {
         is_declaration_visible(index, current_url, url, decl)
     };
@@ -112,10 +115,10 @@ fn find_constructor_decl_name<'a>(
     fn_name: &'a str,
     simple_target: &'a str,
 ) -> Option<&'a str> {
-    if index.name_to_decls.contains_key(fn_name) {
-        Some(fn_name)
-    } else if index.name_to_decls.contains_key(simple_target) {
+    if index.name_to_decls.contains_key(simple_target) {
         Some(simple_target)
+    } else if index.name_to_decls.contains_key(fn_name) {
+        Some(fn_name)
     } else {
         None
     }
@@ -173,6 +176,7 @@ pub fn find_constructor_return_type(
     let decls = ctx.index.name_to_decls.get(decl_name)?;
     let full = resolve_constructor_full_name(ctx.index, ctx.current_url, fn_name, decls);
 
+    let is_resolved_alias = effective_name != fn_name && !effective_name.contains("->");
     let mut sorted_decls: Vec<_> = decls
         .iter()
         .filter(|(url, decl)| {
@@ -183,6 +187,7 @@ pub fn find_constructor_return_type(
                 decl,
                 &full,
                 fn_name.contains('.'),
+                is_resolved_alias,
             )
         })
         .collect();
