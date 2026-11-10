@@ -9,14 +9,74 @@ use super::qualification::resolve_full_type_name;
 use super::types::KotlinType;
 use crate::indexer::{DeclarationItem, WorkspaceIndex};
 
+pub fn is_nested_declaration_visible_via_container(
+    index: &WorkspaceIndex,
+    current_url: &Url,
+    decl_url: &Url,
+    decl: &DeclarationItem,
+) -> bool {
+    if decl.is_private && decl_url != current_url {
+        return false;
+    }
+    if is_declaration_visible(index, current_url, decl_url, decl) {
+        return true;
+    }
+    let Some(ref container) = decl.container_name else {
+        return false;
+    };
+    let Some(decl_file) = index.files.get(decl_url) else {
+        return false;
+    };
+    let mut prefix = String::new();
+    for seg in container.split('.') {
+        let parent_opt = (!prefix.is_empty()).then_some(prefix.as_str());
+        if let Some(c_decl) = decl_file
+            .declarations
+            .iter()
+            .find(|d| d.name == seg && d.container_name.as_deref() == parent_opt)
+            && c_decl.is_private
+            && decl_url != current_url
+        {
+            return false;
+        }
+        prefix = if prefix.is_empty() {
+            seg.to_string()
+        } else {
+            common::concat_str!(prefix, ".", seg)
+        };
+    }
+    for seg in container.split('.') {
+        if let Some(c_decl) = decl_file.declarations.iter().find(|d| {
+            d.name == seg
+                && matches!(
+                    d.kind,
+                    SymbolKind::CLASS
+                        | SymbolKind::INTERFACE
+                        | SymbolKind::OBJECT
+                        | SymbolKind::ENUM
+                )
+        }) && is_declaration_visible(index, current_url, decl_url, c_decl)
+        {
+            return true;
+        }
+    }
+    false
+}
+
 fn is_matching_decl(
     index: &WorkspaceIndex,
     current_url: &Url,
     url: &Url,
     decl: &DeclarationItem,
     full: &str,
+    is_qualified_call: bool,
 ) -> bool {
-    if !is_declaration_visible(index, current_url, url, decl) {
+    let visible = if is_qualified_call {
+        is_nested_declaration_visible_via_container(index, current_url, url, decl)
+    } else {
+        is_declaration_visible(index, current_url, url, decl)
+    };
+    if !visible {
         return false;
     }
     if !full.contains('.') {
@@ -116,7 +176,14 @@ pub fn find_constructor_return_type(
     let mut sorted_decls: Vec<_> = decls
         .iter()
         .filter(|(url, decl)| {
-            is_matching_decl(ctx.index, ctx.current_url, url.as_ref(), decl, &full)
+            is_matching_decl(
+                ctx.index,
+                ctx.current_url,
+                url.as_ref(),
+                decl,
+                &full,
+                fn_name.contains('.'),
+            )
         })
         .collect();
 
@@ -188,4 +255,47 @@ fn infer_generic_constructor_return_type(
         }
     }
     None
+}
+
+pub fn resolve_container_constructor_decl(
+    ctx: InferenceContext<'_, '_, '_>,
+    container_type: &str,
+    decl: &crate::indexer::DeclarationItem,
+    sig: &str,
+    call_info: &CallInfo,
+    inferred_arg_types: Option<&[Option<KotlinType>]>,
+) -> Option<KotlinType> {
+    let bare = container_type
+        .split('<')
+        .next()
+        .unwrap_or(container_type)
+        .trim();
+    let full = common::concat_str!(bare, ".", decl.name);
+    if !call_info.explicit_type_args.is_empty() {
+        let parameterized =
+            common::concat_str!(full, "<", call_info.explicit_type_args.join(", "), ">");
+        return super::types::parse_type_signature(&parameterized);
+    }
+    let type_params = if let Some(sig_info) = super::signature::SignatureInfo::from_decl(decl) {
+        sig_info
+            .type_params
+            .iter()
+            .map(|p| p.name.to_string())
+            .collect()
+    } else {
+        super::generics::extract_generic_type_params(sig)
+    };
+    if !type_params.is_empty() && !call_info.value_args.is_empty() {
+        let template = common::concat_str!(full, "<", type_params.join(", "), ">");
+        let solved = super::call::solve_call_generic_return_type_traced(
+            ctx,
+            sig,
+            &template,
+            Some(container_type),
+            call_info,
+            inferred_arg_types,
+        );
+        return Some(solved);
+    }
+    super::types::parse_type_signature(&full)
 }

@@ -231,3 +231,36 @@ val w = CustomWidget()
         "unrelated class with name matching alias must not be visible"
     );
 }
+
+#[test]
+fn infer_imported_deeply_nested_class_constructor() {
+    let mut index = WorkspaceIndex::new();
+    let a_url = Url::parse("file:///project/a/Outer.kt").unwrap();
+    let a_code = r#"
+package a
+
+sealed class Outer {
+    sealed class Inner {
+        class Text : Inner()
+        class Image : Inner()
+    }
+}
+"#;
+    index.index_source(a_url, a_code);
+
+    let b_url = Url::parse("file:///project/b/Main.kt").unwrap();
+    let b_code = r#"
+package b
+
+import a.Outer
+
+fun main() {
+    val part = Outer.Inner.Text()
+}
+"#;
+    index.index_source(b_url.clone(), b_code);
+
+    let pos = Position::new(6, 8);
+    let inferred = infer_variable_type(&index, &b_url, "part", pos, b_code, None);
+    assert_eq!(inferred, KotlinType::parse("a.Outer.Inner.Text"));
+}

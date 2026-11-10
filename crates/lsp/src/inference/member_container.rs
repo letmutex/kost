@@ -78,49 +78,6 @@ pub fn resolve_container_members(
     None
 }
 
-fn resolve_container_constructor_decl(
-    ctx: InferenceContext<'_, '_, '_>,
-    container_type: &str,
-    decl: &crate::indexer::DeclarationItem,
-    sig: &str,
-    call_info: &CallInfo,
-    inferred_arg_types: Option<&[Option<KotlinType>]>,
-) -> Option<KotlinType> {
-    let bare = container_type
-        .split('<')
-        .next()
-        .unwrap_or(container_type)
-        .trim();
-    let full = common::concat_str!(bare, ".", decl.name);
-    if !call_info.explicit_type_args.is_empty() {
-        let parameterized =
-            common::concat_str!(full, "<", call_info.explicit_type_args.join(", "), ">");
-        return super::types::parse_type_signature(&parameterized);
-    }
-    let type_params = if let Some(sig_info) = super::signature::SignatureInfo::from_decl(decl) {
-        sig_info
-            .type_params
-            .iter()
-            .map(|p| p.name.to_string())
-            .collect()
-    } else {
-        super::generics::extract_generic_type_params(sig)
-    };
-    if !type_params.is_empty() && !call_info.value_args.is_empty() {
-        let template = common::concat_str!(full, "<", type_params.join(", "), ">");
-        let solved = super::call::solve_call_generic_return_type_traced(
-            ctx,
-            sig,
-            &template,
-            Some(container_type),
-            call_info,
-            inferred_arg_types,
-        );
-        return Some(solved);
-    }
-    super::types::parse_type_signature(&full)
-}
-
 fn resolve_decl_by_signature(
     ctx: InferenceContext<'_, '_, '_>,
     container_type: &str,
@@ -131,10 +88,15 @@ fn resolve_decl_by_signature(
 ) -> Option<KotlinType> {
     let sig = decl.signature.as_deref()?;
     if matches!(decl.kind, SymbolKind::CLASS | SymbolKind::CONSTRUCTOR) {
-        if !super::qualification::is_declaration_visible(ctx.index, ctx.current_url, url, decl) {
+        if !super::constructor::is_nested_declaration_visible_via_container(
+            ctx.index,
+            ctx.current_url,
+            url,
+            decl,
+        ) {
             return None;
         }
-        return resolve_container_constructor_decl(
+        return super::constructor::resolve_container_constructor_decl(
             ctx,
             container_type,
             decl,
@@ -323,7 +285,12 @@ fn resolve_container_symbol_decl(
     tracer: &mut Tracer,
 ) -> Option<KotlinType> {
     if matches!(decl.kind, SymbolKind::CLASS | SymbolKind::OBJECT) {
-        if !super::qualification::is_declaration_visible(index, current_url, url, decl) {
+        if !super::constructor::is_nested_declaration_visible_via_container(
+            index,
+            current_url,
+            url,
+            decl,
+        ) {
             return None;
         }
         let full = common::concat_str!(container_str, ".", decl.name);
