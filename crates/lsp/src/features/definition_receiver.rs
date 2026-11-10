@@ -177,6 +177,7 @@ pub fn find_explicit_import_definition(
     for import in &file_symbols.imports {
         let is_alias = import.alias.as_deref() == Some(symbol_name);
         let is_explicit = !import.is_star
+            && import.alias.is_none()
             && (import.path.ends_with(symbol_name)
                 && (import.path.len() == symbol_name.len()
                     || import.path.as_bytes()[import.path.len() - symbol_name.len() - 1] == b'.'));

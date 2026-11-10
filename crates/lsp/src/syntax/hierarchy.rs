@@ -176,6 +176,7 @@ pub fn resolve_extension_container(
         .find_map(|imp| {
             let is_alias = imp.alias.as_deref() == Some(clean);
             let is_explicit = !imp.is_star
+                && imp.alias.is_none()
                 && (imp.path.ends_with(clean)
                     && (imp.path.len() == clean.len()
                         || imp.path.as_bytes()[imp.path.len() - clean.len() - 1] == b'.'));

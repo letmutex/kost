@@ -7,7 +7,9 @@ use super::call_parser::{CallInfo, parse_call_expression};
 use super::constructor::find_constructor_return_type;
 use super::context::InferenceContext;
 use super::overload::{TypedCandidate, score_typed_candidate};
-use super::qualification::{is_container_member_imported, is_declaration_visible, qualify_type};
+use super::qualification::{
+    is_aliased_import_target, is_container_member_imported, is_declaration_visible, qualify_type,
+};
 use super::scope_function::collect_visible_containers_url_depth;
 pub use super::scope_stack::infer_single_expression_function_return_type;
 use super::scope_stack::infer_single_expression_with_root;
@@ -221,6 +223,7 @@ fn find_definition_function_return_type(
     let real_name = imp.path.rsplit('.').next().unwrap_or(fn_name);
     for (url, decl) in ctx.index.name_to_decls.get(real_name)? {
         if matches!(decl.kind, SymbolKind::FUNCTION | SymbolKind::METHOD)
+            && is_aliased_import_target(ctx.index, imp, url.as_ref(), decl)
             && let Some(inferred) = resolve_candidate_decl_return_type(
                 ctx.sub(),
                 url.as_ref(),

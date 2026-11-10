@@ -21,6 +21,7 @@ mod inference {
     mod generic_extension_call;
     mod generic_parameter_binding;
     mod generic_trace;
+    mod import_disambiguation;
     mod infix;
     mod lambda;
     mod lambda_context;
